@@ -1,42 +1,17 @@
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * ============================================================================
- * PROYEK LMS SMA NEGERI 2 PADALARANG
- * DIAGRAM SEQUENCE 26: AKTOR GURU -> MELIHAT TUGAS / KUIS
- * (Halaman 63 SDD - Software Design Document Kelompok 6)
- * ============================================================================
- * 
- * PEMETAAN LIFELINE / OBJEK:
- * 1. Actor            : Guru
- * 2. UI Materi        : Boundary / Antarmuka Modul Pembelajaran (Materi & Tugas)
- * 3. Tugas            : Controller / Business Logic Service Pengelolaan Tugas
- * 4. Database         : Penyimpanan Data (Simulasi tabel tb_tugas_kuis)
- * 
- * ALUR PESAN (SEQUENCE MESSAGES):
- * [1] Guru -> UI Materi           : Pilih tugas / kuis
- * [2] UI Materi -> Tugas          : LihatTugasKuis()
- * [3] Tugas -> Database           : Ambil detail tugas / kuis
- * [4] Database --> Tugas          : Detail tugas / kuis
- * [5] Tugas --> UI Materi         : Detail tugas / kuis
- * [6] UI Materi --> Guru          : Tampilkan detail tugas / kuis
- * ============================================================================
- */
 public class LihatTugasKuis {
 
-    // Atribut data tugas / kuis
     private String idTugasKuis;
     private String judul;
-    private String jenis; // "Tugas" atau "Kuis"
+    private String jenis;
     private String deskripsi;
     private String tenggatWaktu;
     private String fileLampiran;
 
-    // Simulasi database tugas dan kuis (in-memory hash map)
     private static final Map<String, LihatTugasKuis> databaseTugas = new HashMap<>();
 
-    // Constructor
     public LihatTugasKuis(String idTugasKuis, String judul, String jenis, String deskripsi, String tenggatWaktu, String fileLampiran) {
         this.idTugasKuis = idTugasKuis;
         this.judul = judul;
@@ -46,7 +21,6 @@ public class LihatTugasKuis {
         this.fileLampiran = fileLampiran;
     }
 
-    // Getter
     public String getIdTugasKuis() { return idTugasKuis; }
     public String getJudul() { return judul; }
     public String getJenis() { return jenis; }
@@ -54,39 +28,30 @@ public class LihatTugasKuis {
     public String getTenggatWaktu() { return tenggatWaktu; }
     public String getFileLampiran() { return fileLampiran; }
 
-    // Menyimpan data awal ke database simulasi
     public static void simpanTugasAwal(String idTugasKuis, String judul, String jenis, String deskripsi, String tenggatWaktu, String fileLampiran) {
         databaseTugas.put(idTugasKuis, new LihatTugasKuis(idTugasKuis, judul, jenis, deskripsi, tenggatWaktu, fileLampiran));
     }
 
-    // ========================================================================
-    // ALUR LANGKAH SESUAI DIAGRAM SEQUENCE
-    // ========================================================================
-
-    // Langkah 1: Guru -> UI Materi: Pilih tugas / kuis
     public void pilihTugasKuis(String idTugasKuis) {
         System.out.println("\n[Aksi Guru] Guru memilih tugas / kuis dengan ID: '" + idTugasKuis + "'");
-        // Memanggil langkah 2
+
         lihatTugasKuis(idTugasKuis);
     }
 
-    // Langkah 2: UI Materi -> Tugas: LihatTugasKuis()
     public void lihatTugasKuis(String idTugasKuis) {
         System.out.println("[UI Materi] -> [Tugas]: Memanggil LihatTugasKuis('" + idTugasKuis + "')");
-        // Memanggil langkah 3
+
         ambilDetailTugasKuis(idTugasKuis);
     }
 
-    // Langkah 3: Tugas -> Database: Ambil detail tugas / kuis
     public void ambilDetailTugasKuis(String idTugasKuis) {
         System.out.println("[Tugas] -> [Database]: 'Ambil detail tugas / kuis' (SELECT * FROM tb_tugas WHERE id='" + idTugasKuis + "')");
 
         LihatTugasKuis detail = databaseTugas.get(idTugasKuis);
 
-        // Langkah 4: Database --> Tugas: Detail tugas / kuis
         if (detail != null) {
             System.out.println("[Database] <-- [Tugas]: Mengembalikan return 'Detail tugas / kuis'");
-            // Langkah 5: Tugas --> UI Materi: Detail tugas / kuis
+
             kirimDetailKeUI(detail);
         } else {
             System.out.println("[Database] <-- [Tugas]: Data tugas / kuis tidak ditemukan!");
@@ -94,14 +59,12 @@ public class LihatTugasKuis {
         }
     }
 
-    // Langkah 5: Tugas --> UI Materi: Detail tugas / kuis
     public void kirimDetailKeUI(LihatTugasKuis detail) {
         System.out.println("[Tugas] <-- [UI Materi]: Mengirimkan 'Detail tugas / kuis'");
-        // Memanggil langkah 6
+
         tampilkanDetailTugasKuis(detail);
     }
 
-    // Langkah 6: UI Materi --> Guru: Tampilkan detail tugas / kuis
     public void tampilkanDetailTugasKuis(LihatTugasKuis detail) {
         System.out.println("[UI Materi] <-- [Guru]: Tampilkan detail tugas / kuis");
         System.out.println("========================================================================");
@@ -116,15 +79,11 @@ public class LihatTugasKuis {
         System.out.println("========================================================================");
     }
 
-    // ========================================================================
-    // MAIN METHOD: SIMULASI PENGUJIAN
-    // ========================================================================
     public static void main(String[] args) {
         System.out.println("========================================================================");
         System.out.println("SIMULASI SEQUENCE 26: GURU MELIHAT TUGAS / KUIS");
         System.out.println("========================================================================");
 
-        // Menyiapkan data tugas / kuis di database simulasi
         LihatTugasKuis.simpanTugasAwal(
                 "TGS-MIPA-01",
                 "Fisika Terapan: Kinematika Gerak Lurus",
@@ -144,15 +103,12 @@ public class LihatTugasKuis {
 
         LihatTugasKuis app = new LihatTugasKuis("", "", "", "", "", "");
 
-        // SKENARIO 1: Guru melihat tugas yang tersedia
         System.out.println("\n>>> [UJI COBA 1: MELIHAT DETAIL TUGAS FISIKA] <<<");
         app.pilihTugasKuis("TGS-MIPA-01");
 
-        // SKENARIO 2: Guru melihat kuis yang tersedia
         System.out.println("\n>>> [UJI COBA 2: MELIHAT DETAIL KUIS BIOLOGI] <<<");
         app.pilihTugasKuis("KUIS-BIO-02");
 
-        // SKENARIO 3: Guru memilih ID yang tidak ada di sistem
         System.out.println("\n>>> [UJI COBA 3: DATA TIDAK DITEMUKAN] <<<");
         app.pilihTugasKuis("TGS-999-NOTFOUND");
 
