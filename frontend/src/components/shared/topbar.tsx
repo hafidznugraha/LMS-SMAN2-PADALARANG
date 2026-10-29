@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Menu, Bell, User as UserIcon } from "lucide-react";
 
 interface TopbarProps {
@@ -21,9 +22,20 @@ export function Topbar({ onToggleMobileNav, userRole = "Siswa", userName = "Peng
         >
           <Menu className="w-6 h-6" />
         </button>
-        <div className="hidden lg:block">
-          <h1 className="text-sm font-semibold text-slate-800">SMAN 2 Padalarang LMS</h1>
-          <p className="text-xs text-slate-500">Sistem Informasi Pembelajaran Terpadu</p>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center p-1 shrink-0">
+            <Image
+              src="/logo-sman2.png"
+              alt="Logo SMAN 2 Padalarang"
+              width={24}
+              height={24}
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-slate-900 leading-tight">SMAN 2 Padalarang LMS</h1>
+            <p className="text-[11px] text-slate-500 hidden sm:block">Sistem Informasi Pembelajaran Terpadu</p>
+          </div>
         </div>
       </div>
 

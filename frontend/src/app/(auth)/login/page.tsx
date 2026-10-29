@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { GraduationCap, Eye, EyeOff, Loader2, ShieldCheck, BookOpen, Clock, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, BookOpen, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loginUser, getRedirectPathByRole } from "@/lib/auth";
 
@@ -57,8 +58,15 @@ export default function LoginPage() {
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />
 
           <div className="relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center mb-6 shadow-inner">
-              <GraduationCap className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center mb-6 p-2 shadow-inner">
+              <Image
+                src="/logo-sman2.png"
+                alt="Logo SMAN 2 Padalarang"
+                width={48}
+                height={48}
+                className="w-full h-full object-contain drop-shadow-md"
+                priority
+              />
             </div>
             <span className="inline-block px-3 py-1 bg-blue-500/20 text-blue-200 text-xs font-semibold rounded-full border border-blue-400/30 mb-3 tracking-wide">
               SMAN 2 PADALARANG
@@ -94,8 +102,14 @@ export default function LoginPage() {
         <div className="col-span-1 md:col-span-7 p-6 sm:p-10 flex flex-col justify-between">
           <div>
             <div className="flex flex-col items-center text-center md:items-start md:text-left mb-6">
-              <div className="md:hidden w-12 h-12 rounded-2xl bg-blue-900 text-white flex items-center justify-center shadow-md mb-3">
-                <GraduationCap className="w-7 h-7" />
+              <div className="md:hidden w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-md mb-3 p-2">
+                <Image
+                  src="/logo-sman2.png"
+                  alt="Logo SMAN 2 Padalarang"
+                  width={44}
+                  height={44}
+                  className="w-full h-full object-contain"
+                />
               </div>
               <h2 className="text-2xl font-black tracking-tight text-slate-900">LOGIN</h2>
               <p className="text-xs text-slate-500 mt-1">

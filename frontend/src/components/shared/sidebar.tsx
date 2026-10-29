@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -69,9 +70,20 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
 
   return (
     <aside className={cn("flex flex-col h-full bg-[#1E3A8A] text-white", className)}>
-      <div className="p-6 border-b border-blue-800/60">
-        <h2 className="text-lg font-bold tracking-tight">LMS SMA</h2>
-        <p className="text-xs text-blue-200 mt-0.5">Sistem Pembelajaran SMAN 2</p>
+      <div className="p-5 border-b border-blue-800/60 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center p-1.5 shrink-0 shadow-inner">
+          <Image
+            src="/logo-sman2.png"
+            alt="Logo SMAN 2 Padalarang"
+            width={32}
+            height={32}
+            className="w-full h-full object-contain drop-shadow-sm"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-bold tracking-tight text-white leading-tight truncate">SMAN 2 Padalarang</h2>
+          <p className="text-[11px] text-blue-200 mt-0.5 truncate">LMS Terpadu</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
