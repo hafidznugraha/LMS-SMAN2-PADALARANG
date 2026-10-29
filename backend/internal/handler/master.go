@@ -246,6 +246,198 @@ func (h *MasterHandler) GetMapelList(c *fiber.Ctx) error {
 	})
 }
 
+func (h *MasterHandler) CreateMapel(c *fiber.Ctx) error {
+	var req model.CreateMapelRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format payload tidak valid",
+			Error:   err.Error(),
+		})
+	}
+
+	req.KodeMapel = strings.TrimSpace(req.KodeMapel)
+	req.NamaMapel = strings.TrimSpace(req.NamaMapel)
+	req.Kategori = strings.TrimSpace(req.Kategori)
+
+	if req.KodeMapel == "" || req.NamaMapel == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Kode mata pelajaran dan nama mata pelajaran wajib diisi",
+		})
+	}
+
+	if req.Kategori == "" {
+		req.Kategori = "Umum"
+	}
+
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	var existing model.MataPelajaran
+	if err := db.Where("LOWER(kode_mapel) = LOWER(?)", req.KodeMapel).First(&existing).Error; err == nil {
+		return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+			Success: false,
+			Message: "Mata pelajaran dengan kode tersebut sudah terdaftar",
+		})
+	}
+
+	newMapel := model.MataPelajaran{
+		KodeMapel: req.KodeMapel,
+		NamaMapel: req.NamaMapel,
+		Kategori:  req.Kategori,
+	}
+
+	if err := db.Create(&newMapel).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menyimpan data mata pelajaran",
+			Error:   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
+		Success: true,
+		Message: "Data mata pelajaran berhasil ditambahkan",
+		Data:    newMapel,
+	})
+}
+
+func (h *MasterHandler) UpdateMapel(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	targetID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID mata pelajaran tidak valid",
+		})
+	}
+
+	var req model.UpdateMapelRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format payload tidak valid",
+			Error:   err.Error(),
+		})
+	}
+
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	var mapel model.MataPelajaran
+	if err := db.First(&mapel, "id = ?", targetID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Mata pelajaran tidak ditemukan",
+		})
+	}
+
+	req.KodeMapel = strings.TrimSpace(req.KodeMapel)
+	req.NamaMapel = strings.TrimSpace(req.NamaMapel)
+	req.Kategori = strings.TrimSpace(req.Kategori)
+
+	if req.KodeMapel != "" && req.KodeMapel != mapel.KodeMapel {
+		var checkDuplicate model.MataPelajaran
+		if err := db.Where("LOWER(kode_mapel) = LOWER(?) AND id != ?", req.KodeMapel, targetID).First(&checkDuplicate).Error; err == nil {
+			return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+				Success: false,
+				Message: "Mata pelajaran dengan kode tersebut sudah terdaftar",
+			})
+		}
+		mapel.KodeMapel = req.KodeMapel
+	}
+
+	if req.NamaMapel != "" {
+		mapel.NamaMapel = req.NamaMapel
+	}
+	if req.Kategori != "" {
+		mapel.Kategori = req.Kategori
+	}
+
+	if err := db.Save(&mapel).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal memperbarui data mata pelajaran",
+			Error:   err.Error(),
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Data mata pelajaran berhasil diperbarui",
+		Data:    mapel,
+	})
+}
+
+func (h *MasterHandler) DeleteMapel(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	targetID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID mata pelajaran tidak valid",
+		})
+	}
+
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	var countJadwal int64
+	db.Model(&model.JadwalPelajaran{}).Where("mapel_id = ?", targetID).Count(&countJadwal)
+	if countJadwal > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Mata pelajaran tidak dapat dihapus karena masih digunakan pada jadwal pelajaran",
+		})
+	}
+
+	var countMateri int64
+	db.Model(&model.Materi{}).Where("mapel_id = ?", targetID).Count(&countMateri)
+	if countMateri > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Mata pelajaran tidak dapat dihapus karena masih digunakan pada materi pembelajaran",
+		})
+	}
+
+	res := db.Delete(&model.MataPelajaran{}, "id = ?", targetID)
+	if res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menghapus mata pelajaran",
+			Error:   res.Error.Error(),
+		})
+	}
+
+	if res.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Mata pelajaran tidak ditemukan",
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Mata pelajaran berhasil dihapus",
+	})
+}
+
 func (h *MasterHandler) GetGuruList(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {

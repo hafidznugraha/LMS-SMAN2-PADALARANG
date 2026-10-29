@@ -132,4 +132,56 @@ func TestMasterAndJadwalEndpoints(t *testing.T) {
 			t.Errorf("Expected 400, got %d", resp.StatusCode)
 		}
 	})
+
+	t.Run("Create mapel oleh siswa harus return 403 Forbidden", func(t *testing.T) {
+		payload := model.CreateMapelRequest{
+			KodeMapel: "INF-X",
+			NamaMapel: "Informatika",
+			Kategori:  "Umum",
+		}
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/master/mapel", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+siswaToken)
+
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request: %v", err)
+		}
+		if resp.StatusCode != http.StatusForbidden {
+			t.Errorf("Expected 403, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("Create mapel dengan field kosong harus return 400 Bad Request", func(t *testing.T) {
+		payload := model.CreateMapelRequest{
+			KodeMapel: "",
+			NamaMapel: "",
+		}
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/master/mapel", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+kurikulumToken)
+
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request: %v", err)
+		}
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("Delete mapel dengan invalid UUID harus return 400 Bad Request", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/master/mapel/bukan-uuid", nil)
+		req.Header.Set("Authorization", "Bearer "+kurikulumToken)
+
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request: %v", err)
+		}
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", resp.StatusCode)
+		}
+	})
 }

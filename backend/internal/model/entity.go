@@ -193,6 +193,18 @@ type UpdateKelasRequest struct {
 	WaliGuruID string `json:"wali_guru_id,omitempty"`
 }
 
+type CreateMapelRequest struct {
+	KodeMapel string `json:"kode_mapel"`
+	NamaMapel string `json:"nama_mapel"`
+	Kategori  string `json:"kategori"`
+}
+
+type UpdateMapelRequest struct {
+	KodeMapel string `json:"kode_mapel"`
+	NamaMapel string `json:"nama_mapel"`
+	Kategori  string `json:"kategori"`
+}
+
 type CreateJadwalRequest struct {
 	KelasID    string `json:"kelas_id"`
 	GuruID     string `json:"guru_id"`

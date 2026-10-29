@@ -61,6 +61,7 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/jadwal", label: "Kelola Jadwal", icon: Calendar },
       { href: "/admin/kelas", label: "Data Kelas", icon: Building2 },
+      { href: "/admin/mapel", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/admin/siswa", label: "Data Siswa", icon: Users },
       { href: "/admin/guru", label: "Data Guru", icon: User },
     ],

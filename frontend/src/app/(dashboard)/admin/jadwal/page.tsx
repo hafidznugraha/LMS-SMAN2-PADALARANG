@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Plus,
   ChevronDown,
@@ -458,18 +459,31 @@ export default function KelolaJadwalPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Mata Pelajaran</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">Mata Pelajaran</label>
+                  <Link
+                    href="/admin/mapel"
+                    target="_blank"
+                    className="text-[11px] text-blue-900 font-semibold hover:underline"
+                  >
+                    + Kelola Mapel
+                  </Link>
+                </div>
                 <select
                   value={formMapelId}
                   onChange={(e) => setFormMapelId(e.target.value)}
                   required
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
                 >
-                  {mapelList.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nama_mapel} ({m.kode_mapel})
-                    </option>
-                  ))}
+                  {mapelList.length === 0 ? (
+                    <option value="">Belum ada data mata pelajaran</option>
+                  ) : (
+                    mapelList.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nama_mapel} ({m.kode_mapel})
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

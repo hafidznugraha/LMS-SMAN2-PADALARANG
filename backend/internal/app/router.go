@@ -55,6 +55,9 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	master.Put("/kelas/:id", middleware.RequireRole(model.RoleKurikulum), masterHandler.UpdateKelas)
 	master.Delete("/kelas/:id", middleware.RequireRole(model.RoleKurikulum), masterHandler.DeleteKelas)
 	master.Get("/mapel", masterHandler.GetMapelList)
+	master.Post("/mapel", middleware.RequireRole(model.RoleKurikulum), masterHandler.CreateMapel)
+	master.Put("/mapel/:id", middleware.RequireRole(model.RoleKurikulum), masterHandler.UpdateMapel)
+	master.Delete("/mapel/:id", middleware.RequireRole(model.RoleKurikulum), masterHandler.DeleteMapel)
 	master.Get("/guru", masterHandler.GetGuruList)
 	master.Get("/siswa", masterHandler.GetSiswaList)
 

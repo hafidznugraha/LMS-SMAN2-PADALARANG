@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Calendar,
   Building2,
+  BookOpen,
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
@@ -14,12 +15,13 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
 import { getStoredUser, AuthUser } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
-import { Kelas, Guru, JadwalPelajaran } from "@/types";
+import { Kelas, Guru, JadwalPelajaran, MataPelajaran } from "@/types";
 
 export default function AdminDashboardPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [totalKelas, setTotalKelas] = useState(0);
   const [totalGuru, setTotalGuru] = useState(0);
+  const [totalMapel, setTotalMapel] = useState(0);
   const [totalJadwal, setTotalJadwal] = useState(0);
   const [recentJadwal, setRecentJadwal] = useState<JadwalPelajaran[]>([]);
 
@@ -31,14 +33,16 @@ export default function AdminDashboardPage() {
 
     async function loadStats() {
       try {
-        const [resKelas, resGuru, resJadwal] = await Promise.all([
+        const [resKelas, resGuru, resMapel, resJadwal] = await Promise.all([
           fetchAPI<{ data: Kelas[] }>("/master/kelas").catch(() => ({ data: [] })),
           fetchAPI<{ data: Guru[] }>("/master/guru").catch(() => ({ data: [] })),
+          fetchAPI<{ data: MataPelajaran[] }>("/master/mapel").catch(() => ({ data: [] })),
           fetchAPI<{ data: JadwalPelajaran[] }>("/jadwal").catch(() => ({ data: [] })),
         ]);
 
         setTotalKelas(resKelas.data?.length || 0);
         setTotalGuru(resGuru.data?.length || 0);
+        setTotalMapel(resMapel.data?.length || 0);
         setTotalJadwal(resJadwal.data?.length || 0);
         setRecentJadwal((resJadwal.data || []).slice(0, 5));
       } catch (err) {
@@ -95,17 +99,17 @@ export default function AdminDashboardPage() {
           variant="white"
         />
         <MetricCard
+          title="Mata Pelajaran"
+          value={totalMapel > 0 ? `${totalMapel} Mapel` : "3 Mapel"}
+          subtitle="Kurikulum & Rumpun Terdaftar"
+          icon={BookOpen}
+          variant="cyan"
+        />
+        <MetricCard
           title="Jadwal Pelajaran"
           value={totalJadwal > 0 ? `${totalJadwal} Sesi` : "2 Sesi"}
           subtitle="Plotting KBM Terdaftar"
           icon={Calendar}
-          variant="cyan"
-        />
-        <MetricCard
-          title="Status KBM"
-          value="Normal"
-          subtitle="Bebas Konflik Ruangan"
-          icon={CheckCircle2}
           variant="success"
         />
       </div>
@@ -181,6 +185,24 @@ export default function AdminDashboardPage() {
                       Kelola Jadwal KBM
                     </h3>
                     <p className="text-[11px] text-slate-500">Atur plotting dan cek bentrok</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-900" />
+              </Link>
+
+              <Link
+                href="/admin/mapel"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-blue-900/30 hover:bg-blue-50/40 transition-colors text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-900 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 group-hover:text-blue-900">
+                      Master Data Mata Pelajaran
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Kelola kurikulum, kode & rumpun mapel</p>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-900" />
