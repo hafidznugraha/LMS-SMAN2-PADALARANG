@@ -581,7 +581,8 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Role == model.RoleGuru || req.Role == model.RoleWaliKelas {
+	switch req.Role {
+	case model.RoleGuru, model.RoleWaliKelas:
 		if req.NIP != "" {
 			newGuru := model.Guru{
 				UserID:    newUser.ID,
@@ -598,7 +599,7 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 				})
 			}
 		}
-	} else if req.Role == model.RoleSiswa {
+	case model.RoleSiswa:
 		if req.NIS != "" && req.NISN != "" {
 			var parsedKelasID *uuid.UUID
 			if req.KelasID != "" {
