@@ -17,6 +17,7 @@ Proyek ini dikembangkan untuk memenuhi tugas mata kuliah **Prak. Implementasi da
 
 - [PRD.md](PRD.md) : *Product Requirement Document* (PRD) versi 1.0.0.
 - [PRD_LMS_SMAN2_Padalarang.pdf](PRD_LMS_SMAN2_Padalarang.pdf) : Dokumen PRD versi PDF resmi.
+- [DESIGN.md](DESIGN.md) : *Design System & UI/UX Specification* (Acuan Figma & SDD Mobile vs Desktop).
 - `SOFTWARE REQUIREMENT SPESIFICATION_KELOMPOK 6.pdf` : Dokumen Spesifikasi Kebutuhan Perangkat Lunak (SRS).
 - `SofwareDesignDocument_kelompok6.pdf` : Dokumen Desain Perangkat Lunak (SDD).
 
