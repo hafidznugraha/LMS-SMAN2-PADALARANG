@@ -1,12 +1,33 @@
 import { UserRole } from "@/types";
 
+export interface KelasBinaanInfo {
+  id: string;
+  nama_kelas: string;
+  tingkat: number;
+  jurusan: string;
+}
+
+export interface AuthUserExtra {
+  guru_id?: string;
+  nip?: string;
+  gelar?: string;
+  no_telepon?: string;
+  is_wali_kelas?: boolean;
+  kelas_binaan?: KelasBinaanInfo[];
+  siswa_id?: string;
+  nis?: string;
+  nisn?: string;
+  kelas?: unknown;
+  [key: string]: unknown;
+}
+
 export interface AuthUser {
   id: string;
   username: string;
   nama_lengkap: string;
   email: string;
   role: UserRole;
-  extra?: Record<string, unknown>;
+  extra?: AuthUserExtra;
 }
 
 export interface LoginResult {
@@ -47,6 +68,13 @@ export function setAuthSession(data: LoginResult, rememberMe: boolean = false) {
   if (typeof window !== "undefined") {
     localStorage.setItem("lms_user", JSON.stringify(data.user));
     localStorage.setItem("lms_access_token", data.access_token);
+  }
+}
+
+export function updateStoredAccessToken(newToken: string) {
+  setCookie("lms_access_token", newToken, 1);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("lms_access_token", newToken);
   }
 }
 

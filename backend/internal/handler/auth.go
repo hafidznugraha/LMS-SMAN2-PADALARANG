@@ -96,7 +96,7 @@ func LoginHandler(cfg *config.Config) fiber.Handler {
 			})
 		}
 
-		accessExp := time.Now().Add(15 * time.Minute)
+		accessExp := time.Now().Add(24 * time.Hour)
 		accessClaims := jwt.MapClaims{
 			"user_id":      user.ID.String(),
 			"username":     user.Username,
@@ -163,7 +163,7 @@ func LoginHandler(cfg *config.Config) fiber.Handler {
 			Data: LoginResponseData{
 				AccessToken: accessToken,
 				TokenType:   "Bearer",
-				ExpiresIn:   900,
+				ExpiresIn:   86400,
 				User:        profile,
 			},
 		})
@@ -232,7 +232,7 @@ func RefreshTokenHandler(cfg *config.Config) fiber.Handler {
 			})
 		}
 
-		accessExp := time.Now().Add(15 * time.Minute)
+		accessExp := time.Now().Add(24 * time.Hour)
 		accessClaims := jwt.MapClaims{
 			"user_id":      user.ID.String(),
 			"username":     user.Username,
@@ -257,7 +257,7 @@ func RefreshTokenHandler(cfg *config.Config) fiber.Handler {
 			Data: fiber.Map{
 				"access_token": newAccessToken,
 				"token_type":   "Bearer",
-				"expires_in":   900,
+				"expires_in":   86400,
 			},
 		})
 	}
@@ -352,12 +352,14 @@ func fetchExtraUserData(userID uuid.UUID, role model.UserRole) interface{} {
 		}
 	case model.RoleGuru, model.RoleWaliKelas:
 		var guru model.Guru
-		if err := repository.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
+		if err := repository.DB.Preload("KelasBinaan").Where("user_id = ?", userID).First(&guru).Error; err == nil {
 			return fiber.Map{
-				"guru_id":    guru.ID,
-				"nip":        guru.NIP,
-				"gelar":      guru.Gelar,
-				"no_telepon": guru.NoTelepon,
+				"guru_id":       guru.ID,
+				"nip":           guru.NIP,
+				"gelar":         guru.Gelar,
+				"no_telepon":    guru.NoTelepon,
+				"is_wali_kelas": len(guru.KelasBinaan) > 0,
+				"kelas_binaan":  guru.KelasBinaan,
 			}
 		}
 	}

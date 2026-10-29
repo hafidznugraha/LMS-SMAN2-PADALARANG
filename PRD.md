@@ -43,19 +43,26 @@ Sistem dirancang sebagai aplikasi web responsif (*responsive web-based applicati
 
 ## 2. Karakteristik Pengguna & Matriks Hak Akses (RBAC)
 
-Sistem mengimplementasikan skema *Role-Based Access Control* (RBAC) yang membagi hak akses ke dalam 4 peran utama:
+Sistem mengimplementasikan skema *Role-Based Access Control* (RBAC) terpadu dengan arsitektur **Dynamic Contextual Duty** yang merefleksikan proses bisnis operasional sekolah nyata di Indonesia:
 
 | Peran (Role) | Deskripsi Tanggung Jawab | Kredensial Utama |
 | :--- | :--- | :--- |
-| **Kurikulum** | Administrator data akademik tingkat sekolah. Bertanggung jawab atas master data siswa, guru, kelas, pemantauan absensi lintas kelas, dan finalisasi laporan nilai akhir sekolah. | NIP & Email Resmi |
-| **Guru** | Tenaga pendidik yang mengampu mata pelajaran. Berwenang mengelola materi ajar, membuat dan menilai tugas/kuis, serta memvalidasi kehadiran siswa pada sesinya. | NIP & Email Resmi |
-| **Siswa** | Peserta didik terdaftar. Berhak mengakses dan mengunduh materi, melakukan absensi mandiri pada jam pelajaran, mengumpulkan tugas, serta melihat nilai dan umpan balik. | NIS & Email Resmi |
-| **Wali Kelas** | Guru yang ditugaskan membina satu kelas tertentu. Berhak memantau rekap absensi harian kelas binaannya, meninjau kompilasi nilai akhir, serta memberikan catatan pembinaan. | NIP & Email Resmi |
+| **Kurikulum** | Administrator data akademik tingkat sekolah. Bertanggung jawab penuh atas master data siswa, guru, kelas, plotting jadwal pelajaran bebas bentrok, pemantauan absensi lintas kelas, dan finalisasi/pengesahan buku leger nilai akhir sekolah. | NIP & Email Resmi |
+| **Guru** | Tenaga pendidik yang mengampu mata pelajaran. Berwenang mengelola materi ajar, membuat dan menilai tugas/kuis, serta memvalidasi kehadiran siswa pada sesinya. Apabila ditugaskan sebagai **Wali Kelas** (tugas tambahan), guru mendapatkan hak akses kontekstual untuk membina rombelnya. | NIP & Email Resmi |
+| **Siswa** | Peserta didik terdaftar. Berhak mengakses dan mengunduh materi, melakukan absensi mandiri pada jam pelajaran, mengumpulkan tugas, serta melihat riwayat nilai dan umpan balik. | NIS & Email Resmi |
+| **Wali Kelas (Tugas Tambahan)** | Peran penugasan kontekstual yang diemban oleh Guru aktif. Berhak memantau rekap absensi harian kelas binaannya, meninjau kompilasi draf nilai rapor seluruh mapel rombel, serta memberikan catatan pembinaan karakter pada buku leger. | NIP & Email Resmi |
+
+> [!NOTE]
+> **Arsitektur Wewenang Ganda (Dual Role) Guru & Wali Kelas:**
+> Di sekolah nyata (khususnya jenjang SMA di Indonesia), Wali Kelas bukanlah profesi yang berdiri sendiri tanpa mengajar, melainkan guru aktif yang memperoleh penugasan pembinaan satu rombongan belajar (rombel). Oleh karena itu, sistem mengadopsi prinsip *Dynamic Contextual Duty*:
+> 1. Akun pengguna dasar bagi seluruh pendidik adalah `guru`.
+> 2. Penugasan sebagai **Wali Kelas** ditentukan secara dinamis melalui relasi rombel (`kelas.wali_guru_id`).
+> 3. Seorang guru yang ditugaskan sebagai wali kelas dapat mengakses modul pembelajaran mata pelajarannya secara penuh (materi, tugas, kuis, nilai), sekaligus mengakses panel pembinaan rombel (*monitoring kehadiran kelas binaan dan pengisian catatan rapor*) dalam satu sesi akun tunggal tanpa perlu berganti login.
 
 ### Matriks Akses Data (CRUD Permissions)
 Berdasarkan dokumen SRS Bab V Bagian 4.1.B:
 
-| Modul Data | Kurikulum | Guru Pengampu | Siswa | Wali Kelas |
+| Modul Data | Kurikulum | Guru Pengampu | Siswa | Wali Kelas (Kelas Binaan) |
 | :--- | :---: | :---: | :---: | :---: |
 | **Master Data User & Siswa** | **CRUD** (Penuh) | **R** (Hanya Baca) | **R** (Profil Pribadi) | **R** (Hanya Baca) |
 | **Materi Pembelajaran** | **R** (Monitoring) | **CRUD** (Milik Sendiri) | **R** / Download | **R** (Hanya Baca) |
@@ -74,7 +81,7 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 ### Modul 1: Autentikasi & Manajemen Sesi Pengguna
 - **FR-AUTH-01 (Login Multi-Role)**: Pengguna dapat masuk ke sistem menggunakan email resmi sekolah dan kata sandi yang telah terenkripsi.
 - **FR-AUTH-02 (Verifikasi Sesi)**: Sistem memverifikasi kredensial dan mencocokkan status akun (`aktif = true`). Jika tidak aktif atau tidak cocok, sistem menolak autentikasi dan menampilkan pesan galat.
-- **FR-AUTH-03 (Role-Based Routing)**: Setelah login berhasil, sistem secara otomatis mengarahkan pengguna ke *dashboard* yang sesuai dengan perannya (`/dashboard/kurikulum`, `/dashboard/guru`, `/dashboard/siswa`, `/dashboard/walikelas`).
+- **FR-AUTH-03 (Role-Based Routing & Contextual Navigation)**: Setelah login berhasil, sistem secara otomatis mengarahkan pengguna ke *dashboard* yang sesuai dengan perannya (`/admin/jadwal` untuk Kurikulum, `/guru` untuk Guru/Wali Kelas, `/siswa` untuk Siswa). Bagi guru yang mengemban tugas tambahan sebagai wali kelas, sistem secara otomatis mengaktifkan modul navigasi kontekstual *Kelas Binaan* (`/wali-kelas`) di dalam dashboard gurunya.
 - **FR-AUTH-04 (Remember Me & Keamanan Sesi)**: Opsi pengingat sesi berbasis token aman (*HTTP-only cookies*) dan kemampuan logout untuk menghancurkan token sesi.
 
 ### Modul 2: Pengelolaan Data Master Akademik & Pengguna (Kurikulum)
@@ -147,14 +154,16 @@ flowchart TD
     GenerateToken --> DispatchRole{"Evaluasi Role Pengguna"}
     
     DispatchRole -- Kurikulum --> DashKuri[Arahkan ke Dashboard Kurikulum]
-    DispatchRole -- Guru --> DashGuru[Arahkan ke Dashboard Guru]
     DispatchRole -- Siswa --> DashSiswa[Arahkan ke Dashboard Siswa]
-    DispatchRole -- Wali Kelas --> DashWali[Arahkan ke Dashboard Wali Kelas]
+    DispatchRole -- Guru --> CekWali{"Memiliki Tugas Tambahan Wali Kelas?"}
+    
+    CekWali -- Ya --> DashGuruWali[Dashboard Guru +\nModul Kontekstual Kelas Binaan]
+    CekWali -- Tidak --> DashGuruOnly[Dashboard Guru Pengampu Reguler]
     
     DashKuri --> Selesai([Selesai])
-    DashGuru --> Selesai
+    DashGuruWali --> Selesai
+    DashGuruOnly --> Selesai
     DashSiswa --> Selesai
-    DashWali --> Selesai
 ```
 
 ---
@@ -783,7 +792,7 @@ LMS-SMAN2-PADALARANG/
 ```text
 +-----------------------------------------------------------------------------------+
 |                        FRONTEND CLIENT (Next.js on :3000)                         |
-|  - App Router: (auth), /dashboard/kurikulum, /guru, /siswa, /walikelas            |
+|  - App Router: (auth), /admin, /guru, /siswa, /wali-kelas                         |
 |  - UI Layer: Tailwind CSS + Lucide Icons + Responsive Data Tables                 |
 |  - API Client: Axios/Fetch + JWT Bearer Token Header                              |
 +-----------------------------------------------------------------------------------+

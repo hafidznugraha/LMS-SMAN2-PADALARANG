@@ -78,9 +78,14 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data jadwal kurikulum"})
 	})
 
-	guru := protected.Group("/guru", middleware.RequireRole(model.RoleGuru))
+	guru := protected.Group("/guru", middleware.RequireRole(model.RoleGuru, model.RoleWaliKelas))
 	guru.Get("/materi", func(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data materi guru"})
+	})
+
+	wali := protected.Group("/wali-kelas", middleware.RequireRole(model.RoleGuru, model.RoleWaliKelas))
+	wali.Get("/summary", func(c *fiber.Ctx) error {
+		return c.JSON(model.APIResponse{Success: true, Message: "Data pembinaan wali kelas"})
 	})
 
 	siswa := protected.Group("/siswa", middleware.RequireRole(model.RoleSiswa))

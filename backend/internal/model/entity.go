@@ -63,12 +63,13 @@ func (Siswa) TableName() string {
 }
 
 type Guru struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID    uuid.UUID `gorm:"type:uuid;unique;not null" json:"user_id"`
-	NIP       string    `gorm:"size:30;unique;not null" json:"nip"`
-	Gelar     string    `gorm:"size:50" json:"gelar"`
-	NoTelepon string    `gorm:"size:20" json:"no_telepon"`
-	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID      uuid.UUID `gorm:"type:uuid;unique;not null" json:"user_id"`
+	NIP         string    `gorm:"size:30;unique;not null" json:"nip"`
+	Gelar       string    `gorm:"size:50" json:"gelar"`
+	NoTelepon   string    `gorm:"size:20" json:"no_telepon"`
+	User        User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	KelasBinaan []Kelas   `gorm:"foreignKey:WaliGuruID" json:"kelas_binaan,omitempty"`
 }
 
 func (Guru) TableName() string {

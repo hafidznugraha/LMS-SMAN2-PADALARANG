@@ -197,7 +197,7 @@ export default function MasterGuruPage() {
                 <tr className="border-b border-slate-100 text-slate-400 font-semibold">
                   <th className="py-3 px-3">Nama & Gelar</th>
                   <th className="py-3 px-3">NIP</th>
-                  <th className="py-3 px-3">Peran Akun</th>
+                  <th className="py-3 px-3">Penugasan & Peran</th>
                   <th className="py-3 px-3">Email & Kontak</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Aksi</th>
@@ -215,9 +215,25 @@ export default function MasterGuruPage() {
                     </td>
                     <td className="py-3 px-3 font-medium text-slate-800">{item.nip}</td>
                     <td className="py-3 px-3">
-                      <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 font-semibold text-[11px] capitalize">
-                        {item.user?.role?.replace("_", " ") || "Guru"}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-semibold text-[10px]">
+                          Guru Pengampu
+                        </span>
+                        {item.kelas_binaan && item.kelas_binaan.length > 0 ? (
+                          item.kelas_binaan.map((k) => (
+                            <span
+                              key={k.id}
+                              className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/70 font-semibold text-[10px]"
+                            >
+                              Wali Kelas {k.nama_kelas}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] text-slate-400">
+                            Bukan Wali Kelas
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3">
                       <div>{item.user?.email}</div>
@@ -299,14 +315,15 @@ export default function MasterGuruPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Peran Akun</label>
-                  <select
-                    value={formRole}
-                    onChange={(e) => setFormRole(e.target.value as "guru" | "wali_kelas")}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
-                  >
-                    <option value="guru">Guru Pengampu</option>
-                    <option value="wali_kelas">Wali Kelas</option>
-                  </select>
+                  <input
+                    type="text"
+                    disabled
+                    value="Guru Pengampu"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-100 text-slate-600 font-medium cursor-not-allowed"
+                  />
+                  <p className="text-[11px] text-slate-400 pt-0.5">
+                    Penugasan tugas tambahan Wali Kelas dilakukan di menu Data Kelas.
+                  </p>
                 </div>
               </div>
 

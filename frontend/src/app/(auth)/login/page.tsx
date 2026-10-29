@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, ShieldCheck, BookOpen, Clock, AlertCircle } from "lucide-react";
@@ -14,7 +14,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isExpired, setIsExpired] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("expired") === "1") {
+        setIsExpired(true);
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +42,23 @@ export default function LoginPage() {
 
     try {
       const result = await loginUser(trimmedUsername, trimmedPassword, rememberMe);
-      const targetPath = getRedirectPathByRole(result.user.role);
-      router.push(targetPath);
+      const defaultPath = getRedirectPathByRole(result.user.role);
+
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const fromParam = params.get("from");
+        if (
+          fromParam &&
+          fromParam.startsWith("/") &&
+          !fromParam.startsWith("//") &&
+          !fromParam.startsWith("/login")
+        ) {
+          router.push(fromParam);
+          return;
+        }
+      }
+
+      router.push(defaultPath);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setErrorMessage(err.message);
@@ -116,6 +141,18 @@ export default function LoginPage() {
                 Silakan masukkan kredensial akun akademik Anda
               </p>
             </div>
+
+            {isExpired && !errorMessage && (
+              <div
+                role="alert"
+                className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-xs text-amber-800 animate-in fade-in slide-in-from-top-1"
+              >
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="font-medium">
+                  Sesi Anda telah berakhir demi keamanan. Silakan masuk kembali ke sistem.
+                </span>
+              </div>
+            )}
 
             {errorMessage && (
               <div

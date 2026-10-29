@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { logoutUser } from "@/lib/auth";
+import { logoutUser, getStoredUser, AuthUser } from "@/lib/auth";
 
 interface SidebarProps {
   role?: "siswa" | "guru" | "wali_kelas" | "kurikulum";
@@ -30,11 +30,26 @@ interface SidebarProps {
 export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setCurrentUser(getStoredUser());
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
     router.push("/login");
   };
+
+  const isTeacherRole = role === "guru" || role === "wali_kelas";
+  const isWali =
+    isTeacherRole &&
+    (Boolean(currentUser?.extra?.is_wali_kelas) ||
+      Boolean(currentUser?.extra?.kelas_binaan && currentUser.extra.kelas_binaan.length > 0) ||
+      currentUser?.role === "wali_kelas" ||
+      role === "wali_kelas");
+
+  const kelasBinaanName = currentUser?.extra?.kelas_binaan?.[0]?.nama_kelas;
 
   const navLinks = {
     siswa: [
@@ -66,7 +81,10 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
       { href: "/admin/siswa", label: "Data Siswa", icon: Users },
       { href: "/admin/guru", label: "Data Guru", icon: User },
     ],
-  }[role];
+  };
+
+  const effectiveRole = role === "wali_kelas" ? "guru" : role;
+  const activeLinks = navLinks[effectiveRole] || navLinks.siswa;
 
   return (
     <aside className={cn("flex flex-col h-full bg-[#1E3A8A] text-white", className)}>
@@ -87,7 +105,7 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navLinks.map((item) => {
+        {activeLinks.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
 
@@ -108,6 +126,55 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
             </Link>
           );
         })}
+
+        {isWali && (
+          <div className="pt-4 mt-3 border-t border-blue-800/60">
+            <div className="px-3.5 pb-2 text-[10px] font-bold tracking-wider text-blue-200 uppercase">
+              Wali Kelas {kelasBinaanName ? `(${kelasBinaanName})` : ""}
+            </div>
+            <div className="space-y-1">
+              <Link
+                href="/wali-kelas"
+                onClick={onCloseMobile}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                  pathname === "/wali-kelas"
+                    ? "bg-white text-blue-900 font-semibold shadow-xs"
+                    : "text-blue-100 hover:bg-blue-800/60 hover:text-white"
+                )}
+              >
+                <LayoutDashboard className="w-5 h-5 shrink-0" />
+                <span>Ringkasan Rombel</span>
+              </Link>
+              <Link
+                href="/wali-kelas/kehadiran"
+                onClick={onCloseMobile}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                  pathname === "/wali-kelas/kehadiran"
+                    ? "bg-white text-blue-900 font-semibold shadow-xs"
+                    : "text-blue-100 hover:bg-blue-800/60 hover:text-white"
+                )}
+              >
+                <UserCheck className="w-5 h-5 shrink-0" />
+                <span>Kehadiran Kelas</span>
+              </Link>
+              <Link
+                href="/wali-kelas/raport"
+                onClick={onCloseMobile}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                  pathname === "/wali-kelas/raport"
+                    ? "bg-white text-blue-900 font-semibold shadow-xs"
+                    : "text-blue-100 hover:bg-blue-800/60 hover:text-white"
+                )}
+              >
+                <Award className="w-5 h-5 shrink-0" />
+                <span>Raport & Leger</span>
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       <div className="p-4 border-t border-blue-800/60">

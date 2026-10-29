@@ -16,6 +16,7 @@ export interface Guru {
   gelar: string;
   no_telepon?: string;
   user?: User;
+  kelas_binaan?: Kelas[];
 }
 
 export interface Kelas {

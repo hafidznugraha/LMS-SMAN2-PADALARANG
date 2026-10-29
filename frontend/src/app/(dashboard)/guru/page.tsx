@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Users,
   ClipboardCheck,
@@ -13,6 +14,7 @@ import {
   MapPin,
   ArrowRight,
   BookOpen,
+  ShieldCheck,
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,13 @@ export default function GuruDashboardPage() {
   }, []);
 
   const teacherName = currentUser?.nama_lengkap || "Dr. Siti Aminah, M.Pd";
+  const isWali = Boolean(
+    currentUser?.extra?.is_wali_kelas ||
+      (currentUser?.extra?.kelas_binaan && currentUser.extra.kelas_binaan.length > 0) ||
+      currentUser?.role === "wali_kelas"
+  );
+  const kelasBinaan = currentUser?.extra?.kelas_binaan?.[0];
+  const namaKelasBinaan = kelasBinaan?.nama_kelas || "XII IPA 1";
 
   return (
     <div className="space-y-6">
@@ -37,12 +46,20 @@ export default function GuruDashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Selamat Datang, {teacherName} 👏
           </h1>
-          <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-600">
             <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 font-semibold">
               Guru Pengampu
             </span>
+            {isWali && (
+              <>
+                <span>•</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-semibold border border-emerald-300/60">
+                  Wali Kelas {namaKelasBinaan}
+                </span>
+              </>
+            )}
             <span>•</span>
-            <span>NIP: 198505152010012001</span>
+            <span>NIP: {currentUser?.extra?.nip || "198505152010012001"}</span>
             <span>•</span>
             <span className="font-medium text-slate-800">Mata Pelajaran: Matematika Peminatan</span>
           </div>
@@ -59,6 +76,38 @@ export default function GuruDashboardPage() {
           </Button>
         </div>
       </div>
+
+      {isWali && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white shadow-md border border-emerald-700/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/30">
+                Tugas Tambahan Aktif
+              </span>
+              <span>Semester Ganjil 2026/2027</span>
+            </div>
+            <h2 className="text-base font-bold text-white">
+              Wali Kelas: Rombel {namaKelasBinaan}
+            </h2>
+            <p className="text-xs text-emerald-100/80">
+              Pantau rekap absensi harian dan kelola catatan rapor buku leger kelas binaan Anda.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link href="/wali-kelas">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-white text-emerald-950 hover:bg-emerald-50 border-0 text-xs font-semibold gap-1.5"
+              >
+                <span>Kelola Kelas Binaan</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard

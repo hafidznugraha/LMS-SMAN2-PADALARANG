@@ -447,7 +447,7 @@ func (h *MasterHandler) GetGuruList(c *fiber.Ctx) error {
 		})
 	}
 	var list []model.Guru
-	if err := db.Preload("User").Find(&list).Error; err != nil {
+	if err := db.Preload("User").Preload("KelasBinaan").Find(&list).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data guru",

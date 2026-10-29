@@ -2,7 +2,7 @@ INSERT INTO users (id, username, password_hash, nama_lengkap, email, role) VALUE
 ('a0000000-0000-0000-0000-000000000001', 'kurikulum_herman', '$2a$10$NSRcLGlGHV/lLpX8aoLsYO8zQKOB2Gdd9KLAG.XnZhrJ1lbEL0XXC', 'Drs. Herman Wijaya, M.M', 'herman.wijaya@sman2padalarang.sch.id', 'kurikulum'),
 ('b0000000-0000-0000-0000-000000000001', 'guru_sitiaminah', '$2a$10$NSRcLGlGHV/lLpX8aoLsYO8zQKOB2Gdd9KLAG.XnZhrJ1lbEL0XXC', 'Dr. Siti Aminah, M.Pd', 'siti.aminah@guru.sman2padalarang.sch.id', 'guru'),
 ('b0000000-0000-0000-0000-000000000002', 'guru_parhan', '$2a$10$NSRcLGlGHV/lLpX8aoLsYO8zQKOB2Gdd9KLAG.XnZhrJ1lbEL0XXC', 'Parhan Romdhoni, S.Si', 'parhan.romdhoni@guru.sman2padalarang.sch.id', 'guru'),
-('c0000000-0000-0000-0000-000000000001', 'wali_budisantoso', '$2a$10$NSRcLGlGHV/lLpX8aoLsYO8zQKOB2Gdd9KLAG.XnZhrJ1lbEL0XXC', 'Budi Santoso, S.Pd', 'budi.santoso@guru.sman2padalarang.sch.id', 'wali_kelas'),
+('c0000000-0000-0000-0000-000000000001', 'wali_budisantoso', '$2a$10$NSRcLGlGHV/lLpX8aoLsYO8zQKOB2Gdd9KLAG.XnZhrJ1lbEL0XXC', 'Budi Santoso, S.Pd', 'budi.santoso@guru.sman2padalarang.sch.id', 'guru'),
 ('d0000000-0000-0000-0000-000000000001', 'siswa_laura', '$2a$10$NSRcLGlGHV/lLpX8aoLsYO8zQKOB2Gdd9KLAG.XnZhrJ1lbEL0XXC', 'Laura Firdaus', 'laura.firdaus@siswa.sman2padalarang.sch.id', 'siswa')
 ON CONFLICT (id) DO NOTHING;
 
