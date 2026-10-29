@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { AlertConflict } from "@/components/ui/alert-conflict";
 
 export default function KelolaJadwalPage() {
-  const [selectedClass, setSelectedClass] = useState("XII IPA 1");
-  const [showConflict, setShowConflict] = useState(true);
+  const [selectedClass] = useState("XII IPA 1");
+  const [showConflict] = useState(true);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header Halaman */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
@@ -27,7 +26,6 @@ export default function KelolaJadwalPage() {
         </Button>
       </div>
 
-      {/* Peringatan Bentrok Jadwal (Sesuai Figma Kanvas) */}
       {showConflict && (
         <AlertConflict
           guru="Dr. Siti Aminah"
@@ -37,9 +35,7 @@ export default function KelolaJadwalPage() {
         />
       )}
 
-      {/* Kontainer Card Jadwal Pelajaran */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
-        {/* Header Card & Filter Kelas */}
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-slate-900">
             Jadwal Kelas {selectedClass}
@@ -50,7 +46,6 @@ export default function KelolaJadwalPage() {
           </div>
         </div>
 
-        {/* Tabel Timetable Responsif */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>

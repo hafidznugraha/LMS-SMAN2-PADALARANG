@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Format mata pelajaran ke kelas warna badge (sesuai DESIGN.md)
 export function getMapelBadgeClass(mapel: string): string {
   const lower = mapel.toLowerCase();
   if (lower.includes("matematika")) {

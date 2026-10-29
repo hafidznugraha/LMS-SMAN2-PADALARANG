@@ -9,7 +9,6 @@ import (
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 )
 
-// JWTProtected middleware untuk memverifikasi access token JWT di header Authorization
 func JWTProtected(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -51,7 +50,6 @@ func JWTProtected(cfg *config.Config) fiber.Handler {
 			})
 		}
 
-		// Simpan user context ke Locals Fiber
 		c.Locals("user_id", claims["user_id"])
 		c.Locals("username", claims["username"])
 		c.Locals("role", claims["role"])
@@ -60,7 +58,6 @@ func JWTProtected(cfg *config.Config) fiber.Handler {
 	}
 }
 
-// RequireRole middleware granular RBAC untuk membatasi endpoint berdasarkan peran
 func RequireRole(allowedRoles ...model.UserRole) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		userRoleStr, ok := c.Locals("role").(string)

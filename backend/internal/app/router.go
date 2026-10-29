@@ -11,16 +11,16 @@ import (
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 )
 
-// SetupRouter menginisialisasi aplikasi Fiber dan mendaftarkan rute
 func SetupRouter(cfg *config.Config) *fiber.App {
 	app := fiber.New(fiber.Config{
-		AppName:      "LMS SMAN 2 Padalarang API v1.0.0",
-		ServerHeader: "Fiber",
+		AppName:        "LMS SMAN 2 Padalarang API v1.0.0",
+		ServerHeader:   "Fiber",
+		ReadBufferSize: 32768,
 	})
 
-	// Middlewares global
 	app.Use(recover.New())
 	app.Use(logger.New())
+
 	allowCredentials := true
 	if cfg.AllowedOrigins == "*" {
 		allowCredentials = false
@@ -28,43 +28,34 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.AllowedOrigins,
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With",
 		AllowMethods:     "GET, POST, PUT, DELETE, PATCH, OPTIONS",
 		AllowCredentials: allowCredentials,
+		ExposeHeaders:    "Set-Cookie",
 	}))
 
-	// API Route Grouping: /api/v1
 	api := app.Group("/api/v1")
 
-	// Endpoint Publik
 	api.Get("/health", handler.HealthCheckHandler)
 
-	// Route Placeholder Autentikasi
 	auth := api.Group("/auth")
-	auth.Post("/login", func(c *fiber.Ctx) error {
-		// Mock login untuk tahap skeleton
-		return c.Status(fiber.StatusOK).JSON(model.APIResponse{
-			Success: true,
-			Message: "Endpoint login siap dikembangkan",
-		})
-	})
+	auth.Post("/login", handler.LoginHandler(cfg))
+	auth.Post("/refresh", handler.RefreshTokenHandler(cfg))
+	auth.Post("/logout", handler.LogoutHandler())
+	auth.Get("/me", middleware.JWTProtected(cfg), handler.MeHandler())
 
-	// Route Terproteksi JWT
 	protected := api.Group("", middleware.JWTProtected(cfg))
 
-	// Rute Khusus Kurikulum / Admin
 	kurikulum := protected.Group("/kurikulum", middleware.RequireRole(model.RoleKurikulum))
 	kurikulum.Get("/jadwal", func(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data jadwal kurikulum"})
 	})
 
-	// Rute Khusus Guru
 	guru := protected.Group("/guru", middleware.RequireRole(model.RoleGuru))
 	guru.Get("/materi", func(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data materi guru"})
 	})
 
-	// Rute Khusus Siswa
 	siswa := protected.Group("/siswa", middleware.RequireRole(model.RoleSiswa))
 	siswa.Get("/tugas", func(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data tugas siswa"})

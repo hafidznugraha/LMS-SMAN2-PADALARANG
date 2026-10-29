@@ -1,6 +1,5 @@
 package model
 
-// APIResponse merepresentasikan format JSON standar untuk seluruh endpoint REST API
 type APIResponse struct {
 	Success bool        `json:"success"`
 	Message string      `json:"message"`
@@ -8,7 +7,6 @@ type APIResponse struct {
 	Error   interface{} `json:"error,omitempty"`
 }
 
-// PaginatedResponse merepresentasikan response dengan navigasi pagination data
 type PaginatedResponse struct {
 	Success    bool        `json:"success"`
 	Message    string      `json:"message"`

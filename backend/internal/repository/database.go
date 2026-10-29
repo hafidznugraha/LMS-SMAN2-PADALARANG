@@ -9,10 +9,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// DB instance global database connection
 var DB *gorm.DB
 
-// InitDB menginisialisasi koneksi pool PostgreSQL Supabase
 func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	if cfg.DatabaseURL == "" {
 		log.Println("[WARN] DATABASE_URL kosong. Backend berjalan dalam mode offline (tanpa koneksi DB aktif).")
@@ -37,7 +35,6 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// Connection Pool Settings
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(50)
 

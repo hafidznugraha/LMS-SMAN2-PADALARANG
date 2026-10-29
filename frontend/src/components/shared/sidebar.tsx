@@ -15,7 +15,9 @@ import {
   Users,
   LogOut,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { logoutUser } from "@/lib/auth";
 
 interface SidebarProps {
   role?: "siswa" | "guru" | "wali_kelas" | "kurikulum";
@@ -25,6 +27,12 @@ interface SidebarProps {
 
 export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push("/login");
+  };
 
   const navLinks = {
     siswa: [
@@ -58,13 +66,11 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
 
   return (
     <aside className={cn("flex flex-col h-full bg-[#1E3A8A] text-white", className)}>
-      {/* Brand Header */}
       <div className="p-6 border-b border-blue-800/60">
         <h2 className="text-lg font-bold tracking-tight">LMS SMA</h2>
         <p className="text-xs text-blue-200 mt-0.5">Sistem Pembelajaran SMAN 2</p>
       </div>
 
-      {/* Nav List */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navLinks.map((item) => {
           const isActive = pathname === item.href;
@@ -88,15 +94,15 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
         })}
       </nav>
 
-      {/* Logout Footer */}
       <div className="p-4 border-t border-blue-800/60">
-        <Link
-          href="/login"
-          className="flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-blue-200/90 rounded-xl hover:bg-blue-800/60 hover:text-white transition-colors"
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-blue-200/90 rounded-xl hover:bg-blue-800/60 hover:text-white transition-colors text-left"
         >
           <LogOut className="w-5 h-5 shrink-0" />
           <span>Keluar</span>
-        </Link>
+        </button>
       </div>
     </aside>
   );

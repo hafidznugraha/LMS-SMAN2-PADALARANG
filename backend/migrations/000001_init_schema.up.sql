@@ -1,9 +1,5 @@
--- Migrasi DDL: Inisialisasi Skema Database LMS SMAN 2 Padalarang
--- PostgreSQL / Supabase
--- Ekstensi UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Tabel Users (Akun Pengguna & Autentikasi)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -16,7 +12,6 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Tabel Guru
 CREATE TABLE IF NOT EXISTS guru (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -26,7 +21,6 @@ CREATE TABLE IF NOT EXISTS guru (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. Tabel Kelas (Rombongan Belajar)
 CREATE TABLE IF NOT EXISTS kelas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nama_kelas VARCHAR(20) UNIQUE NOT NULL,
@@ -36,7 +30,6 @@ CREATE TABLE IF NOT EXISTS kelas (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Tabel Siswa
 CREATE TABLE IF NOT EXISTS siswa (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -49,7 +42,6 @@ CREATE TABLE IF NOT EXISTS siswa (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Tabel Mata Pelajaran
 CREATE TABLE IF NOT EXISTS mata_pelajaran (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     kode_mapel VARCHAR(20) UNIQUE NOT NULL,
@@ -58,7 +50,6 @@ CREATE TABLE IF NOT EXISTS mata_pelajaran (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. Tabel Jadwal Pelajaran
 CREATE TABLE IF NOT EXISTS jadwal_pelajaran (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     kelas_id UUID NOT NULL REFERENCES kelas(id) ON DELETE CASCADE,
@@ -72,11 +63,9 @@ CREATE TABLE IF NOT EXISTS jadwal_pelajaran (
     CONSTRAINT chk_jam_jadwal CHECK (jam_mulai < jam_selesai)
 );
 
--- Index pencegah bentrok jadwal guru dan bentrok jadwal kelas
 CREATE INDEX IF NOT EXISTS idx_jadwal_guru_waktu ON jadwal_pelajaran (guru_id, hari, jam_mulai, jam_selesai);
 CREATE INDEX IF NOT EXISTS idx_jadwal_kelas_waktu ON jadwal_pelajaran (kelas_id, hari, jam_mulai, jam_selesai);
 
--- 7. Tabel Materi Pembelajaran
 CREATE TABLE IF NOT EXISTS materi (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     guru_id UUID NOT NULL REFERENCES guru(id) ON DELETE CASCADE,
@@ -91,7 +80,6 @@ CREATE TABLE IF NOT EXISTS materi (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 8. Tabel Tugas
 CREATE TABLE IF NOT EXISTS tugas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     guru_id UUID NOT NULL REFERENCES guru(id) ON DELETE CASCADE,
@@ -103,7 +91,6 @@ CREATE TABLE IF NOT EXISTS tugas (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. Tabel Pengumpulan Tugas
 CREATE TABLE IF NOT EXISTS pengumpulan_tugas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tugas_id UUID NOT NULL REFERENCES tugas(id) ON DELETE CASCADE,
@@ -118,7 +105,6 @@ CREATE TABLE IF NOT EXISTS pengumpulan_tugas (
     CONSTRAINT uq_siswa_tugas UNIQUE (tugas_id, siswa_id)
 );
 
--- 10. Tabel Kuis
 CREATE TABLE IF NOT EXISTS kuis (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     guru_id UUID NOT NULL REFERENCES guru(id) ON DELETE CASCADE,
@@ -133,7 +119,6 @@ CREATE TABLE IF NOT EXISTS kuis (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Tabel Absensi Siswa
 CREATE TABLE IF NOT EXISTS absensi (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     siswa_id UUID NOT NULL REFERENCES siswa(id) ON DELETE CASCADE,

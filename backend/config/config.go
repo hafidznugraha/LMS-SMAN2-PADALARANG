@@ -7,7 +7,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config menyimpan konfigurasi runtime aplikasi
 type Config struct {
 	Port                string
 	DatabaseURL         string
@@ -21,7 +20,6 @@ type Config struct {
 	Environment         string
 }
 
-// LoadConfig membaca environment variables dari file .env atau sistem
 func LoadConfig() *Config {
 	if err := godotenv.Load(); err != nil {
 		log.Println("[INFO] File .env tidak ditemukan, menggunakan environment variable sistem")

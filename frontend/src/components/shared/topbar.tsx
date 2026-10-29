@@ -12,7 +12,6 @@ interface TopbarProps {
 export function Topbar({ onToggleMobileNav, userRole = "Siswa", userName = "Pengguna" }: TopbarProps) {
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-white/95 backdrop-blur-sm border-b border-slate-100 lg:px-8">
-      {/* Mobile Hamburger Menu */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -28,9 +27,7 @@ export function Topbar({ onToggleMobileNav, userRole = "Siswa", userName = "Peng
         </div>
       </div>
 
-      {/* Right Controls: Notifications & Profile */}
       <div className="flex items-center gap-3">
-        {/* Notification Bell with Indicator */}
         <button
           type="button"
           className="relative p-2 text-slate-600 rounded-xl hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-900"
@@ -40,7 +37,6 @@ export function Topbar({ onToggleMobileNav, userRole = "Siswa", userName = "Peng
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
         </button>
 
-        {/* User Profile Avatar */}
         <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-900 text-white font-semibold text-xs shadow-xs">
             <UserIcon className="w-5 h-5" />

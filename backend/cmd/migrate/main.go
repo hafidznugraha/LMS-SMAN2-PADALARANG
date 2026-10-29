@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-	// Muat .env
 	_ = godotenv.Load()
 
 	rawURL := os.Getenv("DATABASE_URL")
@@ -23,22 +22,16 @@ func main() {
 
 	fmt.Println("Memeriksa format URL koneksi database...")
 
-	// Candidates for connection string:
-	// 1. As is in .env
-	// 2. Without brackets around password
-	// 3. Port 5432 session pooler vs 6543 transaction pooler vs direct connection
 	candidates := []string{
 		rawURL,
 	}
 
-	// If contains [something], also try without [ and ]
 	if strings.Contains(rawURL, ":[") && strings.Contains(rawURL, "]@") {
 		cleaned := strings.Replace(rawURL, ":[", ":", 1)
 		cleaned = strings.Replace(cleaned, "]@", "@", 1)
-		candidates = append([]string{cleaned}, candidates...) // prioritize cleaned
+		candidates = append([]string{cleaned}, candidates...)
 	}
 
-	// Also generate port 5432 candidates (Session pooler is much better for DDL / migrations)
 	var allCandidates []string
 	for _, c := range candidates {
 		allCandidates = append(allCandidates, c)
@@ -55,7 +48,6 @@ func main() {
 	defer cancel()
 
 	for _, cand := range allCandidates {
-		// Mask password in log
 		masked := maskURL(cand)
 		fmt.Printf("Mencoba koneksi ke: %s ...\n", masked)
 
@@ -86,17 +78,14 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
-	// Update .env if the successful URL was cleaned/fixed
 	if successfulURL != rawURL {
 		fmt.Println("Memperbarui DATABASE_URL di .env dengan URL yang valid...")
 		updateEnvDatabaseURL(successfulURL)
 	}
 
-	// Read migration file
 	migrationPath := "migrations/000001_init_schema.up.sql"
 	sqlBytes, err := os.ReadFile(migrationPath)
 	if err != nil {
-		// Try backend/migrations/...
 		migrationPath = "backend/migrations/000001_init_schema.up.sql"
 		sqlBytes, err = os.ReadFile(migrationPath)
 		if err != nil {
@@ -111,7 +100,6 @@ func main() {
 	}
 	fmt.Println("✅ Migrasi DDL berhasil dieksekusi!")
 
-	// Jalankan seeds
 	seedsPath := "seeds/seeds.sql"
 	seedsBytes, err := os.ReadFile(seedsPath)
 	if err != nil {
@@ -128,7 +116,6 @@ func main() {
 		}
 	}
 
-	// Verifikasi tabel-tabel yang berhasil dibuat
 	fmt.Println("\nMemeriksa tabel-tabel di skema public:")
 	rows, err := conn.Query(ctx, `
 		SELECT table_name 

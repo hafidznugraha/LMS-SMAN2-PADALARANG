@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 export default function SiswaDashboardPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Greeting Header */}
       <div>
         <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
           Selamat Pagi, Laura 👏
@@ -16,7 +15,6 @@ export default function SiswaDashboardPage() {
         </p>
       </div>
 
-      {/* 4 Metric Cards (Stack on mobile, 4-col grid on desktop) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Materi Dipelajari"
@@ -48,7 +46,6 @@ export default function SiswaDashboardPage() {
         />
       </div>
 
-      {/* Quick Actions (Aksi Cepat) */}
       <div className="pt-2">
         <h3 className="text-sm font-semibold text-slate-800 mb-3">Aksi Cepat</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

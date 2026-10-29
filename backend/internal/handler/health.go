@@ -5,7 +5,6 @@ import (
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 )
 
-// HealthCheckHandler mengecek status kesiapan backend API
 func HealthCheckHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(model.APIResponse{
 		Success: true,
