@@ -34,6 +34,9 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		ExposeHeaders:    "Set-Cookie",
 	}))
 
+	masterHandler := handler.NewMasterHandler()
+	jadwalHandler := handler.NewJadwalHandler()
+
 	api := app.Group("/api/v1")
 
 	api.Get("/health", handler.HealthCheckHandler)
@@ -45,6 +48,27 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	auth.Get("/me", middleware.JWTProtected(cfg), handler.MeHandler())
 
 	protected := api.Group("", middleware.JWTProtected(cfg))
+
+	master := protected.Group("/master")
+	master.Get("/kelas", masterHandler.GetKelasList)
+	master.Post("/kelas", middleware.RequireRole(model.RoleKurikulum), masterHandler.CreateKelas)
+	master.Put("/kelas/:id", middleware.RequireRole(model.RoleKurikulum), masterHandler.UpdateKelas)
+	master.Delete("/kelas/:id", middleware.RequireRole(model.RoleKurikulum), masterHandler.DeleteKelas)
+	master.Get("/mapel", masterHandler.GetMapelList)
+	master.Get("/guru", masterHandler.GetGuruList)
+	master.Get("/siswa", masterHandler.GetSiswaList)
+
+	users := protected.Group("/users", middleware.RequireRole(model.RoleKurikulum))
+	users.Get("/", masterHandler.GetUsersList)
+	users.Post("/", masterHandler.CreateUser)
+	users.Put("/:id", masterHandler.UpdateUser)
+	users.Delete("/:id", masterHandler.DeleteUser)
+
+	jadwal := protected.Group("/jadwal")
+	jadwal.Get("/", jadwalHandler.GetJadwalList)
+	jadwal.Post("/", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.CreateJadwal)
+	jadwal.Put("/:id", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.UpdateJadwal)
+	jadwal.Delete("/:id", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.DeleteJadwal)
 
 	kurikulum := protected.Group("/kurikulum", middleware.RequireRole(model.RoleKurikulum))
 	kurikulum.Get("/jadwal", func(c *fiber.Ctx) error {

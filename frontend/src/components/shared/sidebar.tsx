@@ -13,6 +13,7 @@ import {
   Calendar,
   Award,
   Users,
+  Building2,
   LogOut,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -59,6 +60,7 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
     kurikulum: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/jadwal", label: "Kelola Jadwal", icon: Calendar },
+      { href: "/admin/kelas", label: "Data Kelas", icon: Building2 },
       { href: "/admin/siswa", label: "Data Siswa", icon: Users },
       { href: "/admin/guru", label: "Data Guru", icon: User },
     ],
@@ -75,16 +77,17 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
         {navLinks.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
+
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onCloseMobile}
               className={cn(
-                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all",
+                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-blue-600/90 text-white shadow-xs font-semibold"
-                  : "text-blue-100/80 hover:bg-blue-800/60 hover:text-white"
+                  ? "bg-white text-blue-900 font-semibold shadow-xs"
+                  : "text-blue-100 hover:bg-blue-800/60 hover:text-white"
               )}
             >
               <Icon className="w-5 h-5 shrink-0" />
