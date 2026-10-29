@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, ShieldCheck, BookOpen, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loginUser, getRedirectPathByRole } from "@/lib/auth";
+import { AltchaWidget, AltchaHandle } from "@/components/ui/altcha";
 
 export default function LoginPage() {
   const router = useRouter();
+  const altchaRef = useRef<AltchaHandle | null>(null);
+  const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,10 +41,16 @@ export default function LoginPage() {
       return;
     }
 
+    const finalAltcha = altchaPayload || altchaRef.current?.value || "";
+    if (!finalAltcha) {
+      setErrorMessage("Silakan selesaikan verifikasi keamanan (CAPTCHA) terlebih dahulu");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const result = await loginUser(trimmedUsername, trimmedPassword, rememberMe);
+      const result = await loginUser(trimmedUsername, trimmedPassword, rememberMe, finalAltcha);
       const defaultPath = getRedirectPathByRole(result.user.role);
 
       if (typeof window !== "undefined") {
@@ -60,6 +69,8 @@ export default function LoginPage() {
 
       router.push(defaultPath);
     } catch (err: unknown) {
+      altchaRef.current?.reset();
+      setAltchaPayload(null);
       if (err instanceof Error) {
         setErrorMessage(err.message);
       } else {
@@ -217,6 +228,13 @@ export default function LoginPage() {
                   </label>
                 </div>
                 <span className="text-[11px] text-slate-400">Default: password123</span>
+              </div>
+
+              <div className="pt-1">
+                <AltchaWidget
+                  ref={altchaRef}
+                  onStateChange={(p) => setAltchaPayload(p)}
+                />
               </div>
 
               <Button

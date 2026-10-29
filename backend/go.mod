@@ -3,6 +3,7 @@ module github.com/hafidznugraha/lms-sman2-padalarang/backend
 go 1.26.8
 
 require (
+	github.com/altcha-org/altcha-lib-go v1.0.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/gofiber/fiber/v2 v2.52.16 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect

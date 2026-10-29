@@ -42,6 +42,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	api.Get("/health", handler.HealthCheckHandler)
 
 	auth := api.Group("/auth")
+	auth.Get("/altcha-challenge", handler.AltchaChallengeHandler(cfg))
 	auth.Post("/login", handler.LoginHandler(cfg))
 	auth.Post("/refresh", handler.RefreshTokenHandler(cfg))
 	auth.Post("/logout", handler.LogoutHandler())

@@ -108,7 +108,8 @@ export function getStoredToken(): string | null {
 export async function loginUser(
   identifier: string,
   password: string,
-  rememberMe: boolean = false
+  rememberMe: boolean = false,
+  altchaPayload: string = ""
 ): Promise<LoginResult> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -120,6 +121,7 @@ export async function loginUser(
       identifier: identifier.trim(),
       password: password.trim(),
       remember_me: rememberMe,
+      altcha: altchaPayload,
     }),
   });
 

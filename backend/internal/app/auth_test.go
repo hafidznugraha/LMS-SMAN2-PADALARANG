@@ -40,6 +40,40 @@ func TestAuthEndpoints(t *testing.T) {
 		}
 	})
 
+	t.Run("Altcha challenge endpoint harus return 200 dan format challenge valid", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/auth/altcha-challenge", nil)
+		resp, err := fiberApp.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request altcha challenge: %v", err)
+		}
+		if resp.StatusCode != 200 {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		var chal map[string]interface{}
+		if err := json.Unmarshal(body, &chal); err != nil {
+			t.Fatalf("Gagal parse response challenge: %v", err)
+		}
+		if chal["challenge"] == "" || chal["algorithm"] != "SHA-256" {
+			t.Errorf("Invalid challenge structure: %v", chal)
+		}
+	})
+
+	t.Run("Login dengan altcha invalid harus return 400", func(t *testing.T) {
+		payload := []byte(`{"identifier":"admin", "password":"password123", "altcha":"invalid_payload"}`)
+		req := httptest.NewRequest("POST", "/api/v1/auth/login", bytes.NewBuffer(payload))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := fiberApp.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request login: %v", err)
+		}
+		if resp.StatusCode != 400 {
+			t.Errorf("Expected status 400, got %d", resp.StatusCode)
+		}
+	})
+
 	t.Run("Logout harus berhasil dan mengembalikan 200", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/auth/logout", nil)
 		resp, err := fiberApp.Test(req)

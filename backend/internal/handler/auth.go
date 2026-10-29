@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/altcha-org/altcha-lib-go"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ type LoginRequest struct {
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	RememberMe bool   `json:"remember_me"`
+	Altcha     string `json:"altcha"`
 }
 
 type LoginResponseData struct {
@@ -57,6 +59,21 @@ func LoginHandler(cfg *config.Config) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 				Success: false,
 				Message: "Username dan password wajib diisi",
+			})
+		}
+
+		if req.Altcha != "" {
+			verified, err := altcha.VerifySolution(req.Altcha, cfg.JWTSecret, true)
+			if err != nil || !verified {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "Verifikasi keamanan (CAPTCHA) tidak valid atau telah kedaluwarsa",
+				})
+			}
+		} else if cfg.Environment != "test" {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Verifikasi keamanan (CAPTCHA) wajib diselesaikan",
 			})
 		}
 
@@ -278,6 +295,26 @@ func LogoutHandler() fiber.Handler {
 			Success: true,
 			Message: "Logout berhasil, sesi telah dihapus",
 		})
+	}
+}
+
+func AltchaChallengeHandler(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		expires := time.Now().Add(10 * time.Minute)
+		chal, err := altcha.CreateChallenge(altcha.ChallengeOptions{
+			Algorithm: altcha.SHA256,
+			MaxNumber: 50000,
+			HMACKey:   cfg.JWTSecret,
+			Expires:   &expires,
+		})
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal membuat challenge keamanan",
+				Error:   err.Error(),
+			})
+		}
+		return c.JSON(chal)
 	}
 }
 
