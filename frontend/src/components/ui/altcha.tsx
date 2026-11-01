@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
+import { getApiBaseUrl } from "@/lib/api";
 
 export interface AltchaHandle {
   value: string | null;
@@ -18,9 +19,7 @@ export const AltchaWidget = forwardRef<AltchaHandle, AltchaProps>(
     const widgetRef = useRef<HTMLElement | null>(null);
     const [payload, setPayload] = useState<string | null>(null);
 
-    const apiUrl =
-      challengeUrl ||
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1"}/auth/altcha-challenge`;
+    const apiUrl = challengeUrl || `${getApiBaseUrl()}/auth/altcha-challenge`;
 
     useEffect(() => {
       import("altcha");

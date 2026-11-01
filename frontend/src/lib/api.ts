@@ -3,14 +3,11 @@ import { getStoredToken, updateStoredAccessToken, clearAuthSession } from "./aut
 export function getApiBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== "undefined") {
-    const currentHost = window.location.hostname;
-    if (currentHost && currentHost !== "localhost" && currentHost !== "127.0.0.1") {
-      if (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
-        return `${window.location.protocol}//${currentHost}:8080/api/v1`;
-      }
+    if (!envUrl || envUrl === "/api/v1" || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+      return "/api/v1";
     }
   }
-  return envUrl || "http://localhost:8080/api/v1";
+  return envUrl || "http://127.0.0.1:8080/api/v1";
 }
 
 export class ApiClientError extends Error {
