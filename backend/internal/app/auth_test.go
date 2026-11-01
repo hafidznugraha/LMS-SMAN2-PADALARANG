@@ -17,7 +17,7 @@ import (
 
 func TestAuthEndpoints(t *testing.T) {
 	cfg := &config.Config{
-		Port:           "8080",
+		Port:           "8088",
 		AllowedOrigins: "http://localhost:3000",
 		JWTSecret:      "test-jwt-secret-key-1234567890",
 		JWTRefresh:     "test-jwt-refresh-secret-1234567890",

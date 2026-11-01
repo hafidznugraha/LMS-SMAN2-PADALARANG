@@ -13,7 +13,7 @@ import (
 
 func TestHealthCheck(t *testing.T) {
 	cfg := &config.Config{
-		Port:           "8080",
+		Port:           "8088",
 		AllowedOrigins: "http://localhost:3000",
 		JWTSecret:      "test-secret",
 		Environment:    "test",
