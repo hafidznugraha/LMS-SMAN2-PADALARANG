@@ -1,6 +1,17 @@
 import { getStoredToken, updateStoredAccessToken, clearAuthSession } from "./auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    const currentHost = window.location.hostname;
+    if (currentHost && currentHost !== "localhost" && currentHost !== "127.0.0.1") {
+      if (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+        return `${window.location.protocol}//${currentHost}:8080/api/v1`;
+      }
+    }
+  }
+  return envUrl || "http://localhost:8080/api/v1";
+}
 
 export class ApiClientError extends Error {
   status: number;
@@ -23,7 +34,7 @@ let refreshPromise: Promise<string | null> | null = null;
 
 async function performSilentRefresh(): Promise<string | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
       method: "POST",
       credentials: "include",
     });
@@ -69,7 +80,7 @@ export async function fetchAPI<T>(endpoint: string, options: RequestOptions = {}
     requestHeaders["Authorization"] = `Bearer ${authToken}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
     headers: requestHeaders,
     credentials: "include",
     ...rest,

@@ -1,6 +1,8 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -21,16 +23,21 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	app.Use(recover.New())
 	app.Use(logger.New())
 
-	allowCredentials := true
-	if cfg.AllowedOrigins == "*" {
-		allowCredentials = false
-	}
-
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     cfg.AllowedOrigins,
+		AllowOriginsFunc: func(origin string) bool {
+			if cfg.AllowedOrigins == "*" || cfg.Environment == "development" {
+				return true
+			}
+			for _, o := range strings.Split(cfg.AllowedOrigins, ",") {
+				if strings.TrimSpace(o) == origin {
+					return true
+				}
+			}
+			return false
+		},
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With",
 		AllowMethods:     "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-		AllowCredentials: allowCredentials,
+		AllowCredentials: true,
 		ExposeHeaders:    "Set-Cookie",
 	}))
 

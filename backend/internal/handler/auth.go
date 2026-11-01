@@ -62,19 +62,21 @@ func LoginHandler(cfg *config.Config) fiber.Handler {
 			})
 		}
 
-		if req.Altcha != "" {
-			verified, err := altcha.VerifySolution(req.Altcha, cfg.JWTSecret, true)
-			if err != nil || !verified {
+		if cfg.EnableAltcha {
+			if req.Altcha != "" {
+				verified, err := altcha.VerifySolution(req.Altcha, cfg.JWTSecret, true)
+				if err != nil || !verified {
+					return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+						Success: false,
+						Message: "Verifikasi keamanan (CAPTCHA) tidak valid atau telah kedaluwarsa",
+					})
+				}
+			} else if cfg.Environment != "test" {
 				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 					Success: false,
-					Message: "Verifikasi keamanan (CAPTCHA) tidak valid atau telah kedaluwarsa",
+					Message: "Verifikasi keamanan (CAPTCHA) wajib diselesaikan",
 				})
 			}
-		} else if cfg.Environment != "test" {
-			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-				Success: false,
-				Message: "Verifikasi keamanan (CAPTCHA) wajib diselesaikan",
-			})
 		}
 
 		if repository.DB == nil {

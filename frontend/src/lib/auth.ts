@@ -1,4 +1,5 @@
 import { UserRole } from "@/types";
+import { getApiBaseUrl } from "./api";
 
 export interface KelasBinaanInfo {
   id: string;
@@ -36,8 +37,6 @@ export interface LoginResult {
   expires_in: number;
   user: AuthUser;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 function setCookie(name: string, value: string, days: number = 7) {
   if (typeof document === "undefined") return;
@@ -111,7 +110,7 @@ export async function loginUser(
   rememberMe: boolean = false,
   altchaPayload: string = ""
 ): Promise<LoginResult> {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -138,7 +137,7 @@ export async function loginUser(
 
 export async function logoutUser(): Promise<void> {
   try {
-    await fetch(`${API_BASE_URL}/auth/logout`, {
+    await fetch(`${getApiBaseUrl()}/auth/logout`, {
       method: "POST",
       credentials: "include",
     });

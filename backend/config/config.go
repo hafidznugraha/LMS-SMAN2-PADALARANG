@@ -18,6 +18,7 @@ type Config struct {
 	JWTRefresh          string
 	AllowedOrigins      string
 	Environment         string
+	EnableAltcha        bool
 }
 
 func LoadConfig() *Config {
@@ -36,6 +37,7 @@ func LoadConfig() *Config {
 		JWTRefresh:          getEnv("JWT_REFRESH_SECRET", "super-secret-jwt-refresh-key-lms-sman2"),
 		AllowedOrigins:      getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
 		Environment:         getEnv("APP_ENV", "development"),
+		EnableAltcha:        getEnv("ENABLE_ALTCHA", "false") == "true",
 	}
 
 	return cfg

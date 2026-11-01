@@ -41,8 +41,9 @@ export default function LoginPage() {
       return;
     }
 
+    const isAltchaEnabled = process.env.NEXT_PUBLIC_ENABLE_ALTCHA === "true";
     const finalAltcha = altchaPayload || altchaRef.current?.value || "";
-    if (!finalAltcha) {
+    if (isAltchaEnabled && !finalAltcha) {
       setErrorMessage("Silakan selesaikan verifikasi keamanan (CAPTCHA) terlebih dahulu");
       return;
     }
@@ -230,12 +231,14 @@ export default function LoginPage() {
                 <span className="text-[11px] text-slate-400">Default: password123</span>
               </div>
 
-              <div className="pt-1">
-                <AltchaWidget
-                  ref={altchaRef}
-                  onStateChange={(p) => setAltchaPayload(p)}
-                />
-              </div>
+              {process.env.NEXT_PUBLIC_ENABLE_ALTCHA === "true" && (
+                <div className="pt-1">
+                  <AltchaWidget
+                    ref={altchaRef}
+                    onStateChange={(p) => setAltchaPayload(p)}
+                  />
+                </div>
+              )}
 
               <Button
                 type="submit"

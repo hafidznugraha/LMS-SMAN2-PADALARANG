@@ -22,6 +22,7 @@ func TestAuthEndpoints(t *testing.T) {
 		JWTSecret:      "test-jwt-secret-key-1234567890",
 		JWTRefresh:     "test-jwt-refresh-secret-1234567890",
 		Environment:    "test",
+		EnableAltcha:   true,
 	}
 
 	fiberApp := app.SetupRouter(cfg)
