@@ -128,7 +128,6 @@ export async function loginUser(
   try {
     data = await response.json();
   } catch {
-    // Respons bukan JSON (misal teks 500 Internal Server Error dari proxy/server down)
   }
 
   if (!response.ok) {
@@ -137,7 +136,7 @@ export async function loginUser(
     }
     if (response.status >= 500) {
       throw new Error(
-        "Gagal terhubung ke server backend (Internal Server Error). Pastikan server backend Go sudah berjalan di port 8088."
+        "Gagal terhubung ke server backend (Internal Server Error). Pastikan server backend Go sudah berjalan di port 8080."
       );
     }
     throw new Error("Username atau password salah");

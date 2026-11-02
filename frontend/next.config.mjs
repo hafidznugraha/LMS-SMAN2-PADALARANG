@@ -10,7 +10,7 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    const backendUrl = process.env.INTERNAL_API_URL || "http://127.0.0.1:8088";
+    const backendUrl = process.env.INTERNAL_API_URL || "http://127.0.0.1:8080";
     return [
       {
         source: "/api/v1/:path*",

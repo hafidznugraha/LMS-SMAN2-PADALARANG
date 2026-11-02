@@ -31,7 +31,7 @@ func generateTestToken(userID uuid.UUID, role model.UserRole, secret string) str
 
 func TestMasterAndJadwalEndpoints(t *testing.T) {
 	cfg := &config.Config{
-		Port:           "8088",
+		Port:           "8080",
 		JWTSecret:      "test-secret-key-12345",
 		AllowedOrigins: "http://localhost:3000",
 	}

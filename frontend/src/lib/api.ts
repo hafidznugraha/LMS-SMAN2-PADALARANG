@@ -7,7 +7,7 @@ export function getApiBaseUrl(): string {
       return "/api/v1";
     }
   }
-  return envUrl || "http://127.0.0.1:8088/api/v1";
+  return envUrl || "http://127.0.0.1:8080/api/v1";
 }
 
 export class ApiClientError extends Error {

@@ -27,7 +27,7 @@ func LoadConfig() *Config {
 	}
 
 	cfg := &Config{
-		Port:                getEnv("PORT", "8088"),
+		Port:                getEnv("PORT", "8080"),
 		DatabaseURL:         getEnv("DATABASE_URL", ""),
 		SupabaseURL:         getEnv("SUPABASE_URL", "https://pjzpcgdpdqchstmuuzki.supabase.co"),
 		SupabaseProjectRef:  getEnv("SUPABASE_PROJECT_REF", "pjzpcgdpdqchstmuuzki"),
