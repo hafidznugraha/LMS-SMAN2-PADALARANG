@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,6 +19,17 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		AppName:        "LMS SMAN 2 Padalarang API v1.0.0",
 		ServerHeader:   "Fiber",
 		ReadBufferSize: 32768,
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			var e *fiber.Error
+			if errors.As(err, &e) {
+				code = e.Code
+			}
+			return c.Status(code).JSON(model.APIResponse{
+				Success: false,
+				Message: err.Error(),
+			})
+		},
 	})
 
 	app.Use(recover.New())

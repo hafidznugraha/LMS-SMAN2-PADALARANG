@@ -56,7 +56,7 @@ go run cmd/api/main.go
 # Atau jalankan automated testing:
 go test -v ./...
 ```
-Backend akan berjalan pada `http://localhost:8080/api/v1` dengan endpoint health check pada `/api/v1/health`.
+Backend akan berjalan pada `http://localhost:8088/api/v1` dengan endpoint health check pada `/api/v1/health`.
 
 ### 2. Menjalankan Frontend (Next.js)
 ```bash

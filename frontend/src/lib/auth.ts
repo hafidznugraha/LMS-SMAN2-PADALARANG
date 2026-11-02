@@ -124,10 +124,27 @@ export async function loginUser(
     }),
   });
 
-  const data = await response.json();
+  let data: any = null;
+  try {
+    data = await response.json();
+  } catch {
+    // Respons bukan JSON (misal teks 500 Internal Server Error dari proxy/server down)
+  }
 
   if (!response.ok) {
-    throw new Error(data.message || "Username atau password salah");
+    if (data?.message) {
+      throw new Error(data.message);
+    }
+    if (response.status >= 500) {
+      throw new Error(
+        "Gagal terhubung ke server backend (Internal Server Error). Pastikan server backend Go sudah berjalan di port 8088."
+      );
+    }
+    throw new Error("Username atau password salah");
+  }
+
+  if (!data?.data) {
+    throw new Error("Format respons server tidak sesuai");
   }
 
   const result: LoginResult = data.data;
