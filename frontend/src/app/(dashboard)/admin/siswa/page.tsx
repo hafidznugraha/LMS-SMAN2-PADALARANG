@@ -158,6 +158,20 @@ export default function MasterSiswaPage() {
       }
     }
 
+    const cleanNIS = formNIS.trim();
+    if (!/^[0-9]+$/.test(cleanNIS)) {
+      toast.error("NIS hanya boleh berisi angka");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const cleanNISN = formNISN.trim();
+    if (!/^[0-9]+$/.test(cleanNISN)) {
+      toast.error("NISN hanya boleh berisi angka");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       if (editingSiswa) {
         await fetchAPI(`/users/${editingSiswa.user_id}`, {

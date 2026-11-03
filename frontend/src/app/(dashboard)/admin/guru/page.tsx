@@ -112,6 +112,15 @@ export default function MasterGuruPage() {
       }
     }
 
+    const cleanNIP = formNIP.trim();
+    if (cleanNIP) {
+      if (!/^[0-9]+$/.test(cleanNIP)) {
+        toast.error("NIP hanya boleh berisi angka");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
       if (editingGuru) {
         await fetchAPI(`/users/${editingGuru.user_id}`, {

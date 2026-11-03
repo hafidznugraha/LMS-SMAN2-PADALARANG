@@ -567,7 +567,14 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 	}
 
 	if req.Role == model.RoleGuru || req.Role == model.RoleWaliKelas {
-		if req.NIP != "" {
+		if strings.TrimSpace(req.NIP) != "" {
+			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIP))
+			if !matched {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "NIP hanya boleh berisi angka",
+				})
+			}
 			var existingGuru model.Guru
 			if err := db.Where("nip = ?", strings.TrimSpace(req.NIP)).First(&existingGuru).Error; err == nil {
 				return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
@@ -577,6 +584,24 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 			}
 		}
 	} else if req.Role == model.RoleSiswa {
+		if strings.TrimSpace(req.NIS) != "" {
+			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIS))
+			if !matched {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "NIS hanya boleh berisi angka",
+				})
+			}
+		}
+		if strings.TrimSpace(req.NISN) != "" {
+			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NISN))
+			if !matched {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "NISN hanya boleh berisi angka",
+				})
+			}
+		}
 		if req.NIS != "" || req.NISN != "" {
 			var existingSiswa model.Siswa
 			if err := db.Where("nis = ? OR nisn = ?", strings.TrimSpace(req.NIS), strings.TrimSpace(req.NISN)).First(&existingSiswa).Error; err == nil {
@@ -760,6 +785,37 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 				Success: false,
 				Message: "Nomor telepon harus berupa angka antara 10 hingga 15 digit",
 			})
+		}
+	}
+
+	if user.Role == model.RoleGuru || user.Role == model.RoleWaliKelas {
+		if strings.TrimSpace(req.NIP) != "" {
+			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIP))
+			if !matched {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "NIP hanya boleh berisi angka",
+				})
+			}
+		}
+	} else if user.Role == model.RoleSiswa {
+		if strings.TrimSpace(req.NIS) != "" {
+			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIS))
+			if !matched {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "NIS hanya boleh berisi angka",
+				})
+			}
+		}
+		if strings.TrimSpace(req.NISN) != "" {
+			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NISN))
+			if !matched {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "NISN hanya boleh berisi angka",
+				})
+			}
 		}
 	}
 
