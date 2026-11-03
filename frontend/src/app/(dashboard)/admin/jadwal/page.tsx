@@ -6,6 +6,7 @@ import {
   Plus,
   ChevronDown,
   Trash2,
+  Pencil,
   Clock,
   MapPin,
   Calendar,
@@ -45,6 +46,7 @@ export default function KelolaJadwalPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingJadwal, setEditingJadwal] = useState<JadwalPelajaran | null>(null);
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
 
   const [formKelasId, setFormKelasId] = useState("");
@@ -116,15 +118,34 @@ export default function KelolaJadwalPage() {
   };
 
   const handleOpenModal = () => {
+    setEditingJadwal(null);
     if (selectedKelas) {
       setFormKelasId(selectedKelas.id);
     }
+    setFormHari("Senin");
+    setFormJamMulai("07:00");
+    setFormJamSelesai("08:30");
+    setFormRuang("");
+    setErrorMsg(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (item: JadwalPelajaran) => {
+    setEditingJadwal(item);
+    setFormKelasId(item.kelas_id);
+    setFormMapelId(item.mapel_id);
+    setFormGuruId(item.guru_id);
+    setFormHari(item.hari);
+    setFormJamMulai(item.jam_mulai.slice(0, 5));
+    setFormJamSelesai(item.jam_selesai.slice(0, 5));
+    setFormRuang(item.ruang || "");
     setErrorMsg(null);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setEditingJadwal(null);
   };
 
   const handleCreateJadwal = async (e: React.FormEvent) => {
@@ -133,22 +154,39 @@ export default function KelolaJadwalPage() {
     setErrorMsg(null);
 
     try {
-      await fetchAPI("/jadwal", {
-        method: "POST",
-        body: JSON.stringify({
-          kelas_id: formKelasId,
-          mapel_id: formMapelId,
-          guru_id: formGuruId,
-          hari: formHari,
-          jam_mulai: formJamMulai,
-          jam_selesai: formJamSelesai,
-          ruang: formRuang,
-        }),
-      });
+      if (editingJadwal) {
+        await fetchAPI(`/jadwal/${editingJadwal.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            kelas_id: formKelasId,
+            mapel_id: formMapelId,
+            guru_id: formGuruId,
+            hari: formHari,
+            jam_mulai: formJamMulai,
+            jam_selesai: formJamSelesai,
+            ruang: formRuang,
+          }),
+        });
+        setSuccessMsg("Jadwal pelajaran berhasil diperbarui!");
+      } else {
+        await fetchAPI("/jadwal", {
+          method: "POST",
+          body: JSON.stringify({
+            kelas_id: formKelasId,
+            mapel_id: formMapelId,
+            guru_id: formGuruId,
+            hari: formHari,
+            jam_mulai: formJamMulai,
+            jam_selesai: formJamSelesai,
+            ruang: formRuang,
+          }),
+        });
+        setSuccessMsg("Jadwal pelajaran berhasil ditambahkan!");
+      }
 
       setConflict(null);
-      setSuccessMsg("Jadwal pelajaran berhasil ditambahkan!");
       setIsModalOpen(false);
+      setEditingJadwal(null);
       if (selectedKelas) {
         await loadJadwal(selectedKelas.id);
       }
@@ -363,19 +401,29 @@ export default function KelolaJadwalPage() {
                               >
                                 {mapelName}
                               </span>
-                              <button
-                                type="button"
-                                disabled={isDeletingId === item.id}
-                                onClick={() => handleDeleteJadwal(item.id)}
-                                className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors"
-                                title="Hapus Jadwal"
-                              >
-                                {isDeletingId === item.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                )}
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditModal(item)}
+                                  className="text-slate-400 hover:text-blue-900 p-1 rounded-md transition-colors"
+                                  title="Edit Jadwal"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isDeletingId === item.id}
+                                  onClick={() => handleDeleteJadwal(item.id)}
+                                  className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors"
+                                  title="Hapus Jadwal"
+                                >
+                                  {isDeletingId === item.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
                             </div>
 
                             <div className="text-xs text-slate-700 font-medium">{guruName}</div>
@@ -409,9 +457,13 @@ export default function KelolaJadwalPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Tambah Jadwal Pelajaran</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingJadwal ? "Edit Jadwal Pelajaran" : "Tambah Jadwal Pelajaran"}
+                </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Sistem otomatis mendeteksi bentrok jam guru dan kelas
+                  {editingJadwal
+                    ? "Perbarui alokasi waktu dan pengampu jadwal"
+                    : "Sistem otomatis mendeteksi bentrok jam guru dan kelas"}
                 </p>
               </div>
               <button
@@ -555,7 +607,7 @@ export default function KelolaJadwalPage() {
                       <span>Memverifikasi...</span>
                     </>
                   ) : (
-                    <span>Simpan Jadwal</span>
+                    <span>{editingJadwal ? "Simpan Perubahan" : "Simpan Jadwal"}</span>
                   )}
                 </Button>
               </div>

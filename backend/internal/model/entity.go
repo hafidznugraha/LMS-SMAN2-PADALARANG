@@ -243,8 +243,17 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	NamaLengkap string   `json:"nama_lengkap"`
-	Email       string   `json:"email"`
-	Role        UserRole `json:"role"`
-	IsActive    *bool    `json:"is_active,omitempty"`
+	NamaLengkap  string   `json:"nama_lengkap"`
+	Email        string   `json:"email"`
+	Password     string   `json:"password,omitempty"`
+	Role         UserRole `json:"role"`
+	IsActive     *bool    `json:"is_active,omitempty"`
+	NIP          string   `json:"nip,omitempty"`
+	Gelar        string   `json:"gelar,omitempty"`
+	NIS          string   `json:"nis,omitempty"`
+	NISN         string   `json:"nisn,omitempty"`
+	KelasID      string   `json:"kelas_id,omitempty"`
+	JenisKelamin string   `json:"jenis_kelamin,omitempty"`
+	NoTelepon    string   `json:"no_telepon,omitempty"`
+	Alamat       string   `json:"alamat,omitempty"`
 }

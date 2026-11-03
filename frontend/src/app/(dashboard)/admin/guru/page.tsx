@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   AlertCircle,
   UserX,
+  UserCheck,
+  Pencil,
+  Trash2,
   Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +27,8 @@ export default function MasterGuruPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingGuru, setEditingGuru] = useState<Guru | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -56,7 +61,33 @@ export default function MasterGuruPage() {
     loadData();
   }, [loadData]);
 
-  const handleCreateGuru = async (e: React.FormEvent) => {
+  const handleOpenCreateModal = () => {
+    setEditingGuru(null);
+    setFormNama("");
+    setFormUsername("");
+    setFormEmail("");
+    setFormPassword("password123");
+    setFormNIP("");
+    setFormGelar("S.Pd");
+    setFormRole("guru");
+    setFormTelp("");
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (guru: Guru) => {
+    setEditingGuru(guru);
+    setFormNama(guru.user?.nama_lengkap || "");
+    setFormUsername(guru.user?.username || "");
+    setFormEmail(guru.user?.email || "");
+    setFormPassword("");
+    setFormNIP(guru.nip || "");
+    setFormGelar(guru.gelar || "S.Pd");
+    setFormRole((guru.user?.role as ("guru" | "wali_kelas")) || "guru");
+    setFormTelp(guru.no_telepon || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSaveGuru = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -76,22 +107,39 @@ export default function MasterGuruPage() {
     }
 
     try {
-      await fetchAPI("/users", {
-        method: "POST",
-        body: JSON.stringify({
-          username: formUsername.trim(),
-          password: formPassword,
-          nama_lengkap: formNama.trim(),
-          email: formEmail.trim(),
-          role: formRole,
-          nip: formNIP.trim(),
-          gelar: formGelar.trim(),
-          no_telepon: cleanTelp,
-        }),
-      });
+      if (editingGuru) {
+        await fetchAPI(`/users/${editingGuru.user_id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            nama_lengkap: formNama.trim(),
+            email: formEmail.trim(),
+            password: formPassword.trim() || undefined,
+            role: formRole,
+            nip: formNIP.trim(),
+            gelar: formGelar.trim(),
+            no_telepon: cleanTelp,
+          }),
+        });
+        setSuccessMsg(`Data guru ${formNama} berhasil diperbarui!`);
+      } else {
+        await fetchAPI("/users", {
+          method: "POST",
+          body: JSON.stringify({
+            username: formUsername.trim(),
+            password: formPassword,
+            nama_lengkap: formNama.trim(),
+            email: formEmail.trim(),
+            role: formRole,
+            nip: formNIP.trim(),
+            gelar: formGelar.trim(),
+            no_telepon: cleanTelp,
+          }),
+        });
+        setSuccessMsg(`Akun guru ${formNama} berhasil didaftarkan!`);
+      }
 
-      setSuccessMsg(`Akun guru ${formNama} berhasil didaftarkan!`);
       setIsModalOpen(false);
+      setEditingGuru(null);
       setFormNama("");
       setFormUsername("");
       setFormEmail("");
@@ -108,16 +156,33 @@ export default function MasterGuruPage() {
     }
   };
 
-  const handleDeactivate = async (userId: string, nama: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menonaktifkan akun ${nama}?`)) return;
+  const handleToggleActive = async (userId: string, nama: string, currentActive: boolean) => {
+    const actionText = currentActive ? "menonaktifkan" : "mengaktifkan kembali";
+    if (!confirm(`Apakah Anda yakin ingin ${actionText} akun ${nama}?`)) return;
     try {
       await fetchAPI(`/users/${userId}`, { method: "DELETE" });
-      setSuccessMsg(`Akun ${nama} dinonaktifkan`);
+      setSuccessMsg(`Status akun ${nama} berhasil diubah`);
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setErrorMsg(err.message);
       }
+    }
+  };
+
+  const handleDeletePermanen = async (userId: string, nama: string) => {
+    if (!confirm(`PERINGATAN: Apakah Anda yakin ingin menghapus data guru ${nama} secara permanen? Data yang dihapus tidak dapat dipulihkan.`)) return;
+    setIsDeletingId(userId);
+    try {
+      await fetchAPI(`/users/${userId}?permanent=true`, { method: "DELETE" });
+      setSuccessMsg(`Akun guru ${nama} berhasil dihapus secara permanen`);
+      await loadData();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      }
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -139,7 +204,7 @@ export default function MasterGuruPage() {
             Kelola data pokok tenaga pendidik, NIP, gelar akademik, dan penugasan peran
           </p>
         </div>
-        <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
+        <Button variant="primary" size="md" onClick={handleOpenCreateModal}>
           <Plus className="w-4 h-4" />
           <span>Tambah Guru</span>
         </Button>
@@ -265,18 +330,51 @@ export default function MasterGuruPage() {
                       )}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      {item.user && item.user.is_active && (
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDeactivate(item.user!.id, item.user!.nama_lengkap)
-                          }
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Nonaktifkan Akun"
+                          onClick={() => handleOpenEditModal(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-900 hover:bg-blue-50 transition-colors"
+                          title="Edit Data Guru"
                         >
-                          <UserX className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
-                      )}
+                        {item.user && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleToggleActive(item.user!.id, item.user!.nama_lengkap, item.user!.is_active)
+                            }
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              item.user.is_active
+                                ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                                : "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                            title={item.user.is_active ? "Nonaktifkan Akun" : "Aktifkan Akun"}
+                          >
+                            {item.user.is_active ? (
+                              <UserX className="w-4 h-4" />
+                            ) : (
+                              <UserCheck className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        {item.user && (
+                          <button
+                            type="button"
+                            disabled={isDeletingId === item.user.id}
+                            onClick={() => handleDeletePermanen(item.user!.id, item.user!.nama_lengkap)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Hapus Akun Permanen"
+                          >
+                            {isDeletingId === item.user.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -291,19 +389,26 @@ export default function MasterGuruPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Tambah Data Guru</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Daftarkan akun pendidik baru</p>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingGuru ? "Edit Data Guru" : "Tambah Data Guru"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingGuru ? "Perbarui informasi dan kredensial pendidik" : "Daftarkan akun pendidik baru"}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingGuru(null);
+                }}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateGuru} className="space-y-3">
+            <form onSubmit={handleSaveGuru} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Nama Lengkap</label>
                 <input
@@ -329,15 +434,14 @@ export default function MasterGuruPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Peran Akun</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="Guru Pengampu"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-100 text-slate-600 font-medium cursor-not-allowed"
-                  />
-                  <p className="text-[11px] text-slate-400 pt-0.5">
-                    Penugasan tugas tambahan Wali Kelas dilakukan di menu Data Kelas.
-                  </p>
+                  <select
+                    value={formRole}
+                    onChange={(e) => setFormRole(e.target.value as "guru" | "wali_kelas")}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
+                  >
+                    <option value="guru">Guru Pengampu</option>
+                    <option value="wali_kelas">Wali Kelas</option>
+                  </select>
                 </div>
               </div>
 
@@ -347,19 +451,27 @@ export default function MasterGuruPage() {
                   <input
                     type="text"
                     required
+                    disabled={!!editingGuru}
                     value={formUsername}
                     onChange={(e) => setFormUsername(e.target.value)}
                     placeholder="guru_parhan"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                    className={`w-full px-3 py-2 text-xs rounded-xl border ${
+                      editingGuru
+                        ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                        : "border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                    }`}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Kata Sandi Default</label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    {editingGuru ? "Kata Sandi Baru (Opsional)" : "Kata Sandi Default"}
+                  </label>
                   <input
                     type="text"
-                    required
+                    required={!editingGuru}
                     value={formPassword}
                     onChange={(e) => setFormPassword(e.target.value)}
+                    placeholder={editingGuru ? "Kosongkan jika tidak diubah" : "password123"}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
                   />
                 </div>
@@ -412,7 +524,10 @@ export default function MasterGuruPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingGuru(null);
+                  }}
                   disabled={isSubmitting}
                 >
                   Batal
@@ -424,7 +539,7 @@ export default function MasterGuruPage() {
                       <span>Menyimpan...</span>
                     </>
                   ) : (
-                    <span>Daftarkan Guru</span>
+                    <span>{editingGuru ? "Simpan Perubahan" : "Daftarkan Guru"}</span>
                   )}
                 </Button>
               </div>

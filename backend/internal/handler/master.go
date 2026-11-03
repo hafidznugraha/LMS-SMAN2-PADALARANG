@@ -162,7 +162,9 @@ func (h *MasterHandler) UpdateKelas(c *fiber.Ctx) error {
 		kelas.Jurusan = req.Jurusan
 	}
 	if req.WaliGuruID != "" {
-		if parsed, err := uuid.Parse(req.WaliGuruID); err == nil {
+		if req.WaliGuruID == "none" {
+			kelas.WaliGuruID = nil
+		} else if parsed, err := uuid.Parse(req.WaliGuruID); err == nil {
 			kelas.WaliGuruID = &parsed
 		}
 	}
@@ -692,9 +694,17 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 	}
 
 	if req.NamaLengkap != "" {
-		user.NamaLengkap = req.NamaLengkap
+		user.NamaLengkap = strings.TrimSpace(req.NamaLengkap)
 	}
 	if req.Email != "" {
+		req.Email = strings.TrimSpace(req.Email)
+		var checkEmail model.User
+		if err := db.Where("LOWER(email) = LOWER(?) AND id != ?", req.Email, targetID).First(&checkEmail).Error; err == nil {
+			return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+				Success: false,
+				Message: "Email sudah digunakan oleh pengguna lain",
+			})
+		}
 		user.Email = req.Email
 	}
 	if req.Role != "" {
@@ -703,11 +713,101 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 	if req.IsActive != nil {
 		user.IsActive = *req.IsActive
 	}
+	if strings.TrimSpace(req.Password) != "" {
+		if len(req.Password) < 6 {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Kata sandi minimal 6 karakter",
+			})
+		}
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal mengenkripsi kata sandi",
+				Error:   err.Error(),
+			})
+		}
+		user.PasswordHash = string(hashed)
+	}
 
-	if err := db.Save(&user).Error; err != nil {
+	if strings.TrimSpace(req.NoTelepon) != "" {
+		matched, _ := regexp.MatchString(`^[0-9]{10,15}$`, strings.TrimSpace(req.NoTelepon))
+		if !matched {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Nomor telepon harus berupa angka antara 10 hingga 15 digit",
+			})
+		}
+	}
+
+	tx := db.Begin()
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal memperbarui pengguna",
+			Error:   err.Error(),
+		})
+	}
+
+	if user.Role == model.RoleGuru || user.Role == model.RoleWaliKelas {
+		var guru model.Guru
+		if err := tx.Where("user_id = ?", targetID).First(&guru).Error; err == nil {
+			if req.NIP != "" {
+				guru.NIP = strings.TrimSpace(req.NIP)
+			}
+			if req.Gelar != "" {
+				guru.Gelar = strings.TrimSpace(req.Gelar)
+			}
+			guru.NoTelepon = strings.TrimSpace(req.NoTelepon)
+			if err := tx.Save(&guru).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+					Success: false,
+					Message: "Gagal memperbarui data profil guru",
+					Error:   err.Error(),
+				})
+			}
+		}
+	} else if user.Role == model.RoleSiswa {
+		var siswa model.Siswa
+		if err := tx.Where("user_id = ?", targetID).First(&siswa).Error; err == nil {
+			if req.NIS != "" {
+				siswa.NIS = strings.TrimSpace(req.NIS)
+			}
+			if req.NISN != "" {
+				siswa.NISN = strings.TrimSpace(req.NISN)
+			}
+			if req.KelasID != "" {
+				if req.KelasID == "none" {
+					siswa.KelasID = nil
+				} else if kUUID, err := uuid.Parse(req.KelasID); err == nil {
+					siswa.KelasID = &kUUID
+				}
+			}
+			if req.JenisKelamin != "" {
+				siswa.JenisKelamin = req.JenisKelamin
+			}
+			siswa.NoTelepon = strings.TrimSpace(req.NoTelepon)
+			if req.Alamat != "" {
+				siswa.Alamat = strings.TrimSpace(req.Alamat)
+			}
+			if err := tx.Save(&siswa).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+					Success: false,
+					Message: "Gagal memperbarui data profil siswa",
+					Error:   err.Error(),
+				})
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menyimpan perubahan pengguna",
 			Error:   err.Error(),
 		})
 	}
@@ -736,16 +836,53 @@ func (h *MasterHandler) DeleteUser(c *fiber.Ctx) error {
 			Message: "Layanan database tidak tersedia",
 		})
 	}
-	if err := db.Model(&model.User{}).Where("id = ?", targetID).Update("is_active", false).Error; err != nil {
+
+	if c.Query("permanent") == "true" {
+		res := db.Delete(&model.User{}, "id = ?", targetID)
+		if res.Error != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal menghapus akun pengguna",
+				Error:   res.Error.Error(),
+			})
+		}
+		if res.RowsAffected == 0 {
+			return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+				Success: false,
+				Message: "Pengguna tidak ditemukan",
+			})
+		}
+		return c.JSON(model.APIResponse{
+			Success: true,
+			Message: "Akun pengguna berhasil dihapus secara permanen",
+		})
+	}
+
+	var user model.User
+	if err := db.First(&user, "id = ?", targetID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Pengguna tidak ditemukan",
+		})
+	}
+
+	newStatus := !user.IsActive
+	if err := db.Model(&user).Update("is_active", newStatus).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
-			Message: "Gagal menonaktifkan akun",
+			Message: "Gagal memperbarui status akun",
 			Error:   err.Error(),
 		})
 	}
 
+	msg := "Akun pengguna berhasil dinonaktifkan"
+	if newStatus {
+		msg = "Akun pengguna berhasil diaktifkan kembali"
+	}
+
 	return c.JSON(model.APIResponse{
 		Success: true,
-		Message: "Akun pengguna berhasil dinonaktifkan",
+		Message: msg,
+		Data:    user,
 	})
 }

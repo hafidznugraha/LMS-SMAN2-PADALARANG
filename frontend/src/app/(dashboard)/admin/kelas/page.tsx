@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Trash2,
   UserCheck,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchAPI } from "@/lib/api";
@@ -25,6 +26,7 @@ export default function MasterKelasPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,24 +60,56 @@ export default function MasterKelasPage() {
     loadData();
   }, [loadData]);
 
-  const handleCreateKelas = async (e: React.FormEvent) => {
+  const handleOpenCreateModal = () => {
+    setEditingKelas(null);
+    setFormNamaKelas("");
+    setFormTingkat(10);
+    setFormJurusan("MIPA");
+    setFormWaliGuruId("");
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (item: Kelas) => {
+    setEditingKelas(item);
+    setFormNamaKelas(item.nama_kelas);
+    setFormTingkat(item.tingkat);
+    setFormJurusan(item.jurusan);
+    setFormWaliGuruId(item.wali_guru_id || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSaveKelas = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMsg(null);
 
     try {
-      await fetchAPI("/master/kelas", {
-        method: "POST",
-        body: JSON.stringify({
-          nama_kelas: formNamaKelas.trim(),
-          tingkat: Number(formTingkat),
-          jurusan: formJurusan.trim(),
-          wali_guru_id: formWaliGuruId || undefined,
-        }),
-      });
+      if (editingKelas) {
+        await fetchAPI(`/master/kelas/${editingKelas.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            nama_kelas: formNamaKelas.trim(),
+            tingkat: Number(formTingkat),
+            jurusan: formJurusan.trim(),
+            wali_guru_id: formWaliGuruId || "none",
+          }),
+        });
+        setSuccessMsg(`Kelas ${formNamaKelas} berhasil diperbarui!`);
+      } else {
+        await fetchAPI("/master/kelas", {
+          method: "POST",
+          body: JSON.stringify({
+            nama_kelas: formNamaKelas.trim(),
+            tingkat: Number(formTingkat),
+            jurusan: formJurusan.trim(),
+            wali_guru_id: formWaliGuruId || undefined,
+          }),
+        });
+        setSuccessMsg(`Kelas ${formNamaKelas} berhasil ditambahkan!`);
+      }
 
-      setSuccessMsg(`Kelas ${formNamaKelas} berhasil ditambahkan!`);
       setIsModalOpen(false);
+      setEditingKelas(null);
       setFormNamaKelas("");
       setFormWaliGuruId("");
       await loadData();
@@ -120,7 +154,7 @@ export default function MasterKelasPage() {
             Kelola rombongan belajar, penetapan wali kelas, dan jurusan akademik
           </p>
         </div>
-        <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
+        <Button variant="primary" size="md" onClick={handleOpenCreateModal}>
           <Plus className="w-4 h-4" />
           <span>Tambah Kelas</span>
         </Button>
@@ -214,19 +248,29 @@ export default function MasterKelasPage() {
                       </div>
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        disabled={isDeletingId === k.id}
-                        onClick={() => handleDeleteKelas(k.id, k.nama_kelas)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Hapus Kelas"
-                      >
-                        {isDeletingId === k.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(k)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-900 hover:bg-blue-50 transition-colors"
+                          title="Edit Kelas"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isDeletingId === k.id}
+                          onClick={() => handleDeleteKelas(k.id, k.nama_kelas)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Hapus Kelas"
+                        >
+                          {isDeletingId === k.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -241,19 +285,26 @@ export default function MasterKelasPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Tambah Kelas Baru</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Daftarkan rombongan belajar baru</p>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingKelas ? "Edit Data Kelas" : "Tambah Kelas Baru"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingKelas ? "Perbarui informasi rombongan belajar" : "Daftarkan rombongan belajar baru"}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingKelas(null);
+                }}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateKelas} className="space-y-3">
+            <form onSubmit={handleSaveKelas} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Nama Kelas</label>
                 <input
@@ -315,7 +366,10 @@ export default function MasterKelasPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingKelas(null);
+                  }}
                   disabled={isSubmitting}
                 >
                   Batal
@@ -327,7 +381,7 @@ export default function MasterKelasPage() {
                       <span>Menyimpan...</span>
                     </>
                   ) : (
-                    <span>Simpan Kelas</span>
+                    <span>{editingKelas ? "Simpan Perubahan" : "Simpan Kelas"}</span>
                   )}
                 </Button>
               </div>

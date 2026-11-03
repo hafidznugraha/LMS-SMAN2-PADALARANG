@@ -13,6 +13,9 @@ import {
   CheckCircle2,
   AlertCircle,
   UserX,
+  UserCheck,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchAPI } from "@/lib/api";
@@ -51,6 +54,8 @@ export default function MasterSiswaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSiswa, setEditingSiswa] = useState<SiswaRecord | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -96,7 +101,39 @@ export default function MasterSiswaPage() {
     loadData();
   }, [loadData]);
 
-  const handleCreateSiswa = async (e: React.FormEvent) => {
+  const handleOpenCreateModal = () => {
+    setEditingSiswa(null);
+    setFormNama("");
+    setFormUsername("");
+    setFormEmail("");
+    setFormPassword("password123");
+    setFormNIS("");
+    setFormNISN("");
+    if (kelasList.length > 0) {
+      setFormKelasId(kelasList[0].id);
+    }
+    setFormGender("Laki-laki");
+    setFormTelp("");
+    setFormAlamat("");
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (siswa: SiswaRecord) => {
+    setEditingSiswa(siswa);
+    setFormNama(siswa.user?.nama_lengkap || "");
+    setFormUsername(siswa.user?.username || "");
+    setFormEmail(siswa.user?.email || "");
+    setFormPassword("");
+    setFormNIS(siswa.nis || "");
+    setFormNISN(siswa.nisn || "");
+    setFormKelasId(siswa.kelas_id || (kelasList[0]?.id || ""));
+    setFormGender(siswa.jenis_kelamin || "Laki-laki");
+    setFormTelp(siswa.no_telepon || "");
+    setFormAlamat(siswa.alamat || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSaveSiswa = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -116,25 +153,45 @@ export default function MasterSiswaPage() {
     }
 
     try {
-      await fetchAPI("/users", {
-        method: "POST",
-        body: JSON.stringify({
-          username: formUsername.trim(),
-          password: formPassword,
-          nama_lengkap: formNama.trim(),
-          email: formEmail.trim(),
-          role: "siswa",
-          nis: formNIS.trim(),
-          nisn: formNISN.trim(),
-          kelas_id: formKelasId,
-          jenis_kelamin: formGender,
-          no_telepon: cleanTelp,
-          alamat: formAlamat.trim(),
-        }),
-      });
+      if (editingSiswa) {
+        await fetchAPI(`/users/${editingSiswa.user_id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            nama_lengkap: formNama.trim(),
+            email: formEmail.trim(),
+            password: formPassword.trim() || undefined,
+            role: "siswa",
+            nis: formNIS.trim(),
+            nisn: formNISN.trim(),
+            kelas_id: formKelasId || "none",
+            jenis_kelamin: formGender,
+            no_telepon: cleanTelp,
+            alamat: formAlamat.trim(),
+          }),
+        });
+        setSuccessMsg(`Data siswa ${formNama} berhasil diperbarui!`);
+      } else {
+        await fetchAPI("/users", {
+          method: "POST",
+          body: JSON.stringify({
+            username: formUsername.trim(),
+            password: formPassword,
+            nama_lengkap: formNama.trim(),
+            email: formEmail.trim(),
+            role: "siswa",
+            nis: formNIS.trim(),
+            nisn: formNISN.trim(),
+            kelas_id: formKelasId,
+            jenis_kelamin: formGender,
+            no_telepon: cleanTelp,
+            alamat: formAlamat.trim(),
+          }),
+        });
+        setSuccessMsg(`Akun siswa ${formNama} berhasil didaftarkan!`);
+      }
 
-      setSuccessMsg(`Akun siswa ${formNama} berhasil didaftarkan!`);
       setIsModalOpen(false);
+      setEditingSiswa(null);
       setFormNama("");
       setFormUsername("");
       setFormEmail("");
@@ -152,16 +209,33 @@ export default function MasterSiswaPage() {
     }
   };
 
-  const handleDeactivate = async (userId: string, nama: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menonaktifkan akun ${nama}?`)) return;
+  const handleToggleActive = async (userId: string, nama: string, currentActive: boolean) => {
+    const actionText = currentActive ? "menonaktifkan" : "mengaktifkan kembali";
+    if (!confirm(`Apakah Anda yakin ingin ${actionText} akun ${nama}?`)) return;
     try {
       await fetchAPI(`/users/${userId}`, { method: "DELETE" });
-      setSuccessMsg(`Akun ${nama} dinonaktifkan`);
+      setSuccessMsg(`Status akun ${nama} berhasil diubah`);
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setErrorMsg(err.message);
       }
+    }
+  };
+
+  const handleDeletePermanen = async (userId: string, nama: string) => {
+    if (!confirm(`PERINGATAN: Apakah Anda yakin ingin menghapus data siswa ${nama} secara permanen? Data yang dihapus tidak dapat dipulihkan.`)) return;
+    setIsDeletingId(userId);
+    try {
+      await fetchAPI(`/users/${userId}?permanent=true`, { method: "DELETE" });
+      setSuccessMsg(`Akun siswa ${nama} berhasil dihapus secara permanen`);
+      await loadData();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      }
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -184,7 +258,7 @@ export default function MasterSiswaPage() {
             Kelola data pokok peserta didik, NIS, NISN, dan penempatan kelas
           </p>
         </div>
-        <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
+        <Button variant="primary" size="md" onClick={handleOpenCreateModal}>
           <Plus className="w-4 h-4" />
           <span>Tambah Siswa</span>
         </Button>
@@ -313,18 +387,51 @@ export default function MasterSiswaPage() {
                       )}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      {item.user && item.user.is_active && (
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDeactivate(item.user!.id, item.user!.nama_lengkap)
-                          }
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Nonaktifkan Akun"
+                          onClick={() => handleOpenEditModal(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-900 hover:bg-blue-50 transition-colors"
+                          title="Edit Data Siswa"
                         >
-                          <UserX className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
-                      )}
+                        {item.user && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleToggleActive(item.user!.id, item.user!.nama_lengkap, item.user!.is_active)
+                            }
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              item.user.is_active
+                                ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                                : "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                            title={item.user.is_active ? "Nonaktifkan Akun" : "Aktifkan Akun"}
+                          >
+                            {item.user.is_active ? (
+                              <UserX className="w-4 h-4" />
+                            ) : (
+                              <UserCheck className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        {item.user && (
+                          <button
+                            type="button"
+                            disabled={isDeletingId === item.user.id}
+                            onClick={() => handleDeletePermanen(item.user!.id, item.user!.nama_lengkap)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Hapus Akun Permanen"
+                          >
+                            {isDeletingId === item.user.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -339,19 +446,26 @@ export default function MasterSiswaPage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Tambah Data Siswa</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Daftarkan akun peserta didik baru</p>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingSiswa ? "Edit Data Siswa" : "Tambah Data Siswa"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingSiswa ? "Perbarui informasi peserta didik dan penempatan kelas" : "Daftarkan akun peserta didik baru"}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingSiswa(null);
+                }}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSiswa} className="space-y-3">
+            <form onSubmit={handleSaveSiswa} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Nama Lengkap</label>
                 <input
@@ -370,19 +484,27 @@ export default function MasterSiswaPage() {
                   <input
                     type="text"
                     required
+                    disabled={!!editingSiswa}
                     value={formUsername}
                     onChange={(e) => setFormUsername(e.target.value)}
                     placeholder="siswa_laura"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                    className={`w-full px-3 py-2 text-xs rounded-xl border ${
+                      editingSiswa
+                        ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                        : "border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                    }`}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Kata Sandi Default</label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    {editingSiswa ? "Kata Sandi Baru (Opsional)" : "Kata Sandi Default"}
+                  </label>
                   <input
                     type="text"
-                    required
+                    required={!editingSiswa}
                     value={formPassword}
                     onChange={(e) => setFormPassword(e.target.value)}
+                    placeholder={editingSiswa ? "Kosongkan jika tidak diubah" : "password123"}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
                   />
                 </div>
@@ -502,7 +624,10 @@ export default function MasterSiswaPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingSiswa(null);
+                  }}
                   disabled={isSubmitting}
                 >
                   Batal
@@ -514,7 +639,7 @@ export default function MasterSiswaPage() {
                       <span>Menyimpan...</span>
                     </>
                   ) : (
-                    <span>Daftarkan Siswa</span>
+                    <span>{editingSiswa ? "Simpan Perubahan" : "Daftarkan Siswa"}</span>
                   )}
                 </Button>
               </div>
