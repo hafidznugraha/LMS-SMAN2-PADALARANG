@@ -68,22 +68,35 @@ export const AltchaWidget = forwardRef<AltchaHandle, AltchaProps>(
     );
 
     const altchaConfig = JSON.stringify({
+      hideFooter: true,
       strings: {
         label: "Saya bukan robot",
-        verifying: "Memverifikasi keamanan...",
+        verifying: "Memverifikasi...",
         verified: "Terverifikasi aman",
         error: "Gagal verifikasi. Silakan coba lagi.",
       },
     });
 
     return (
-      <div className={`w-full ${className}`}>
+      <div className={`w-full flex justify-center items-center ${className}`}>
         <altcha-widget
           ref={widgetRef as any}
           challenge={apiUrl}
           auto="onfocus"
           configuration={altchaConfig}
-          className="w-full"
+          hidefooter="true"
+          style={
+            {
+              "--altcha-max-width": "260px",
+              "--altcha-border-radius": "16px",
+              "--altcha-padding": "0.5rem 0.85rem",
+              "--altcha-border-color": "#E2E8F0",
+              "--altcha-color-base": "#F8FAFC",
+              display: "block",
+              margin: "0 auto",
+            } as React.CSSProperties
+          }
+          className="mx-auto block"
         />
       </div>
     );

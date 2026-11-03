@@ -15,6 +15,8 @@ declare global {
           type?: "native" | "checkbox" | "switch";
           workers?: number | string;
           configuration?: string;
+          hidefooter?: boolean | string;
+          hidelogo?: boolean | string;
         },
         HTMLElement
       >;
@@ -34,6 +36,8 @@ declare global {
           type?: "native" | "checkbox" | "switch";
           workers?: number | string;
           configuration?: string;
+          hidefooter?: boolean | string;
+          hidelogo?: boolean | string;
         },
         HTMLElement
       >;
