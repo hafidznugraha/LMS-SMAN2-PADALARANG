@@ -61,6 +61,20 @@ export default function MasterGuruPage() {
     setIsSubmitting(true);
     setErrorMsg(null);
 
+    const cleanTelp = formTelp.trim();
+    if (cleanTelp) {
+      if (!/^[0-9]+$/.test(cleanTelp)) {
+        setErrorMsg("Nomor telepon hanya boleh berisi angka");
+        setIsSubmitting(false);
+        return;
+      }
+      if (cleanTelp.length < 10 || cleanTelp.length > 15) {
+        setErrorMsg("Nomor telepon harus terdiri dari 10 hingga 15 digit angka");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
       await fetchAPI("/users", {
         method: "POST",
@@ -72,7 +86,7 @@ export default function MasterGuruPage() {
           role: formRole,
           nip: formNIP.trim(),
           gelar: formGelar.trim(),
-          no_telepon: formTelp.trim(),
+          no_telepon: cleanTelp,
         }),
       });
 
@@ -369,8 +383,11 @@ export default function MasterGuruPage() {
                   <input
                     type="text"
                     required
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={18}
                     value={formNIP}
-                    onChange={(e) => setFormNIP(e.target.value)}
+                    onChange={(e) => setFormNIP(e.target.value.replace(/\D/g, ""))}
                     placeholder="198809202014021003"
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
                   />
@@ -378,10 +395,13 @@ export default function MasterGuruPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Nomor Telepon</label>
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={15}
                     value={formTelp}
-                    onChange={(e) => setFormTelp(e.target.value)}
-                    placeholder="+628..."
+                    onChange={(e) => setFormTelp(e.target.value.replace(/\D/g, ""))}
+                    placeholder="081234567890"
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
                   />
                 </div>

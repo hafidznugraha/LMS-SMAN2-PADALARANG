@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -536,6 +537,16 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 			Success: false,
 			Message: "Username, password, nama lengkap, dan email wajib diisi",
 		})
+	}
+
+	if strings.TrimSpace(req.NoTelepon) != "" {
+		matched, _ := regexp.MatchString(`^[0-9]{10,15}$`, strings.TrimSpace(req.NoTelepon))
+		if !matched {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Nomor telepon harus berupa angka antara 10 hingga 15 digit",
+			})
+		}
 	}
 
 	db := repository.GetDB()
