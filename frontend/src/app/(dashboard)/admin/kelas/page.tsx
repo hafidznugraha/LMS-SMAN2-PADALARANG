@@ -338,11 +338,23 @@ export default function MasterKelasPage() {
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
                 >
                   <option value="">Pilih Wali Kelas (Opsional)</option>
-                  {guruList.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.user?.nama_lengkap || "Guru"}{g.nip ? ` (${g.nip})` : ""}
-                    </option>
-                  ))}
+                  {guruList.map((g) => {
+                    const assignedClass = kelasList.find(
+                      (k) => k.wali_guru_id === g.id && k.id !== editingKelas?.id
+                    );
+                    return (
+                      <option
+                        key={g.id}
+                        value={g.id}
+                        disabled={Boolean(assignedClass)}
+                        className={assignedClass ? "text-slate-400 bg-slate-50" : ""}
+                      >
+                        {g.user?.nama_lengkap || "Guru"}
+                        {g.nip ? ` (${g.nip})` : ""}
+                        {assignedClass ? ` — (Sudah Wali Kelas ${assignedClass.nama_kelas})` : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

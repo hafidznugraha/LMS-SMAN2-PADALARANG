@@ -78,10 +78,22 @@ func (h *MasterHandler) CreateKelas(c *fiber.Ctx) error {
 	}
 
 	var waliGuruUUID *uuid.UUID
-	if req.WaliGuruID != "" {
-		if parsed, err := uuid.Parse(req.WaliGuruID); err == nil {
-			waliGuruUUID = &parsed
+	if req.WaliGuruID != "" && req.WaliGuruID != "none" {
+		parsed, err := uuid.Parse(req.WaliGuruID)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID guru tidak valid",
+			})
 		}
+		var conflictKelas model.Kelas
+		if err := db.Where("wali_guru_id = ?", parsed).First(&conflictKelas).Error; err == nil {
+			return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+				Success: false,
+				Message: "Guru yang dipilih sudah menjadi wali kelas untuk kelas lain",
+			})
+		}
+		waliGuruUUID = &parsed
 	}
 
 	newKelas := model.Kelas{
@@ -92,6 +104,12 @@ func (h *MasterHandler) CreateKelas(c *fiber.Ctx) error {
 	}
 
 	if err := db.Create(&newKelas).Error; err != nil {
+		if strings.Contains(err.Error(), "uq_kelas_wali_guru") {
+			return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+				Success: false,
+				Message: "Guru yang dipilih sudah menjadi wali kelas untuk kelas lain",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal menyimpan data kelas",
@@ -164,12 +182,32 @@ func (h *MasterHandler) UpdateKelas(c *fiber.Ctx) error {
 	if req.WaliGuruID != "" {
 		if req.WaliGuruID == "none" {
 			kelas.WaliGuruID = nil
-		} else if parsed, err := uuid.Parse(req.WaliGuruID); err == nil {
+		} else {
+			parsed, err := uuid.Parse(req.WaliGuruID)
+			if err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "ID guru tidak valid",
+				})
+			}
+			var conflictKelas model.Kelas
+			if err := db.Where("wali_guru_id = ? AND id != ?", parsed, targetID).First(&conflictKelas).Error; err == nil {
+				return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+					Success: false,
+					Message: "Guru yang dipilih sudah menjadi wali kelas untuk kelas lain",
+				})
+			}
 			kelas.WaliGuruID = &parsed
 		}
 	}
 
 	if err := db.Save(&kelas).Error; err != nil {
+		if strings.Contains(err.Error(), "uq_kelas_wali_guru") {
+			return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+				Success: false,
+				Message: "Guru yang dipilih sudah menjadi wali kelas untuk kelas lain",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal memperbarui data kelas",

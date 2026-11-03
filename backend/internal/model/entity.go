@@ -36,7 +36,7 @@ type Kelas struct {
 	NamaKelas  string     `gorm:"size:20;unique;not null" json:"nama_kelas"`
 	Tingkat    int        `gorm:"not null" json:"tingkat"`
 	Jurusan    string     `gorm:"size:20;not null" json:"jurusan"`
-	WaliGuruID *uuid.UUID `gorm:"type:uuid" json:"wali_guru_id,omitempty"`
+	WaliGuruID *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"wali_guru_id,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 	WaliGuru   *Guru      `gorm:"foreignKey:WaliGuruID" json:"wali_guru,omitempty"`
 }
