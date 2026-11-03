@@ -7,12 +7,11 @@ import {
   Search,
   X,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
   Trash2,
   Edit2,
   Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { fetchAPI } from "@/lib/api";
 import { MataPelajaran } from "@/types";
@@ -32,18 +31,14 @@ export default function MasterMapelPage() {
   const [formNamaMapel, setFormNamaMapel] = useState("");
   const [formKategori, setFormKategori] = useState("Umum");
 
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    setErrorMsg(null);
     try {
       const res = await fetchAPI<{ data: MataPelajaran[] }>("/master/mapel");
       setMapelList(res.data || []);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsLoading(false);
@@ -59,7 +54,6 @@ export default function MasterMapelPage() {
     setFormKodeMapel("");
     setFormNamaMapel("");
     setFormKategori("Umum");
-    setErrorMsg(null);
     setIsModalOpen(true);
   };
 
@@ -68,14 +62,12 @@ export default function MasterMapelPage() {
     setFormKodeMapel(mapel.kode_mapel);
     setFormNamaMapel(mapel.nama_mapel);
     setFormKategori(mapel.kategori || "Umum");
-    setErrorMsg(null);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       if (editingMapel) {
@@ -87,7 +79,7 @@ export default function MasterMapelPage() {
             kategori: formKategori.trim(),
           }),
         });
-        setSuccessMsg(`Mata pelajaran ${formNamaMapel} berhasil diperbarui!`);
+        toast.success(`Mata pelajaran ${formNamaMapel} berhasil diperbarui!`);
       } else {
         await fetchAPI("/master/mapel", {
           method: "POST",
@@ -97,7 +89,7 @@ export default function MasterMapelPage() {
             kategori: formKategori.trim(),
           }),
         });
-        setSuccessMsg(`Mata pelajaran ${formNamaMapel} berhasil ditambahkan!`);
+        toast.success(`Mata pelajaran ${formNamaMapel} berhasil ditambahkan!`);
       }
 
       setIsModalOpen(false);
@@ -107,7 +99,7 @@ export default function MasterMapelPage() {
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsSubmitting(false);
@@ -119,11 +111,11 @@ export default function MasterMapelPage() {
     setIsDeletingId(id);
     try {
       await fetchAPI(`/master/mapel/${id}`, { method: "DELETE" });
-      setSuccessMsg(`Mata pelajaran ${nama} berhasil dihapus!`);
+      toast.success(`Mata pelajaran ${nama} berhasil dihapus!`);
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsDeletingId(null);
@@ -170,38 +162,6 @@ export default function MasterMapelPage() {
           <span>Tambah Mata Pelajaran</span>
         </Button>
       </div>
-
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-emerald-800 text-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSuccessMsg(null)}
-            className="text-emerald-700 hover:text-emerald-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-between text-rose-800 text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            className="text-rose-700 hover:text-rose-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">

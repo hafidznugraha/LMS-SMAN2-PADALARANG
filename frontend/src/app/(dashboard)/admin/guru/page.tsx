@@ -2,20 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Users,
   Plus,
   Search,
   GraduationCap,
   X,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
   UserX,
   UserCheck,
   Pencil,
   Trash2,
-  Award,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { fetchAPI } from "@/lib/api";
 import { Guru } from "@/types";
@@ -30,9 +27,6 @@ export default function MasterGuruPage() {
   const [editingGuru, setEditingGuru] = useState<Guru | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const [formNama, setFormNama] = useState("");
   const [formUsername, setFormUsername] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -44,13 +38,12 @@ export default function MasterGuruPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    setErrorMsg(null);
     try {
       const res = await fetchAPI<{ data: Guru[] }>("/master/guru");
       setGuruList(res.data || []);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsLoading(false);
@@ -90,17 +83,16 @@ export default function MasterGuruPage() {
   const handleSaveGuru = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     const cleanTelp = formTelp.trim();
     if (cleanTelp) {
       if (!/^[0-9]+$/.test(cleanTelp)) {
-        setErrorMsg("Nomor telepon hanya boleh berisi angka");
+        toast.error("Nomor telepon hanya boleh berisi angka");
         setIsSubmitting(false);
         return;
       }
       if (cleanTelp.length < 10 || cleanTelp.length > 15) {
-        setErrorMsg("Nomor telepon harus terdiri dari 10 hingga 15 digit angka");
+        toast.error("Nomor telepon harus terdiri dari 10 hingga 15 digit angka");
         setIsSubmitting(false);
         return;
       }
@@ -120,7 +112,7 @@ export default function MasterGuruPage() {
             no_telepon: cleanTelp,
           }),
         });
-        setSuccessMsg(`Data guru ${formNama} berhasil diperbarui!`);
+        toast.success(`Data guru ${formNama} berhasil diperbarui!`);
       } else {
         await fetchAPI("/users", {
           method: "POST",
@@ -135,7 +127,7 @@ export default function MasterGuruPage() {
             no_telepon: cleanTelp,
           }),
         });
-        setSuccessMsg(`Akun guru ${formNama} berhasil didaftarkan!`);
+        toast.success(`Akun guru ${formNama} berhasil didaftarkan!`);
       }
 
       setIsModalOpen(false);
@@ -149,7 +141,7 @@ export default function MasterGuruPage() {
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsSubmitting(false);
@@ -161,11 +153,11 @@ export default function MasterGuruPage() {
     if (!confirm(`Apakah Anda yakin ingin ${actionText} akun ${nama}?`)) return;
     try {
       await fetchAPI(`/users/${userId}`, { method: "DELETE" });
-      setSuccessMsg(`Status akun ${nama} berhasil diubah`);
+      toast.success(`Status akun ${nama} berhasil diubah`);
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     }
   };
@@ -175,11 +167,11 @@ export default function MasterGuruPage() {
     setIsDeletingId(userId);
     try {
       await fetchAPI(`/users/${userId}?permanent=true`, { method: "DELETE" });
-      setSuccessMsg(`Akun guru ${nama} berhasil dihapus secara permanen`);
+      toast.success(`Akun guru ${nama} berhasil dihapus secara permanen`);
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsDeletingId(null);
@@ -209,38 +201,6 @@ export default function MasterGuruPage() {
           <span>Tambah Guru</span>
         </Button>
       </div>
-
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-emerald-800 text-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSuccessMsg(null)}
-            className="text-emerald-700 hover:text-emerald-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-between text-rose-800 text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            className="text-rose-700 hover:text-rose-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">

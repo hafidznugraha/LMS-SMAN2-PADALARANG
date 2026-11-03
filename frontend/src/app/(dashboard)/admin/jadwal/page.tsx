@@ -10,11 +10,10 @@ import {
   Clock,
   MapPin,
   Calendar,
-  AlertCircle,
-  CheckCircle2,
   X,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AlertConflict } from "@/components/ui/alert-conflict";
 import { fetchAPI, ApiClientError } from "@/lib/api";
@@ -42,8 +41,6 @@ export default function KelolaJadwalPage() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   const [conflict, setConflict] = useState<ConflictState | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJadwal, setEditingJadwal] = useState<JadwalPelajaran | null>(null);
@@ -64,7 +61,7 @@ export default function KelolaJadwalPage() {
       setJadwalList(res.data || []);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsJadwalLoading(false);
@@ -73,7 +70,6 @@ export default function KelolaJadwalPage() {
 
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
-    setErrorMsg(null);
     try {
       const [resKelas, resMapel, resGuru] = await Promise.all([
         fetchAPI<{ data: Kelas[] }>("/master/kelas"),
@@ -99,7 +95,7 @@ export default function KelolaJadwalPage() {
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsLoading(false);
@@ -126,7 +122,6 @@ export default function KelolaJadwalPage() {
     setFormJamMulai("07:00");
     setFormJamSelesai("08:30");
     setFormRuang("");
-    setErrorMsg(null);
     setIsModalOpen(true);
   };
 
@@ -139,7 +134,6 @@ export default function KelolaJadwalPage() {
     setFormJamMulai(item.jam_mulai.slice(0, 5));
     setFormJamSelesai(item.jam_selesai.slice(0, 5));
     setFormRuang(item.ruang || "");
-    setErrorMsg(null);
     setIsModalOpen(true);
   };
 
@@ -151,7 +145,6 @@ export default function KelolaJadwalPage() {
   const handleCreateJadwal = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       if (editingJadwal) {
@@ -167,7 +160,7 @@ export default function KelolaJadwalPage() {
             ruang: formRuang,
           }),
         });
-        setSuccessMsg("Jadwal pelajaran berhasil diperbarui!");
+        toast.success("Jadwal pelajaran berhasil diperbarui!");
       } else {
         await fetchAPI("/jadwal", {
           method: "POST",
@@ -181,7 +174,7 @@ export default function KelolaJadwalPage() {
             ruang: formRuang,
           }),
         });
-        setSuccessMsg("Jadwal pelajaran berhasil ditambahkan!");
+        toast.success("Jadwal pelajaran berhasil ditambahkan!");
       }
 
       setConflict(null);
@@ -208,7 +201,7 @@ export default function KelolaJadwalPage() {
         }
         setIsModalOpen(false);
       } else if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsSubmitting(false);
@@ -220,13 +213,13 @@ export default function KelolaJadwalPage() {
     setIsDeletingId(id);
     try {
       await fetchAPI(`/jadwal/${id}`, { method: "DELETE" });
-      setSuccessMsg("Jadwal pelajaran berhasil dihapus");
+      toast.success("Jadwal pelajaran berhasil dihapus");
       if (selectedKelas) {
         await loadJadwal(selectedKelas.id);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsDeletingId(null);
@@ -263,38 +256,6 @@ export default function KelolaJadwalPage() {
           onClose={() => setConflict(null)}
           onFix={handleOpenModal}
         />
-      )}
-
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-emerald-800 text-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSuccessMsg(null)}
-            className="text-emerald-700 hover:text-emerald-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-between text-rose-800 text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            className="text-rose-700 hover:text-rose-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
       )}
 
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-5">

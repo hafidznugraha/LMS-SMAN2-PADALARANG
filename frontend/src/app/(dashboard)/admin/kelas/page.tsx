@@ -7,12 +7,11 @@ import {
   Search,
   X,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
   Trash2,
   UserCheck,
   Pencil,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { fetchAPI } from "@/lib/api";
 import { Kelas, Guru } from "@/types";
@@ -28,9 +27,6 @@ export default function MasterKelasPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
 
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const [formNamaKelas, setFormNamaKelas] = useState("");
   const [formTingkat, setFormTingkat] = useState<number>(10);
   const [formJurusan, setFormJurusan] = useState("MIPA");
@@ -38,7 +34,6 @@ export default function MasterKelasPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    setErrorMsg(null);
     try {
       const [resKelas, resGuru] = await Promise.all([
         fetchAPI<{ data: Kelas[] }>("/master/kelas"),
@@ -49,7 +44,7 @@ export default function MasterKelasPage() {
       setGuruList(resGuru.data || []);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsLoading(false);
@@ -81,7 +76,6 @@ export default function MasterKelasPage() {
   const handleSaveKelas = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       if (editingKelas) {
@@ -94,7 +88,7 @@ export default function MasterKelasPage() {
             wali_guru_id: formWaliGuruId || "none",
           }),
         });
-        setSuccessMsg(`Kelas ${formNamaKelas} berhasil diperbarui!`);
+        toast.success(`Kelas ${formNamaKelas} berhasil diperbarui!`);
       } else {
         await fetchAPI("/master/kelas", {
           method: "POST",
@@ -105,7 +99,7 @@ export default function MasterKelasPage() {
             wali_guru_id: formWaliGuruId || undefined,
           }),
         });
-        setSuccessMsg(`Kelas ${formNamaKelas} berhasil ditambahkan!`);
+        toast.success(`Kelas ${formNamaKelas} berhasil ditambahkan!`);
       }
 
       setIsModalOpen(false);
@@ -115,7 +109,7 @@ export default function MasterKelasPage() {
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsSubmitting(false);
@@ -127,11 +121,11 @@ export default function MasterKelasPage() {
     setIsDeletingId(id);
     try {
       await fetchAPI(`/master/kelas/${id}`, { method: "DELETE" });
-      setSuccessMsg(`Kelas ${nama} berhasil dihapus`);
+      toast.success(`Kelas ${nama} berhasil dihapus`);
       await loadData();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorMsg(err.message);
+        toast.error(err.message);
       }
     } finally {
       setIsDeletingId(null);
@@ -159,38 +153,6 @@ export default function MasterKelasPage() {
           <span>Tambah Kelas</span>
         </Button>
       </div>
-
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-emerald-800 text-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSuccessMsg(null)}
-            className="text-emerald-700 hover:text-emerald-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-between text-rose-800 text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            className="text-rose-700 hover:text-rose-900"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
