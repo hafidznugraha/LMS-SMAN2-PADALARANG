@@ -161,7 +161,8 @@ export default function MasterKelasPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <>
+      <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
@@ -264,9 +265,10 @@ export default function MasterKelasPage() {
           </div>
         )}
       </div>
+      </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs m-0">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
@@ -397,6 +399,6 @@ export default function MasterKelasPage() {
         onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={() => confirmState.action?.()}
       />
-    </div>
+    </>
   );
 }
