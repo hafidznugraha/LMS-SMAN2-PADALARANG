@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { AlertConflict } from "@/components/ui/alert-conflict";
 import { fetchAPI, ApiClientError } from "@/lib/api";
 import { Kelas, MataPelajaran, Guru, JadwalPelajaran } from "@/types";
@@ -41,6 +42,19 @@ export default function KelolaJadwalPage() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   const [conflict, setConflict] = useState<ConflictState | null>(null);
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: "danger" | "warning" | "primary";
+    action?: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJadwal, setEditingJadwal] = useState<JadwalPelajaran | null>(null);
@@ -208,22 +222,31 @@ export default function KelolaJadwalPage() {
     }
   };
 
-  const handleDeleteJadwal = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus jadwal ini?")) return;
-    setIsDeletingId(id);
-    try {
-      await fetchAPI(`/jadwal/${id}`, { method: "DELETE" });
-      toast.success("Jadwal pelajaran berhasil dihapus");
-      if (selectedKelas) {
-        await loadJadwal(selectedKelas.id);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast.error(err.message);
-      }
-    } finally {
-      setIsDeletingId(null);
-    }
+  const handleDeleteJadwal = (id: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: "Hapus Jadwal Pelajaran",
+      message: "Apakah Anda yakin ingin menghapus jadwal ini dari kalender rombel?",
+      confirmText: "Hapus Jadwal",
+      variant: "danger",
+      action: async () => {
+        setIsDeletingId(id);
+        try {
+          await fetchAPI(`/jadwal/${id}`, { method: "DELETE" });
+          toast.success("Jadwal pelajaran berhasil dihapus");
+          if (selectedKelas) {
+            await loadJadwal(selectedKelas.id);
+          }
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            toast.error(err.message);
+          }
+        } finally {
+          setIsDeletingId(null);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const schedulesByDay = HARI_LIST.reduce<Record<string, JadwalPelajaran[]>>((acc, day) => {
@@ -576,6 +599,17 @@ export default function KelolaJadwalPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+        isLoading={Boolean(isDeletingId)}
+        onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => confirmState.action?.()}
+      />
     </div>
   );
 }

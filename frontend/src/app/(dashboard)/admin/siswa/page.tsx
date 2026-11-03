@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { fetchAPI } from "@/lib/api";
 import { Kelas, SiswaProfile } from "@/types";
 
@@ -53,6 +54,19 @@ export default function MasterSiswaPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSiswa, setEditingSiswa] = useState<SiswaRecord | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: "danger" | "warning" | "primary";
+    action?: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   const [formNama, setFormNama] = useState("");
   const [formUsername, setFormUsername] = useState("");
@@ -201,34 +215,53 @@ export default function MasterSiswaPage() {
     }
   };
 
-  const handleToggleActive = async (userId: string, nama: string, currentActive: boolean) => {
+  const handleToggleActive = (userId: string, nama: string, currentActive: boolean) => {
     const actionText = currentActive ? "menonaktifkan" : "mengaktifkan kembali";
-    if (!confirm(`Apakah Anda yakin ingin ${actionText} akun ${nama}?`)) return;
-    try {
-      await fetchAPI(`/users/${userId}`, { method: "DELETE" });
-      toast.success(`Status akun ${nama} berhasil diubah`);
-      await loadData();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast.error(err.message);
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: currentActive ? "Nonaktifkan Akun Siswa" : "Aktifkan Akun Siswa",
+      message: `Apakah Anda yakin ingin ${actionText} akun peserta didik ${nama}?`,
+      confirmText: currentActive ? "Nonaktifkan" : "Aktifkan Kembali",
+      variant: currentActive ? "warning" : "primary",
+      action: async () => {
+        try {
+          await fetchAPI(`/users/${userId}`, { method: "DELETE" });
+          toast.success(`Status akun ${nama} berhasil diubah`);
+          await loadData();
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            toast.error(err.message);
+          }
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
-  const handleDeletePermanen = async (userId: string, nama: string) => {
-    if (!confirm(`PERINGATAN: Apakah Anda yakin ingin menghapus data siswa ${nama} secara permanen? Data yang dihapus tidak dapat dipulihkan.`)) return;
-    setIsDeletingId(userId);
-    try {
-      await fetchAPI(`/users/${userId}?permanent=true`, { method: "DELETE" });
-      toast.success(`Akun siswa ${nama} berhasil dihapus secara permanen`);
-      await loadData();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast.error(err.message);
-      }
-    } finally {
-      setIsDeletingId(null);
-    }
+  const handleDeletePermanen = (userId: string, nama: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: "Hapus Akun Siswa Permanen",
+      message: `PERINGATAN: Apakah Anda yakin ingin menghapus data siswa ${nama} secara permanen? Data yang dihapus tidak dapat dipulihkan.`,
+      confirmText: "Hapus Permanen",
+      variant: "danger",
+      action: async () => {
+        setIsDeletingId(userId);
+        try {
+          await fetchAPI(`/users/${userId}?permanent=true`, { method: "DELETE" });
+          toast.success(`Akun siswa ${nama} berhasil dihapus secara permanen`);
+          await loadData();
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            toast.error(err.message);
+          }
+        } finally {
+          setIsDeletingId(null);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const filteredSiswa = siswaList.filter((s) => {
@@ -607,6 +640,17 @@ export default function MasterSiswaPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+        isLoading={Boolean(isDeletingId)}
+        onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => confirmState.action?.()}
+      />
     </div>
   );
 }

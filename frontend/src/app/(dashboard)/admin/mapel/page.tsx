@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { fetchAPI } from "@/lib/api";
 import { MataPelajaran } from "@/types";
 
@@ -26,6 +27,19 @@ export default function MasterMapelPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMapel, setEditingMapel] = useState<MataPelajaran | null>(null);
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: "danger" | "warning" | "primary";
+    action?: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   const [formKodeMapel, setFormKodeMapel] = useState("");
   const [formNamaMapel, setFormNamaMapel] = useState("");
@@ -106,20 +120,29 @@ export default function MasterMapelPage() {
     }
   };
 
-  const handleDelete = async (id: string, nama: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus mata pelajaran ${nama}?`)) return;
-    setIsDeletingId(id);
-    try {
-      await fetchAPI(`/master/mapel/${id}`, { method: "DELETE" });
-      toast.success(`Mata pelajaran ${nama} berhasil dihapus!`);
-      await loadData();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast.error(err.message);
-      }
-    } finally {
-      setIsDeletingId(null);
-    }
+  const handleDelete = (id: string, nama: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: "Hapus Mata Pelajaran",
+      message: `Apakah Anda yakin ingin menghapus mata pelajaran ${nama}? Data ini akan dihapus dari kurikulum.`,
+      confirmText: "Hapus Mapel",
+      variant: "danger",
+      action: async () => {
+        setIsDeletingId(id);
+        try {
+          await fetchAPI(`/master/mapel/${id}`, { method: "DELETE" });
+          toast.success(`Mata pelajaran ${nama} berhasil dihapus!`);
+          await loadData();
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            toast.error(err.message);
+          }
+        } finally {
+          setIsDeletingId(null);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const getKategoriBadge = (kategori: string) => {
@@ -347,6 +370,17 @@ export default function MasterMapelPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+        isLoading={Boolean(isDeletingId)}
+        onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => confirmState.action?.()}
+      />
     </div>
   );
 }

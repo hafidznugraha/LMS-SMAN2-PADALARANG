@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { fetchAPI } from "@/lib/api";
 import { Kelas, Guru } from "@/types";
 
@@ -26,6 +27,19 @@ export default function MasterKelasPage() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: "danger" | "warning" | "primary";
+    action?: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   const [formNamaKelas, setFormNamaKelas] = useState("");
   const [formTingkat, setFormTingkat] = useState<number>(10);
@@ -116,20 +130,29 @@ export default function MasterKelasPage() {
     }
   };
 
-  const handleDeleteKelas = async (id: string, nama: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus kelas ${nama}?`)) return;
-    setIsDeletingId(id);
-    try {
-      await fetchAPI(`/master/kelas/${id}`, { method: "DELETE" });
-      toast.success(`Kelas ${nama} berhasil dihapus`);
-      await loadData();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        toast.error(err.message);
-      }
-    } finally {
-      setIsDeletingId(null);
-    }
+  const handleDeleteKelas = (id: string, nama: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: "Hapus Rombongan Belajar",
+      message: `Apakah Anda yakin ingin menghapus kelas ${nama}? Tindakan ini akan menghapus data rombel secara permanen.`,
+      confirmText: "Hapus Kelas",
+      variant: "danger",
+      action: async () => {
+        setIsDeletingId(id);
+        try {
+          await fetchAPI(`/master/kelas/${id}`, { method: "DELETE" });
+          toast.success(`Kelas ${nama} berhasil dihapus`);
+          await loadData();
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            toast.error(err.message);
+          }
+        } finally {
+          setIsDeletingId(null);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const filteredKelas = kelasList.filter((k) => {
@@ -351,6 +374,17 @@ export default function MasterKelasPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+        isLoading={Boolean(isDeletingId)}
+        onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => confirmState.action?.()}
+      />
     </div>
   );
 }
