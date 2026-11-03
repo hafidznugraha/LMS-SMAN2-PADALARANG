@@ -566,6 +566,28 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
+	if req.Role == model.RoleGuru || req.Role == model.RoleWaliKelas {
+		if req.NIP != "" {
+			var existingGuru model.Guru
+			if err := db.Where("nip = ?", strings.TrimSpace(req.NIP)).First(&existingGuru).Error; err == nil {
+				return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+					Success: false,
+					Message: "NIP sudah terdaftar untuk guru lain",
+				})
+			}
+		}
+	} else if req.Role == model.RoleSiswa {
+		if req.NIS != "" || req.NISN != "" {
+			var existingSiswa model.Siswa
+			if err := db.Where("nis = ? OR nisn = ?", strings.TrimSpace(req.NIS), strings.TrimSpace(req.NISN)).First(&existingSiswa).Error; err == nil {
+				return c.Status(fiber.StatusConflict).JSON(model.APIResponse{
+					Success: false,
+					Message: "NIS atau NISN sudah terdaftar untuk siswa lain",
+				})
+			}
+		}
+	}
+
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{

@@ -48,8 +48,8 @@ func (Kelas) TableName() string {
 type Siswa struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID       uuid.UUID  `gorm:"type:uuid;unique;not null" json:"user_id"`
-	NIS          string     `gorm:"size:20;unique;not null" json:"nis"`
-	NISN         string     `gorm:"size:20;unique;not null" json:"nisn"`
+	NIS          string     `gorm:"column:nis;size:20;unique;not null" json:"nis"`
+	NISN         string     `gorm:"column:nisn;size:20;unique;not null" json:"nisn"`
 	KelasID      *uuid.UUID `gorm:"type:uuid" json:"kelas_id,omitempty"`
 	JenisKelamin string     `gorm:"size:10;not null" json:"jenis_kelamin"`
 	NoTelepon    string     `gorm:"size:20" json:"no_telepon"`
@@ -65,7 +65,7 @@ func (Siswa) TableName() string {
 type Guru struct {
 	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID      uuid.UUID `gorm:"type:uuid;unique;not null" json:"user_id"`
-	NIP         string    `gorm:"size:30;unique;not null" json:"nip"`
+	NIP         string    `gorm:"column:nip;size:30;unique;not null" json:"nip"`
 	Gelar       string    `gorm:"size:50" json:"gelar"`
 	NoTelepon   string    `gorm:"size:20" json:"no_telepon"`
 	User        User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
