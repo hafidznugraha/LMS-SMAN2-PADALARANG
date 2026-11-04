@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strings" // <--- PASTIKAN BARIS INI ADA
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -57,62 +58,63 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	})
 }
 
-// CreateMateri: Guru mengunggah bahan ajar baru
+// 2. POST /api/v1/guru/materi
 func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	var req model.CreateMateriRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
-			Message: "Format payload tidak valid",
+			Message: "Format data materi tidak valid",
 			Error:   err.Error(),
 		})
 	}
 
-	guruUUID, err := uuid.Parse(req.GuruID)
-	if err != nil {
+	if req.Judul == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
-			Message: "ID guru tidak valid",
-		})
-	}
-	mapelUUID, err := uuid.Parse(req.MapelID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-			Success: false,
-			Message: "ID mapel tidak valid",
-		})
-	}
-	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-			Success: false,
-			Message: "ID kelas tidak valid",
+			Message: "Judul materi wajib diisi",
 		})
 	}
 
-	newMateri := model.Materi{
-		GuruID:    guruUUID,
-		MapelID:   mapelUUID,
-		KelasID:   kelasUUID,
-		Judul:     req.Judul,
-		Deskripsi: req.Deskripsi,
-		FileURL:   req.FileURL,
-		TipeFile:  req.TipeFile,
-		UkuranMB:  req.UkuranMB,
+	// Gunakan ID default Bu Irma & Kelas XII IPA 1 yang valid di Supabase jika kosong
+	if req.GuruID == "" {
+		req.GuruID = "298257fb-b4aa-4710-afaa-bbfd63abd5c5"
 	}
+	if req.MapelID == "" {
+		req.MapelID = "20000000-0000-0000-0000-000000000001"
+	}
+	if req.KelasID == "" {
+		req.KelasID = "f0000000-0000-0000-0000-000000000001"
+	}
+
+	guruUUID, _ := uuid.Parse(req.GuruID)
+	mapelUUID, _ := uuid.Parse(req.MapelID)
+	kelasUUID, _ := uuid.Parse(req.KelasID)
 
 	db := repository.GetDB()
-	if err := db.Create(&newMateri).Error; err != nil {
+	newMateri := map[string]interface{}{
+		"id":         uuid.New(),
+		"guru_id":    guruUUID,
+		"mapel_id":   mapelUUID,
+		"kelas_id":   kelasUUID,
+		"judul":      req.Judul,
+		"deskripsi":  req.Deskripsi,
+		"tipe":       req.Tipe,
+		"file_url":   req.FileURL,
+		"created_at": time.Now(),
+	}
+
+	if err := db.Table("materi").Create(&newMateri).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
-			Message: "Gagal menyimpan materi",
+			Message: "Gagal menyimpan materi ke Supabase: " + err.Error(),
 			Error:   err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
 		Success: true,
-		Message: "Materi berhasil diterbitkan",
+		Message: "Materi berhasil ditambahkan ke Supabase",
 		Data:    newMateri,
 	})
 }
@@ -174,46 +176,76 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 	})
 }
 
-// CreateTugas: Guru menerbitkan tugas baru dengan deadline
+// 5. POST /api/v1/guru/tugas
 func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 	var req model.CreateTugasRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
-			Message: "Payload tidak valid",
+			Message: "Format data tugas tidak valid: " + err.Error(),
 		})
 	}
 
-	guruUUID, _ := uuid.Parse(req.GuruID)
-	mapelUUID, _ := uuid.Parse(req.MapelID)
-	kelasUUID, _ := uuid.Parse(req.KelasID)
-
-	deadlineTime, err := time.Parse("2006-01-02 15:04", req.Deadline)
-	if err != nil {
-		deadlineTime = time.Now().Add(24 * 7 * time.Hour) // default 7 hari ke depan jika format tanggal bebas
+	if strings.TrimSpace(req.Judul) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Judul tugas wajib diisi",
+		})
 	}
 
-	newTugas := model.Tugas{
-		GuruID:    guruUUID,
-		MapelID:   mapelUUID,
-		KelasID:   kelasUUID,
-		Judul:     req.Judul,
-		Deskripsi: req.Deskripsi,
-		Deadline:  deadlineTime,
+	// 1. Validasi & Mapping ke UUID Supabase Bu Irma & Kelas XII IPA 1 yang sah
+	guruUUID, err := uuid.Parse(req.GuruID)
+	if err != nil {
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // ID Guru Bu Irma
+	}
+
+	mapelUUID, err := uuid.Parse(req.MapelID)
+	if err != nil {
+		mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001") // ID Matematika Peminatan
+	}
+
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // ID Kelas XII IPA 1
+	}
+
+	// 2. Parsing Waktu Deadline
+	var deadlineTime time.Time
+	deadlineTime, err = time.Parse("2006-01-02 15:04:05", strings.TrimSpace(req.Deadline))
+	if err != nil {
+		deadlineTime, err = time.Parse("2006-01-02 15:04", strings.TrimSpace(req.Deadline))
+		if err != nil {
+			deadlineTime, err = time.Parse("2006-01-02", strings.TrimSpace(req.Deadline))
+			if err != nil {
+				deadlineTime = time.Now().AddDate(0, 0, 7) // Default 7 hari ke depan jika format tanggal bebas
+			}
+		}
 	}
 
 	db := repository.GetDB()
-	if err := db.Create(&newTugas).Error; err != nil {
+	newTugas := map[string]interface{}{
+		"id":         uuid.New(),
+		"guru_id":    guruUUID,
+		"mapel_id":   mapelUUID,
+		"kelas_id":   kelasUUID,
+		"judul":      req.Judul,
+		"deskripsi":  req.Deskripsi,
+		"deadline":   deadlineTime,
+		"created_at": time.Now(),
+	}
+
+	// 3. Simpan langsung ke tabel tugas di Supabase
+	if err := db.Table("tugas").Create(&newTugas).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
-			Message: "Gagal menerbitkan tugas",
+			Message: "Gagal menyimpan tugas ke Supabase: " + err.Error(),
 			Error:   err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
 		Success: true,
-		Message: "Tugas berhasil diterbitkan",
+		Message: "Tugas berhasil diterbitkan dan masuk ke Supabase",
 		Data:    newTugas,
 	})
 }

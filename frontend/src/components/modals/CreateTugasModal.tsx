@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
-import { X, Plus, ClipboardList, Clock } from 'lucide-react';
+import { X, Plus, Loader2 } from 'lucide-react';
 import { TugasKuis, JenisPenugasan, Kelas } from '../../types/lms';
+import { createTugasGuru } from '../../services/guruService';
 
 interface CreateTugasModalProps {
   isOpen: boolean;
@@ -20,36 +23,73 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   const [judul, setJudul] = useState('');
   const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
   const [jenis, setJenis] = useState<JenisPenugasan>('Tugas');
-  const [tenggatWaktu, setTenggatWaktu] = useState('2026-11-10 23:59');
+  const [tenggatWaktu, setTenggatWaktu] = useState('2026-11-10 23:59:00');
   const [formatFile, setFormatFile] = useState('pdf, docx');
   const [instruksi, setInstruksi] = useState('');
   const [rubrik, setRubrik] = useState(
     '1. Ketepatan konsep matematis (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!judul.trim()) return;
 
+    setIsSubmitting(true);
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
 
-    onSaveTugas({
-      id_guru: 'guru-irma-01',
-      id_mapel: 'mapel-mat-pem',
-      nama_mapel: currentBidangStudi,
-      id_kelas: kelasObj.id_kelas,
-      nama_kelas: kelasObj.nama_kelas,
-      judul,
-      jenis,
-      tenggat_waktu: tenggatWaktu,
-      format_file: formatFile,
-      rubrik_penilaian: rubrik,
-      instruksi,
-    });
+    try {
+      // 1. KIRIM DATA KE SUPABASE VIA BACKEND GOLANG
+      const res = await createTugasGuru({
+        judul: judul,
+        deskripsi: instruksi || 'Kerjakan tugas sesuai rubrik penilaian',
+        deadline: tenggatWaktu,
+        file_lampiran: formatFile,
+        kelas_id: kelasObj?.id_kelas,
+      });
 
-    onClose();
+      console.log('Respon simpan Tugas Supabase:', res);
+
+      // 2. PERBARUI TAMPILAN DI FRONTEND
+      onSaveTugas({
+        id_guru: 'guru-irma-01',
+        id_mapel: 'mapel-mat-pem',
+        nama_mapel: currentBidangStudi,
+        id_kelas: kelasObj?.id_kelas || '',
+        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
+        judul,
+        jenis,
+        tenggat_waktu: tenggatWaktu,
+        format_file: formatFile,
+        rubrik_penilaian: rubrik,
+        instruksi,
+      });
+
+      alert('Berhasil! Tugas baru berhasil disimpan ke Supabase.');
+      onClose();
+    } catch (err) {
+      console.error('Error saat menyimpan tugas ke Supabase:', err);
+      // Tetap update UI lokal
+      onSaveTugas({
+        id_guru: 'guru-irma-01',
+        id_mapel: 'mapel-mat-pem',
+        nama_mapel: currentBidangStudi,
+        id_kelas: kelasObj?.id_kelas || '',
+        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
+        judul,
+        jenis,
+        tenggat_waktu: tenggatWaktu,
+        format_file: formatFile,
+        rubrik_penilaian: rubrik,
+        instruksi,
+      });
+      alert('Tugas tersimpan di tampilan lokal! Pastikan backend Golang aktif di terminal.');
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -64,7 +104,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
               Penerbitan Tugas / Kuis Baru
             </h3>
             <p className="text-xs text-slate-500">
-              Modul 4 FR-TG-01 • Penugasan Terstruktur dengan Rubrik & Batas Waktu
+              Tersambung ke Supabase Cloud • Guru: Ibu Irma Satikarama
             </p>
           </div>
           <button
@@ -132,7 +172,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
             <input
               type="text"
               required
-              placeholder="YYYY-MM-DD HH:mm"
+              placeholder="YYYY-MM-DD HH:mm:ss"
               value={tenggatWaktu}
               onChange={(e) => setTenggatWaktu(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white font-mono"
@@ -183,6 +223,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
           >
@@ -190,10 +231,20 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           </button>
           <button
             type="submit"
-            className="px-5 py-2 rounded-xl bg-[#142d72] hover:bg-[#1a388f] text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+            disabled={isSubmitting}
+            className="px-5 py-2 rounded-xl bg-[#142d72] hover:bg-[#1a388f] text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Terbitkan Tugas</span>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Menyimpan ke Supabase...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Terbitkan Tugas</span>
+              </>
+            )}
           </button>
         </div>
       </form>

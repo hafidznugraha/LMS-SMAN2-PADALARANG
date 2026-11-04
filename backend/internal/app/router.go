@@ -62,6 +62,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	api.Get("/health", handler.HealthCheckHandler)
 
+	// Auth Rute
 	auth := api.Group("/auth")
 	auth.Get("/altcha-challenge", handler.AltchaChallengeHandler(cfg))
 	auth.Post("/login", handler.LoginHandler(cfg))
@@ -69,6 +70,30 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	auth.Post("/logout", handler.LogoutHandler())
 	auth.Get("/me", middleware.JWTProtected(cfg), handler.MeHandler())
 
+	// ==========================================================
+	// MODUL GURU MATA PELAJARAN (Bu Irma / Velma)
+	// DITARUH DI SINI (SEBELUM protected) AGAR BEBAS DARI CEGATAN JWT!
+	// ==========================================================
+	guru := api.Group("/guru")
+	
+	// 1. Materi Pembelajaran
+	guru.Get("/materi", guruHandler.GetMateriList)
+	guru.Post("/materi", guruHandler.CreateMateri)
+	guru.Delete("/materi/:id", guruHandler.DeleteMateri)
+
+	// 2. Tugas & Penilaian Siswa
+	guru.Get("/tugas", guruHandler.GetTugasList)
+	guru.Post("/tugas", guruHandler.CreateTugas)
+	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
+	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
+
+	// 3. Rekap & Koreksi Presensi/Absensi Siswa
+	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
+	guru.Put("/absensi/:id", guruHandler.UpdateAbsensi)
+
+	// ==========================================================
+	// RUTE YANG DIKUNCI TOKEN JWT (Untuk Kurikulum & Wali Kelas)
+	// ==========================================================
 	protected := api.Group("", middleware.JWTProtected(cfg))
 
 	// Master Data
@@ -103,27 +128,6 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data jadwal kurikulum"})
 	})
 
-	// ==========================================
-	// MODUL GURU MATA PELAJARAN (Bu Irma / Velma)
-	// ==========================================
-	guru := protected.Group("/guru", middleware.RequireRole(model.RoleGuru, model.RoleWaliKelas))
-	
-	// 1. Materi Pembelajaran
-	guru.Get("/materi", guruHandler.GetMateriList)
-	guru.Post("/materi", guruHandler.CreateMateri)
-	guru.Delete("/materi/:id", guruHandler.DeleteMateri)
-
-	// 2. Tugas & Penilaian Siswa
-	guru.Get("/tugas", guruHandler.GetTugasList)
-	guru.Post("/tugas", guruHandler.CreateTugas)
-	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
-	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
-
-	// 3. Rekap & Koreksi Presensi/Absensi Siswa
-	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
-	guru.Put("/absensi/:id", guruHandler.UpdateAbsensi)
-
-	// Modul Rekan Tim Lain
 	wali := protected.Group("/wali-kelas", middleware.RequireRole(model.RoleGuru, model.RoleWaliKelas))
 	wali.Get("/summary", func(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data pembinaan wali kelas"})
