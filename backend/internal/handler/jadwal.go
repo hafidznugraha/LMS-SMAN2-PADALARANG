@@ -96,13 +96,6 @@ func (h *JadwalHandler) CreateJadwal(c *fiber.Ctx) error {
 			Message: "ID kelas tidak valid",
 		})
 	}
-	guruUUID, err := uuid.Parse(req.GuruID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-			Success: false,
-			Message: "ID guru tidak valid",
-		})
-	}
 	mapelUUID, err := uuid.Parse(req.MapelID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
@@ -139,6 +132,27 @@ func (h *JadwalHandler) CreateJadwal(c *fiber.Ctx) error {
 			Success: false,
 			Message: "Layanan database tidak tersedia",
 		})
+	}
+
+	var guruUUID uuid.UUID
+	if strings.TrimSpace(req.GuruID) != "" {
+		parsedGuru, err := uuid.Parse(req.GuruID)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID guru tidak valid",
+			})
+		}
+		guruUUID = parsedGuru
+	} else {
+		var guru model.Guru
+		if err := db.Where("mapel_id = ?", mapelUUID).First(&guru).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Guru pengampu untuk mata pelajaran ini belum ditentukan",
+			})
+		}
+		guruUUID = guru.ID
 	}
 
 	var guruConflict ConflictInfo
@@ -295,13 +309,6 @@ func (h *JadwalHandler) UpdateJadwal(c *fiber.Ctx) error {
 			Message: "ID kelas tidak valid",
 		})
 	}
-	guruUUID, err := uuid.Parse(req.GuruID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-			Success: false,
-			Message: "ID guru tidak valid",
-		})
-	}
 	mapelUUID, err := uuid.Parse(req.MapelID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
@@ -327,6 +334,27 @@ func (h *JadwalHandler) UpdateJadwal(c *fiber.Ctx) error {
 			Success: false,
 			Message: "Layanan database tidak tersedia",
 		})
+	}
+
+	var guruUUID uuid.UUID
+	if strings.TrimSpace(req.GuruID) != "" {
+		parsedGuru, err := uuid.Parse(req.GuruID)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID guru tidak valid",
+			})
+		}
+		guruUUID = parsedGuru
+	} else {
+		var guru model.Guru
+		if err := db.Where("mapel_id = ?", mapelUUID).First(&guru).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Guru pengampu untuk mata pelajaran ini belum ditentukan",
+			})
+		}
+		guruUUID = guru.ID
 	}
 
 	var existing model.JadwalPelajaran

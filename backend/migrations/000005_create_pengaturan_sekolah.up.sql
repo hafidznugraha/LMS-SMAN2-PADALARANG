@@ -1,0 +1,52 @@
+CREATE TABLE IF NOT EXISTS pengaturan_sekolah (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nama_sekolah VARCHAR(150) NOT NULL DEFAULT 'SMA Negeri 2 Padalarang',
+    npsn VARCHAR(20) NOT NULL DEFAULT '20227927',
+    akreditasi VARCHAR(5) NOT NULL DEFAULT 'A',
+    alamat TEXT NOT NULL DEFAULT 'Jalan Raya Padalarang No. 45, Kertajaya, Padalarang, Kabupaten Bandung Barat, Jawa Barat 40553',
+    telepon VARCHAR(30) DEFAULT '(022) 6806123',
+    email VARCHAR(100) DEFAULT 'info@sman2padalarang.sch.id',
+    website VARCHAR(100) DEFAULT 'https://sman2padalarang.sch.id',
+    kepala_sekolah VARCHAR(100) NOT NULL DEFAULT 'Drs. H. Engkos Kosasih, M.Pd',
+    nip_kepala_sekolah VARCHAR(30) DEFAULT '196508121990031008',
+    waka_kurikulum VARCHAR(100) NOT NULL DEFAULT 'Drs. Herman Wijaya, M.M',
+    nip_waka_kurikulum VARCHAR(30) DEFAULT '196804151994031004',
+    tahun_ajaran_aktif VARCHAR(20) NOT NULL DEFAULT '2026/2027',
+    semester_aktif VARCHAR(10) NOT NULL DEFAULT 'Ganjil',
+    tenggat_kunci_raport DATE DEFAULT '2026-12-24',
+    durasi_kbm_menit INT NOT NULL DEFAULT 45,
+    jam_masuk TIME NOT NULL DEFAULT '07:00:00',
+    jam_pulang TIME NOT NULL DEFAULT '15:30:00',
+    status_sinkronisasi_dapodik VARCHAR(30) DEFAULT 'Terhubung',
+    terakhir_sinkron TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO pengaturan_sekolah (
+    id, nama_sekolah, npsn, akreditasi, alamat, telepon, email, website,
+    kepala_sekolah, nip_kepala_sekolah, waka_kurikulum, nip_waka_kurikulum,
+    tahun_ajaran_aktif, semester_aktif, tenggat_kunci_raport, durasi_kbm_menit,
+    jam_masuk, jam_pulang, status_sinkronisasi_dapodik, terakhir_sinkron
+) VALUES (
+    '70000000-0000-0000-0000-000000000001',
+    'SMA Negeri 2 Padalarang',
+    '20227927',
+    'A',
+    'Jalan Raya Padalarang No. 45, Kertajaya, Padalarang, Kabupaten Bandung Barat, Jawa Barat 40553',
+    '(022) 6806123',
+    'info@sman2padalarang.sch.id',
+    'https://sman2padalarang.sch.id',
+    'Drs. H. Engkos Kosasih, M.Pd',
+    '196508121990031008',
+    'Drs. Herman Wijaya, M.M',
+    '196804151994031004',
+    '2026/2027',
+    'Ganjil',
+    '2026-12-24',
+    45,
+    '07:00:00',
+    '15:30:00',
+    'Terhubung',
+    CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO NOTHING;

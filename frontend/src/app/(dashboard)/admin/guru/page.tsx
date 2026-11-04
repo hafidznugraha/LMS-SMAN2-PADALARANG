@@ -16,10 +16,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { fetchAPI } from "@/lib/api";
-import { Guru } from "@/types";
+import { Guru, MataPelajaran } from "@/types";
 
 export default function MasterGuruPage() {
   const [guruList, setGuruList] = useState<Guru[]>([]);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
@@ -48,13 +49,18 @@ export default function MasterGuruPage() {
   const [formNIP, setFormNIP] = useState("");
   const [formGelar, setFormGelar] = useState("S.Pd");
   const [formRole, setFormRole] = useState<"guru" | "wali_kelas">("guru");
+  const [formMapelId, setFormMapelId] = useState("");
   const [formTelp, setFormTelp] = useState("");
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetchAPI<{ data: Guru[] }>("/master/guru");
-      setGuruList(res.data || []);
+      const [guruRes, mapelRes] = await Promise.all([
+        fetchAPI<{ data: Guru[] }>("/master/guru"),
+        fetchAPI<{ data: MataPelajaran[] }>("/master/mapel"),
+      ]);
+      setGuruList(guruRes.data || []);
+      setMapelList(mapelRes.data || []);
     } catch (err: unknown) {
       if (err instanceof Error) {
         toast.error(err.message);
@@ -77,6 +83,7 @@ export default function MasterGuruPage() {
     setFormNIP("");
     setFormGelar("S.Pd");
     setFormRole("guru");
+    setFormMapelId("");
     setFormTelp("");
     setIsModalOpen(true);
   };
@@ -90,6 +97,7 @@ export default function MasterGuruPage() {
     setFormNIP(guru.nip || "");
     setFormGelar(guru.gelar || "S.Pd");
     setFormRole((guru.user?.role as ("guru" | "wali_kelas")) || "guru");
+    setFormMapelId(guru.mapel_id || guru.mapel?.id || "");
     setFormTelp(guru.no_telepon || "");
     setIsModalOpen(true);
   };
@@ -121,6 +129,12 @@ export default function MasterGuruPage() {
       }
     }
 
+    if (!formMapelId) {
+      toast.error("Mata pelajaran yang diampu wajib dipilih");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       if (editingGuru) {
         await fetchAPI(`/users/${editingGuru.user_id}`, {
@@ -132,6 +146,7 @@ export default function MasterGuruPage() {
             role: formRole,
             nip: formNIP.trim(),
             gelar: formGelar.trim(),
+            mapel_id: formMapelId || "none",
             no_telepon: cleanTelp,
           }),
         });
@@ -147,6 +162,7 @@ export default function MasterGuruPage() {
             role: formRole,
             nip: formNIP.trim(),
             gelar: formGelar.trim(),
+            mapel_id: formMapelId,
             no_telepon: cleanTelp,
           }),
         });
@@ -160,6 +176,7 @@ export default function MasterGuruPage() {
       setFormEmail("");
       setFormNIP("");
       setFormGelar("S.Pd");
+      setFormMapelId("");
       setFormTelp("");
       await loadData();
     } catch (err: unknown) {
@@ -224,7 +241,9 @@ export default function MasterGuruPage() {
     const q = searchQuery.toLowerCase();
     const nama = g.user?.nama_lengkap?.toLowerCase() || "";
     const nip = g.nip.toLowerCase();
-    return nama.includes(q) || nip.includes(q);
+    const mapelNama = g.mapel?.nama_mapel?.toLowerCase() || "";
+    const mapelKode = g.mapel?.kode_mapel?.toLowerCase() || "";
+    return nama.includes(q) || nip.includes(q) || mapelNama.includes(q) || mapelKode.includes(q);
   });
 
   return (
@@ -279,6 +298,7 @@ export default function MasterGuruPage() {
                 <tr className="border-b border-slate-100 text-slate-400 font-semibold">
                   <th className="py-3 px-3">Nama & Gelar</th>
                   <th className="py-3 px-3">NIP</th>
+                  <th className="py-3 px-3">Mata Pelajaran Diampu</th>
                   <th className="py-3 px-3">Penugasan & Peran</th>
                   <th className="py-3 px-3">Email & Kontak</th>
                   <th className="py-3 px-3">Status</th>
@@ -296,6 +316,18 @@ export default function MasterGuruPage() {
                       <div className="text-[11px] text-slate-400">@{item.user?.username}</div>
                     </td>
                     <td className="py-3 px-3 font-medium text-slate-800">{item.nip}</td>
+                    <td className="py-3 px-3">
+                      {item.mapel ? (
+                        <div className="flex flex-col gap-0.5 items-start">
+                          <span className="font-semibold text-slate-900">{item.mapel.nama_mapel}</span>
+                          <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200/60 font-semibold text-[10px]">
+                            {item.mapel.kode_mapel} ({item.mapel.kategori})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">Belum ditentukan</span>
+                      )}
+                    </td>
                     <td className="py-3 px-3">
                       <div className="flex flex-col gap-1 items-start">
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-semibold text-[10px]">
@@ -447,6 +479,25 @@ export default function MasterGuruPage() {
                     <option value="wali_kelas">Wali Kelas</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Mata Pelajaran yang Diampu <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  required
+                  value={formMapelId}
+                  onChange={(e) => setFormMapelId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white font-medium text-slate-800"
+                >
+                  <option value="">-- Pilih Mata Pelajaran --</option>
+                  {mapelList.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nama_mapel} ({m.kode_mapel}) - {m.kategori}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
