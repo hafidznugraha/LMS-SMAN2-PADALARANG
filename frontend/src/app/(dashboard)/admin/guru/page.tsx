@@ -11,6 +11,8 @@ import {
   UserCheck,
   Pencil,
   Trash2,
+  RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,13 @@ export default function MasterGuruPage() {
   const [formMapelId, setFormMapelId] = useState("");
   const [formTelp, setFormTelp] = useState("");
 
+  const [isManualUsername, setIsManualUsername] = useState(false);
+  const [isManualEmail, setIsManualEmail] = useState(false);
+  const [isGeneratingCredentials, setIsGeneratingCredentials] = useState(false);
+  const [credentialInfo, setCredentialInfo] = useState<{
+    is_conflict?: boolean;
+  } | null>(null);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -74,6 +83,52 @@ export default function MasterGuruPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (editingGuru || !isModalOpen) return;
+    const trimmed = formNama.trim();
+    if (trimmed.length < 2) {
+      if (!isManualUsername) setFormUsername("");
+      if (!isManualEmail) setFormEmail("");
+      setCredentialInfo(null);
+      return;
+    }
+
+    let ignore = false;
+    setIsGeneratingCredentials(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchAPI<{
+          data: {
+            username: string;
+            email: string;
+            is_conflict: boolean;
+          };
+        }>(`/users/generate-credentials?role=${formRole}&name=${encodeURIComponent(trimmed)}`);
+        if (!ignore && res.data) {
+          if (!isManualUsername) {
+            setFormUsername(res.data.username);
+          }
+          if (!isManualEmail) {
+            setFormEmail(res.data.email);
+          }
+          setCredentialInfo({
+            is_conflict: res.data.is_conflict,
+          });
+        }
+      } catch {
+      } finally {
+        if (!ignore) {
+          setIsGeneratingCredentials(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [formNama, formRole, isModalOpen, editingGuru, isManualUsername, isManualEmail]);
+
   const handleOpenCreateModal = () => {
     setEditingGuru(null);
     setFormNama("");
@@ -85,6 +140,10 @@ export default function MasterGuruPage() {
     setFormRole("guru");
     setFormMapelId("");
     setFormTelp("");
+    setIsManualUsername(false);
+    setIsManualEmail(false);
+    setCredentialInfo(null);
+    setIsGeneratingCredentials(false);
     setIsModalOpen(true);
   };
 
@@ -99,6 +158,10 @@ export default function MasterGuruPage() {
     setFormRole((guru.user?.role as ("guru" | "wali_kelas")) || "guru");
     setFormMapelId(guru.mapel_id || guru.mapel?.id || "");
     setFormTelp(guru.no_telepon || "");
+    setIsManualUsername(true);
+    setIsManualEmail(true);
+    setCredentialInfo(null);
+    setIsGeneratingCredentials(false);
     setIsModalOpen(true);
   };
 
@@ -502,20 +565,55 @@ export default function MasterGuruPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Username</label>
-                  <input
-                    type="text"
-                    required
-                    disabled={!!editingGuru}
-                    value={formUsername}
-                    onChange={(e) => setFormUsername(e.target.value)}
-                    placeholder="guru_parhan"
-                    className={`w-full px-3 py-2 text-xs rounded-xl border ${
-                      editingGuru
-                        ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
-                        : "border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
-                    }`}
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">Username</label>
+                    {!editingGuru && (
+                      <div className="flex items-center gap-1.5 text-[10px]">
+                        {isManualUsername ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsManualUsername(false)}
+                            className="text-blue-900 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Otomatiskan</span>
+                          </button>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-medium">
+                            Otomatis
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      disabled={!!editingGuru}
+                      value={formUsername}
+                      onChange={(e) => {
+                        setFormUsername(e.target.value);
+                        setIsManualUsername(true);
+                      }}
+                      placeholder="Otomatis terisi..."
+                      className={`w-full px-3 py-2 text-xs rounded-xl border ${
+                        editingGuru
+                          ? "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                          : "border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                      }`}
+                    />
+                    {isGeneratingCredentials && !isManualUsername && (
+                      <div className="absolute right-2.5 top-2.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+                  {!editingGuru && !isManualUsername && (
+                    <p className="text-[10px] text-slate-400">
+                      Prefix guru_ + nama bersih
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">
@@ -533,15 +631,59 @@ export default function MasterGuruPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Email Sekolah</label>
-                <input
-                  type="email"
-                  required
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="parhan@guru.sman2padalarang.sch.id"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">Email Sekolah</label>
+                  {!editingGuru && (
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      {isManualEmail ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsManualEmail(false)}
+                          className="text-blue-900 hover:text-blue-700 font-medium inline-flex items-center gap-0.5"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Otomatiskan</span>
+                        </button>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-medium">
+                          Otomatis
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    value={formEmail}
+                    onChange={(e) => {
+                      setFormEmail(e.target.value);
+                      setIsManualEmail(true);
+                    }}
+                    placeholder="Otomatis terisi..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                  />
+                  {isGeneratingCredentials && !isManualEmail && (
+                    <div className="absolute right-2.5 top-2.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                    </div>
+                  )}
+                </div>
+                {!editingGuru && !isManualEmail && credentialInfo && (
+                  <div className="flex items-center gap-1 text-[10px]">
+                    {credentialInfo.is_conflict ? (
+                      <span className="text-amber-600 font-medium inline-flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        Email/username serupa terdeteksi, nomor urut unik disematkan
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">
+                        Domain resmi @guru.sman2padalarang.sch.id (gelar otomatis disaring)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

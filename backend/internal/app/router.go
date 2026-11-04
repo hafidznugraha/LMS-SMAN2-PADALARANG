@@ -103,6 +103,8 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	// User Management
 	users := protected.Group("/users", middleware.RequireRole(model.RoleKurikulum))
+	users.Get("/generate-credentials", masterHandler.GenerateCredentials)
+	users.Get("/check-availability", masterHandler.CheckAvailability)
 	users.Get("/", masterHandler.GetUsersList)
 	users.Post("/", masterHandler.CreateUser)
 	users.Put("/:id", masterHandler.UpdateUser)

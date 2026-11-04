@@ -85,9 +85,17 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 - **FR-AUTH-04 (Remember Me & Keamanan Sesi)**: Opsi pengingat sesi berbasis token aman (*HTTP-only cookies*) dan kemampuan logout untuk menghancurkan token sesi.
 
 ### Modul 2: Pengelolaan Data Master Akademik & Pengguna (Kurikulum)
-- **FR-MST-01 (Manajemen Data Siswa)**: Bagian Kurikulum dapat menambah, melihat rincian, memperbarui data diri, dan menonaktifkan/menghapus data siswa (NIS, nama, kelas, jurusan).
-- **FR-MST-02 (Manajemen Data Guru & Penugasan)**: Kurikulum dapat mengelola akun guru beserta pemetaan mata pelajaran yang diampu.
-- **FR-MST-03 (Manajemen Kelas & Rombel)**: Pengaturan tahun ajaran, tingkat kelas, dan penugasan wali kelas.
+- **FR-MST-01 (Manajemen Data Siswa & Kredensial Otomatis)**: Bagian Kurikulum dapat menambah, melihat rincian, memperbarui data diri, dan menonaktifkan/menghapus data siswa (NIS, nama, kelas, jurusan). Pada pembuatan akun siswa baru, sistem mengimplementasikan *Smart Credential Generation* secara otomatis:
+  - **Email Siswa**: Diformulasikan otomatis menjadi `<inisial>.<kode_tahun>@siswa.sman2padalarang.sch.id` (misalnya nama *"Mochammad Hafidz Nugraha"* pada tahun ajaran aktif `2026/2027` menghasilkan `mhn.26@siswa.sman2padalarang.sch.id`). Nilai `kode_tahun` diambil langsung secara dinamis dari tabel `tahun_ajaran` dengan status `is_aktif = true` (tanpa *hardcode*).
+  - **Username Siswa**: Diformulasikan menjadi `siswa_<inisial><kode_tahun>` (misal `siswa_mhn26`).
+  - **Pencegahan Tabrakan (*Collision Resolution*)**: Sebelum disajikan, sistem memvalidasi ketersediaan ke basis data. Jika inisial telah digunakan oleh siswa lain, sistem secara otomatis menambahkan sufiks numerik inkremental (`mhn2.26@...`, `siswa_mhn26_2`).
+  - **Manual Override**: Admin tetap berhak mengubah nilai secara manual atau mengembalikan ke format otomatis (*reset*) melalui tombol aksi interaktif pada formulir.
+- **FR-MST-02 (Manajemen Data Guru & Kredensial Otomatis)**: Kurikulum dapat mengelola akun guru beserta pemetaan mata pelajaran yang diampu. Pada pembuatan akun guru baru:
+  - **Penyaringan Gelar Akademik**: Sistem menyaring dan membersihkan gelar kehormatan serta gelar akademik (*title stripping* seperti `Drs.`, `Dr.`, `H.`, `Hj.`, `S.Pd`, `M.Pd`, `S.Si`, `S.Kom`, dsb.) agar nama bersih digunakan sebagai basis kredensial.
+  - **Email Guru**: Diformulasikan menjadi `<nama_depan>.<nama_belakang>@guru.sman2padalarang.sch.id` (contoh: *"Drs. H. Parhan Romdhoni, S.Si"* menghasilkan `parhan.romdhoni@guru.sman2padalarang.sch.id`).
+  - **Username Guru**: Diformulasikan menjadi `guru_<nama_lengkap_tanpa_spasi>` (contoh: `guru_parhanromdhoni`).
+  - **Pencegahan Tabrakan (*Collision Resolution*)**: Jika nama guru serupa telah terdaftar di database, sistem menambahkan sufiks numerik secara otomatis (`parhan.romdhoni2@...`, `guru_parhanromdhoni2`).
+- **FR-MST-03 (Manajemen Kelas & Rombel)**: Pengaturan tahun ajaran, tingkat kelas, dan penugasan wali kelas secara dinamis.
 - **FR-MST-04 (Pengaturan Lembaga & Siklus Akademik)**: Kurikulum mengelola identitas profil sekolah, siklus tahun ajaran dan semester aktif, masa jabatan pejabat sekolah (Kepala Sekolah & Waka Kurikulum), konfigurasi jam operasional KBM, serta audit sinkronisasi Dapodik.
 
 ### Modul 3: Manajemen Materi Pembelajaran
@@ -996,6 +1004,8 @@ Query parameter standar: `?page=1&limit=20&search=...&sort_by=created_at&sort_or
 | Method | Endpoint | Akses Role | Deskripsi Fungsional |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/users` | Kurikulum | Menampilkan daftar seluruh pengguna dengan filter per role. |
+| `GET` | `/api/v1/users/generate-credentials` | Kurikulum | Menghasilkan saran username dan email sekolah unik secara otomatis (format inisial/nama + tahun ajaran aktif) dengan resolusi tabrakan duplikasi (*collision avoidance*). |
+| `GET` | `/api/v1/users/check-availability` | Kurikulum | Memvalidasi ketersediaan username dan email secara *real-time* saat penginputan manual. |
 | `POST` | `/api/v1/users` | Kurikulum | Menambah akun pengguna baru (Guru, Siswa, Wali Kelas). |
 | `PUT` | `/api/v1/users/:id` | Kurikulum | Memperbarui data pengguna atau mengubah status aktif akun. |
 | `DELETE`| `/api/v1/users/:id` | Kurikulum | Menonaktifkan (*soft delete*) akun pengguna. |

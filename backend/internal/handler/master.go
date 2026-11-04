@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -1065,5 +1066,255 @@ func (h *MasterHandler) DeleteUser(c *fiber.Ctx) error {
 		Success: true,
 		Message: msg,
 		Data:    user,
+	})
+}
+
+var academicPrefixes = []string{
+	"dr.", "dra.", "drs.", "drg.", "prof.", "ir.", "h.", "hj.",
+	"dr", "dra", "drs", "prof", "ir", "kh", "k.h.",
+}
+
+var academicSuffixes = []string{
+	"s.pd", "s.si", "s.kom", "s.t", "s.e", "s.sos", "s.ag", "s.ked", "s.h", "s.sn", "s.or", "s.psi", "s.ip",
+	"m.pd", "m.m", "m.kom", "m.si", "m.t", "m.e", "m.ag", "m.sc", "ph.d", "b.a", "m.a",
+	"spd", "ssi", "skom", "mpd", "mm", "mkom", "msi",
+}
+
+func cleanNameForCredentials(raw string, isGuru bool) []string {
+	clean := strings.ToLower(raw)
+
+	if isGuru {
+		parts := strings.Split(clean, ",")
+		if len(parts) > 0 {
+			clean = parts[0]
+		}
+
+		clean = strings.ReplaceAll(clean, ".", " ")
+		words := strings.Fields(clean)
+		var filtered []string
+		for _, w := range words {
+			isTitle := false
+			for _, pre := range academicPrefixes {
+				cleanPre := strings.ReplaceAll(pre, ".", "")
+				if w == cleanPre {
+					isTitle = true
+					break
+				}
+			}
+			for _, suf := range academicSuffixes {
+				cleanSuf := strings.ReplaceAll(suf, ".", "")
+				if w == cleanSuf {
+					isTitle = true
+					break
+				}
+			}
+			if !isTitle {
+				filtered = append(filtered, w)
+			}
+		}
+		clean = strings.Join(filtered, " ")
+	}
+
+	reNonAlpha := regexp.MustCompile(`[^a-z\s]`)
+	clean = reNonAlpha.ReplaceAllString(clean, "")
+
+	fields := strings.Fields(clean)
+	var words []string
+	for _, f := range fields {
+		trimmed := strings.TrimSpace(f)
+		if trimmed != "" {
+			words = append(words, trimmed)
+		}
+	}
+	return words
+}
+
+func (h *MasterHandler) GenerateCredentials(c *fiber.Ctx) error {
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	rawName := strings.TrimSpace(c.Query("name"))
+	role := strings.ToLower(strings.TrimSpace(c.Query("role")))
+
+	if rawName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Parameter nama wajib diisi",
+		})
+	}
+
+	isGuru := role == "guru" || role == "wali_kelas"
+
+	var activeTA model.TahunAjaran
+	var yearCode string
+	var tahunFull string
+
+	if !isGuru {
+		if err := db.Where("is_aktif = ?", true).First(&activeTA).Error; err != nil || activeTA.Tahun == "" {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+				Success: false,
+				Message: "Tahun ajaran aktif belum ditentukan pada sistem. Silakan aktifkan tahun ajaran di database terlebih dahulu",
+			})
+		}
+
+		tahunFull = activeTA.Tahun
+		parts := strings.Split(activeTA.Tahun, "/")
+		cleanYear := strings.TrimSpace(parts[0])
+		if len(cleanYear) >= 4 {
+			yearCode = cleanYear[2:4]
+		} else if len(cleanYear) == 2 {
+			yearCode = cleanYear
+		} else {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+				Success: false,
+				Message: "Format tahun ajaran aktif tidak valid di database",
+			})
+		}
+	} else {
+		if err := db.Where("is_aktif = ?", true).First(&activeTA).Error; err == nil {
+			tahunFull = activeTA.Tahun
+		}
+	}
+
+	words := cleanNameForCredentials(rawName, isGuru)
+	if len(words) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Nama tidak memuat karakter alfabet yang valid",
+		})
+	}
+
+	var finalUsername string
+	var finalEmail string
+	isConflict := false
+
+	if isGuru {
+		var baseEmailUser string
+		var baseUsername string
+		if len(words) == 1 {
+			baseEmailUser = words[0]
+			baseUsername = fmt.Sprintf("guru_%s", words[0])
+		} else {
+			baseEmailUser = fmt.Sprintf("%s.%s", words[0], words[len(words)-1])
+			baseUsername = fmt.Sprintf("guru_%s", strings.Join(words, ""))
+		}
+
+		finalEmail = fmt.Sprintf("%s@guru.sman2padalarang.sch.id", baseEmailUser)
+		finalUsername = baseUsername
+
+		index := 1
+		for {
+			var count int64
+			db.Model(&model.User{}).Where("username = ? OR email = ?", finalUsername, finalEmail).Count(&count)
+			if count == 0 {
+				break
+			}
+			isConflict = true
+			index++
+			if len(words) == 1 {
+				finalEmail = fmt.Sprintf("%s%d@guru.sman2padalarang.sch.id", baseEmailUser, index)
+				finalUsername = fmt.Sprintf("guru_%s%d", words[0], index)
+			} else {
+				finalEmail = fmt.Sprintf("%s.%s%d@guru.sman2padalarang.sch.id", words[0], words[len(words)-1], index)
+				finalUsername = fmt.Sprintf("guru_%s%d", strings.Join(words, ""), index)
+			}
+		}
+	} else {
+		var initials string
+		if len(words) == 1 {
+			initials = words[0]
+		} else {
+			var sb strings.Builder
+			for _, w := range words {
+				sb.WriteRune([]rune(w)[0])
+			}
+			initials = sb.String()
+		}
+
+		finalEmail = fmt.Sprintf("%s.%s@siswa.sman2padalarang.sch.id", initials, yearCode)
+		finalUsername = fmt.Sprintf("siswa_%s%s", initials, yearCode)
+
+		index := 1
+		for {
+			var count int64
+			db.Model(&model.User{}).Where("username = ? OR email = ?", finalUsername, finalEmail).Count(&count)
+			if count == 0 {
+				break
+			}
+			isConflict = true
+			index++
+			finalEmail = fmt.Sprintf("%s%d.%s@siswa.sman2padalarang.sch.id", initials, index, yearCode)
+			finalUsername = fmt.Sprintf("siswa_%s%s_%d", initials, yearCode, index)
+		}
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Kredensial berhasil digenerate",
+		Data: fiber.Map{
+			"username":     finalUsername,
+			"email":        finalEmail,
+			"tahun_kode":   yearCode,
+			"tahun_ajaran": tahunFull,
+			"is_conflict":  isConflict,
+		},
+	})
+}
+
+func (h *MasterHandler) CheckAvailability(c *fiber.Ctx) error {
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	username := strings.TrimSpace(c.Query("username"))
+	email := strings.TrimSpace(c.Query("email"))
+	excludeUserID := strings.TrimSpace(c.Query("exclude_user_id"))
+
+	usernameAvailable := true
+	emailAvailable := true
+
+	if username != "" {
+		query := db.Model(&model.User{}).Where("username = ?", username)
+		if excludeUserID != "" {
+			if uid, err := uuid.Parse(excludeUserID); err == nil {
+				query = query.Where("id != ?", uid)
+			}
+		}
+		var count int64
+		query.Count(&count)
+		if count > 0 {
+			usernameAvailable = false
+		}
+	}
+
+	if email != "" {
+		query := db.Model(&model.User{}).Where("email = ?", email)
+		if excludeUserID != "" {
+			if uid, err := uuid.Parse(excludeUserID); err == nil {
+				query = query.Where("id != ?", uid)
+			}
+		}
+		var count int64
+		query.Count(&count)
+		if count > 0 {
+			emailAvailable = false
+		}
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Data: fiber.Map{
+			"username_available": usernameAvailable,
+			"email_available":    emailAvailable,
+		},
 	})
 }
