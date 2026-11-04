@@ -10,6 +10,7 @@ import {
   BookOpen,
   ArrowRight,
   CheckCircle2,
+  FileCheck,
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,12 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <Link href="/admin/raport">
+            <Button variant="secondary" size="md">
+              <FileCheck className="w-4 h-4 text-emerald-600" />
+              <span>Verifikasi Raport</span>
+            </Button>
+          </Link>
           <Link href="/admin/jadwal">
             <Button variant="primary" size="md">
               <Calendar className="w-4 h-4" />
@@ -172,6 +179,24 @@ export default function AdminDashboardPage() {
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
             <h2 className="text-base font-bold text-slate-900">Aksi Cepat Kurikulum</h2>
             <div className="space-y-2">
+              <Link
+                href="/admin/raport"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-emerald-600/30 hover:bg-emerald-50/40 transition-colors text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center">
+                    <FileCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 group-hover:text-emerald-900">
+                      Verifikasi Raport & Leger
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Validasi nilai dan kunci rapor semester</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-900" />
+              </Link>
+
               <Link
                 href="/admin/jadwal"
                 className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-blue-900/30 hover:bg-blue-50/40 transition-colors text-left group"

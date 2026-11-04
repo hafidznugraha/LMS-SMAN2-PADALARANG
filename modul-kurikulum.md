@@ -34,7 +34,7 @@ Berikut adalah audit status pengerjaan seluruh halaman dan kebutuhan fungsional 
 | 4 | **Master Data Guru** | `/admin/guru` | FR-MST-02, UC-15 | **Selesai (100%)** | Siap (`/api/v1/master/guru`, `/api/v1/users`) |
 | 5 | **Master Data Kelas & Rombel** | `/admin/kelas` | FR-MST-03 | **Selesai (100%)** | Siap (`/api/v1/master/kelas`) |
 | 6 | **Master Mata Pelajaran** | `/admin/mapel` | FR-MST-02 | **Selesai (100%)** | Siap (`/api/v1/master/mapel`) |
-| 7 | **Verifikasi Raport / Leger** | `/admin/raport` | FR-LAP-01, FR-LAP-03 | **Belum Dibuat** | Perlu aktivasi endpoint finalisasi |
+| 7 | **Verifikasi Raport / Leger** | `/admin/raport` | FR-LAP-01, FR-LAP-03, SCR-11 | **Selesai (100%)** | Siap (Terintegrasi data leger & lock) |
 | 8 | **Rekap Presensi Sekolah** | `/admin/absensi` | FR-ABS-04 | **Sebagian (50%)** | Siap data dasar absensi |
 | 9 | **Pengaturan Sekolah** | `/admin/pengaturan` | FR-MST-03 | **Belum Dibuat** | Perlu skema konfigurasi tahun ajaran |
 
@@ -94,26 +94,29 @@ Pusat pemantauan eksekutif akademik.
 - **Fitur Utama yang Berfungsi**:
   - Empat kartu metrik utama: Total Rombel Kelas, Total Pendidik, Total Mata Pelajaran, dan Total Sesi Jadwal.
   - Tabel cuplikan jadwal KBM aktif sekolah.
-  - Akses cepat (*action shortcuts*) ke seluruh modul master data.
+  - Akses cepat (*action shortcuts*) ke seluruh modul master data dan tombol Verifikasi Raport.
+
+### 3.7. Verifikasi Raport & Pengesahan Leger (`/admin/raport`)
+Modul pengesahan hasil belajar siswa, validasi draf leger rombel, dan penguncian status rapor semester resmi.
+- **File Implementasi**: [`frontend/src/app/(dashboard)/admin/raport/page.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/app/(dashboard)/admin/raport/page.tsx)
+- **Fitur Utama yang Berfungsi**:
+  - Ringkasan metrik status pengesahan: Total Siswa, Rapor Disahkan (`DisahkanKurikulum` - Terkunci), Menunggu Verifikasi (`DitinjauWali`), dan Rata-rata Nilai Sekolah.
+  - Pemantauan status leger per rombel (XII IPA 1, XII IPA 3) dengan progress bar kelengkapan nilai, rata-rata kelas, dan tombol aksi batch pengesahan rombel.
+  - Tabel Buku Leger Nilai Komprehensif dengan filter rombel, filter status pengesahan, dan pencarian instan nama/NISN.
+  - Modal Pratinjau Lembar Rapor Resmi berformat cetak dengan Kop Resmi SMAN 2 Padalarang, rincian skor pengetahuan & keterampilan per mapel, capaian kompetensi, rekap presensi (S/I/A), catatan perkembangan wali kelas, dan kolom tanda tangan digital.
+  - Fitur Pengesahan & Penguncian Nilai (*Finalization Lock*) per siswa maupun per kelas (Batch) dengan dialog konfirmasi aman.
+  - Alur Pengembalian Revisi ke Wali Kelas (*Return for Revision*) disertai catatan perbaikan jika ditemukan nilai yang belum lengkap.
+  - Ekspor seluruh data buku leger nilai ke berkas CSV/Excel.
+  - Cetak dokumen rapor PDF resmi menggunakan format cetak bersih (*print-ready*).
+  - Pendaftaran menu navigasi `Verifikasi Raport` pada Sidebar Kurikulum.
 
 ---
 
 ## 4. Analisis Modul yang Belum Lengkap (Backlog PRD)
 
-Berikut adalah modul yang telah tertera pada PRD dan rancangan desain, namun belum selesai dikembangkan:
+Berikut adalah modul yang telah tertera pada PRD dan rancangan desain yang tersisa:
 
-### 4.1. Verifikasi Raport & Pengesahan Leger (`/admin/raport`) — Prioritas Tinggi
-- **Kebutuhan PRD**: **FR-LAP-03 (Pengesahan Kurikulum)**
-- **Alur Kerja**:
-  1. Wali Kelas menyusun catatan perkembangan karakter dan mengirimkan draf leger ke Kurikulum.
-  2. Bagian Kurikulum meninjau kelengkapan nilai seluruh rombel (apakah ada mata pelajaran yang nilainya belum diinput oleh guru pengampu).
-  3. Kurikulum melakukan pengesahan resmi dengan menekan tombol **"Sahkan & Kunci Nilai Rapor"** (*Status berubah menjadi `DisahkanKurikulum`*).
-  4. Setelah status dikunci, guru tidak dapat lagi mengubah nilai (bersifat *read-only*), dan izin cetak rapor PDF resmi diterbitkan untuk siswa dan wali kelas.
-- **Status Saat Ini**:
-  - Halaman belum tersedia di `/admin/raport`.
-  - Sidebar Kurikulum belum memiliki menu `Verifikasi Raport`.
-
-### 4.2. Pengaturan Sekolah & Tahun Ajaran (`/admin/pengaturan`) — Prioritas Sedang
+### 4.1. Pengaturan Sekolah & Tahun Ajaran (`/admin/pengaturan`) — Prioritas Sedang
 - **Kebutuhan PRD**: **FR-MST-03 (Manajemen Tahun Ajaran & Konfigurasi Sekolah)**
 - **Kebutuhan Menu**: Tertera pada menu navigasi referensi kurikulum (`pengaturan-sekolah`).
 - **Fitur yang Diperlukan**:
@@ -123,7 +126,7 @@ Berikut adalah modul yang telah tertera pada PRD dan rancangan desain, namun bel
 - **Status Saat Ini**:
   - Halaman belum tersedia di `/admin/pengaturan`.
 
-### 4.3. Rekapitulasi Presensi Sekolah Lintas Kelas (`/admin/absensi`) — Prioritas Tambahan
+### 4.2. Rekapitulasi Presensi Sekolah Lintas Kelas (`/admin/absensi`) — Prioritas Tambahan
 - **Kebutuhan PRD**: **FR-ABS-04 (Rekapitulasi Kehadiran)**
 - **Fitur yang Diperlukan**:
   - Panel pemantauan statistik presensi per tingkat kelas (X, XI, XII).

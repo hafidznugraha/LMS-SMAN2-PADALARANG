@@ -85,3 +85,64 @@ export interface MetricData {
   subtitle: string;
   variant?: "primary" | "white" | "success" | "cyan";
 }
+
+export type StatusLaporan = "Draf" | "DitinjauWali" | "DisahkanKurikulum";
+
+export interface NilaiMapelDetail {
+  kode_mapel: string;
+  nama_mapel: string;
+  kategori: string;
+  pengetahuan: number;
+  keterampilan: number;
+  nilai_akhir: number;
+  predikat: "A" | "B" | "C" | "D";
+  capaian: string;
+}
+
+export interface LaporanAkademik {
+  id: string;
+  siswa_id: string;
+  nis: string;
+  nisn: string;
+  nama_siswa: string;
+  jenis_kelamin: "Laki-laki" | "Perempuan";
+  kelas_id: string;
+  nama_kelas: string;
+  tingkat: number;
+  jurusan: string;
+  wali_kelas_nama: string;
+  semester: "Ganjil" | "Genap";
+  tahun_ajaran: string;
+  nilai_pengetahuan: number;
+  nilai_keterampilan: number;
+  rata_rata_akhir: number;
+  predikat_akhir: "A" | "B" | "C" | "D";
+  deskripsi_nilai: string;
+  catatan_wali: string;
+  kehadiran: {
+    hadir: number;
+    sakit: number;
+    izin: number;
+    alfa: number;
+    persentase: number;
+  };
+  nilai_mapel: NilaiMapelDetail[];
+  status_laporan: StatusLaporan;
+  disahkan_pada?: string;
+  disahkan_oleh?: string;
+  catatan_revisi?: string;
+}
+
+export interface RombelLegerSummary {
+  kelas_id: string;
+  nama_kelas: string;
+  tingkat: number;
+  jurusan: string;
+  wali_kelas_nama: string;
+  total_siswa: number;
+  disahkan_count: number;
+  ditinjau_count: number;
+  draf_count: number;
+  rata_rata_kelas: number;
+  status_rombel: StatusLaporan;
+}
