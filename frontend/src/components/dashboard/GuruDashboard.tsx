@@ -12,7 +12,6 @@ import {
   BookOpen, 
   ArrowRight,
   ClipboardCheck,
-  Sparkles,
   Info
 } from 'lucide-react';
 import { Guru, JadwalPelajaran, TugasKuis } from '../../types/lms';
@@ -101,7 +100,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
       <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-4 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-xl bg-blue-600 text-white shrink-0 mt-0.5 shadow-xs">
-            <Sparkles className="w-4 h-4" />
+            <Info className="w-4 h-4" />
           </div>
           <div>
             <h4 className="text-sm font-bold text-blue-950">

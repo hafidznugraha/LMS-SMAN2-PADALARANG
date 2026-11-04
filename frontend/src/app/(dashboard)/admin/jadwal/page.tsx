@@ -13,7 +13,6 @@ import {
   X,
   Loader2,
   Download,
-  Zap,
   AlertTriangle,
   Grid3X3,
   List,
@@ -542,7 +541,7 @@ export default function KelolaJadwalPage() {
                 </>
               ) : (
                 <>
-                  <Zap className="w-4 h-4 text-blue-800" />
+                  <CheckCircle2 className="w-4 h-4 text-blue-800" />
                   <span>Cek Bentrok Otomatis</span>
                 </>
               )}
