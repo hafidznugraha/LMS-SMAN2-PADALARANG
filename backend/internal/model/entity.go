@@ -175,9 +175,11 @@ const (
 type Absensi struct {
 	ID         uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	SiswaID    uuid.UUID     `gorm:"type:uuid;not null" json:"siswa_id"`
+	Siswa      *Siswa        `gorm:"foreignKey:SiswaID" json:"siswa,omitempty"`
 	KelasID    uuid.UUID     `gorm:"type:uuid;not null" json:"kelas_id"`
+	Kelas      *Kelas        `gorm:"foreignKey:KelasID" json:"kelas,omitempty"`
 	Tanggal    time.Time     `gorm:"type:date;not null" json:"tanggal"`
-	WaktuMasuk *time.Time    `json:"waktu_masuk,omitempty"`
+	WaktuMasuk *string       `gorm:"type:time" json:"waktu_masuk,omitempty"`
 	Status     AbsensiStatus `gorm:"type:varchar(20);not null" json:"status"`
 	Catatan    string        `gorm:"size:255" json:"catatan"`
 	CreatedAt  time.Time     `json:"created_at"`

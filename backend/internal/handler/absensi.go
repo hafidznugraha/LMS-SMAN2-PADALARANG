@@ -266,7 +266,10 @@ func (h *AbsensiHandler) GetRekapRombelDetail(c *fiber.Ctx) error {
 	for _, l := range logs {
 		var waktuStr *string
 		if l.WaktuMasuk != nil {
-			s := l.WaktuMasuk.Format("15:04")
+			s := *l.WaktuMasuk
+			if len(s) >= 5 {
+				s = s[:5]
+			}
 			waktuStr = &s
 		}
 
@@ -274,12 +277,22 @@ func (h *AbsensiHandler) GetRekapRombelDetail(c *fiber.Ctx) error {
 		nisn := "-"
 		namaKelas := "-"
 
-		var student model.Siswa
-		if err := db.Preload("User").Preload("Kelas").First(&student, "id = ?", l.SiswaID).Error; err == nil {
-			namaSiswa = student.User.NamaLengkap
-			nisn = student.NISN
-			if student.Kelas != nil {
-				namaKelas = student.Kelas.NamaKelas
+		if l.Siswa != nil {
+			namaSiswa = l.Siswa.User.NamaLengkap
+			nisn = l.Siswa.NISN
+			if l.Siswa.Kelas != nil {
+				namaKelas = l.Siswa.Kelas.NamaKelas
+			}
+		} else if l.Kelas != nil {
+			namaKelas = l.Kelas.NamaKelas
+		} else {
+			var student model.Siswa
+			if err := db.Preload("User").Preload("Kelas").First(&student, "id = ?", l.SiswaID).Error; err == nil {
+				namaSiswa = student.User.NamaLengkap
+				nisn = student.NISN
+				if student.Kelas != nil {
+					namaKelas = student.Kelas.NamaKelas
+				}
 			}
 		}
 
