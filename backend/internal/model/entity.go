@@ -126,14 +126,18 @@ func (Materi) TableName() string {
 }
 
 type Tugas struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	GuruID    uuid.UUID `gorm:"type:uuid;not null" json:"guru_id"`
-	MapelID   uuid.UUID `gorm:"type:uuid;not null" json:"mapel_id"`
-	KelasID   uuid.UUID `gorm:"type:uuid;not null" json:"kelas_id"`
-	Judul     string    `gorm:"size:200;not null" json:"judul"`
-	Deskripsi string    `gorm:"type:text" json:"deskripsi"`
-	Deadline  time.Time `gorm:"not null" json:"deadline"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	GuruID      uuid.UUID          `gorm:"type:uuid;not null" json:"guru_id"`
+	MapelID     uuid.UUID          `gorm:"type:uuid;not null" json:"mapel_id"`
+	KelasID     uuid.UUID          `gorm:"type:uuid;not null" json:"kelas_id"`
+	Judul       string             `gorm:"size:200;not null" json:"judul"`
+	Deskripsi   string             `gorm:"type:text" json:"deskripsi"`
+	Deadline    time.Time          `gorm:"not null" json:"deadline"`
+	CreatedAt   time.Time          `json:"created_at"`
+	Guru        *Guru              `gorm:"foreignKey:GuruID" json:"guru,omitempty"`
+	Mapel       *MataPelajaran     `gorm:"foreignKey:MapelID" json:"mapel,omitempty"`
+	Kelas       *Kelas             `gorm:"foreignKey:KelasID" json:"kelas,omitempty"`
+	Submissions []PengumpulanTugas `gorm:"foreignKey:TugasID" json:"submissions,omitempty"`
 }
 
 func (Tugas) TableName() string {
@@ -151,6 +155,7 @@ type PengumpulanTugas struct {
 	Status       string     `gorm:"size:20;default:'dikumpulkan'" json:"status"`
 	SubmittedAt  time.Time  `json:"submitted_at"`
 	GradedAt     *time.Time `json:"graded_at,omitempty"`
+	Siswa        *Siswa     `gorm:"foreignKey:SiswaID" json:"siswa,omitempty"`
 }
 
 func (PengumpulanTugas) TableName() string {

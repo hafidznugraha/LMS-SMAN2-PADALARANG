@@ -391,9 +391,11 @@ func fetchExtraUserData(userID uuid.UUID, role model.UserRole) interface{} {
 		}
 	case model.RoleGuru, model.RoleWaliKelas:
 		var guru model.Guru
-		if err := repository.DB.Preload("KelasBinaan").Where("user_id = ?", userID).First(&guru).Error; err == nil {
+		if err := repository.DB.Preload("KelasBinaan").Preload("Mapel").Where("user_id = ?", userID).First(&guru).Error; err == nil {
 			return fiber.Map{
 				"guru_id":       guru.ID,
+				"mapel_id":      guru.MapelID,
+				"mapel":         guru.Mapel,
 				"nip":           guru.NIP,
 				"gelar":         guru.Gelar,
 				"no_telepon":    guru.NoTelepon,
