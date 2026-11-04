@@ -355,3 +355,52 @@ type CreateNilaiRequest struct {
 	SkorAngka      float64 `json:"skor_angka"`
 	Feedback       string  `json:"feedback"`
 }
+
+type PengaturanSekolah struct {
+	ID                        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	NamaSekolah               string     `gorm:"size:150;not null" json:"nama_sekolah"`
+	NPSN                      string     `gorm:"size:20;not null" json:"npsn"`
+	Akreditasi                string     `gorm:"size:5;not null" json:"akreditasi"`
+	Alamat                    string     `gorm:"type:text;not null" json:"alamat"`
+	Telepon                   string     `gorm:"size:30" json:"telepon"`
+	Email                     string     `gorm:"size:100" json:"email"`
+	Website                   string     `gorm:"size:100" json:"website"`
+	KepalaSekolah             string     `gorm:"size:100;not null" json:"kepala_sekolah"`
+	NIPKepalaSekolah          string     `gorm:"size:30" json:"nip_kepala_sekolah"`
+	WakaKurikulum             string     `gorm:"size:100;not null" json:"waka_kurikulum"`
+	NIPWakaKurikulum          string     `gorm:"size:30" json:"nip_waka_kurikulum"`
+	TahunAjaranAktif          string     `gorm:"size:20;not null" json:"tahun_ajaran_aktif"`
+	SemesterAktif             string     `gorm:"size:10;not null" json:"semester_aktif"`
+	TenggatKunciRaport        *time.Time `gorm:"type:date" json:"tenggat_kunci_raport"`
+	DurasiKBMMenit            int        `gorm:"not null" json:"durasi_kbm_menit"`
+	JamMasuk                  string     `gorm:"type:time;not null" json:"jam_masuk"`
+	JamPulang                 string     `gorm:"type:time;not null" json:"jam_pulang"`
+	StatusSinkronisasiDapodik string     `gorm:"size:30" json:"status_sinkronisasi_dapodik"`
+	TerakhirSinkron           *time.Time `json:"terakhir_sinkron"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	UpdatedAt                 time.Time  `json:"updated_at"`
+}
+
+func (PengaturanSekolah) TableName() string {
+	return "pengaturan_sekolah"
+}
+
+type UpdatePengaturanRequest struct {
+	NamaSekolah        string `json:"nama_sekolah"`
+	NPSN               string `json:"npsn"`
+	Akreditasi         string `json:"akreditasi"`
+	Alamat             string `json:"alamat"`
+	Telepon            string `json:"telepon"`
+	Email              string `json:"email"`
+	Website            string `json:"website"`
+	KepalaSekolah      string `json:"kepala_sekolah"`
+	NIPKepalaSekolah   string `json:"nip_kepala_sekolah"`
+	WakaKurikulum      string `json:"waka_kurikulum"`
+	NIPWakaKurikulum   string `json:"nip_waka_kurikulum"`
+	TahunAjaranAktif   string `json:"tahun_ajaran_aktif"`
+	SemesterAktif      string `json:"semester_aktif"`
+	TenggatKunciRaport string `json:"tenggat_kunci_raport"`
+	DurasiKBMMenit     int    `json:"durasi_kbm_menit"`
+	JamMasuk           string `json:"jam_masuk"`
+	JamPulang          string `json:"jam_pulang"`
+}

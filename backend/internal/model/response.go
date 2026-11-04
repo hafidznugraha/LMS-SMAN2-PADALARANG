@@ -86,3 +86,60 @@ type StudentRaportDetailResponse struct {
 	Kehadiran         KehadiranDetail    `json:"kehadiran"`
 	NilaiMapel        []NilaiMapelDetail `json:"nilai_mapel"`
 }
+
+type AbsensiRombelRekap struct {
+	KelasID         string  `json:"kelas_id"`
+	NamaKelas       string  `json:"nama_kelas"`
+	Tingkat         int     `json:"tingkat"`
+	Jurusan         string  `json:"jurusan"`
+	WaliKelas       string  `json:"wali_kelas"`
+	TotalSiswa      int     `json:"total_siswa"`
+	Hadir           int     `json:"hadir"`
+	Sakit           int     `json:"sakit"`
+	Izin            int     `json:"izin"`
+	Alpa            int     `json:"alpa"`
+	Terlambat       int     `json:"terlambat"`
+	PersenKehadiran float64 `json:"persen_kehadiran"`
+}
+
+type AbsensiSummaryResponse struct {
+	TotalSiswa            int                  `json:"total_siswa"`
+	RataRataKehadiran     float64              `json:"rata_rata_kehadiran"`
+	TotalHadirHariIni     int                  `json:"total_hadir_hari_ini"`
+	TotalSakitHariIni     int                  `json:"total_sakit_hari_ini"`
+	TotalIzinHariIni      int                  `json:"total_izin_hari_ini"`
+	TotalAlpaHariIni      int                  `json:"total_alpa_hari_ini"`
+	TotalTerlambatHariIni int                  `json:"total_terlambat_hari_ini"`
+	TanggalHariIni        string               `json:"tanggal_hari_ini"`
+	RombelRekap           []AbsensiRombelRekap `json:"rombel_rekap"`
+}
+
+type AbsensiPeringatanItem struct {
+	SiswaID         string  `json:"siswa_id"`
+	NamaSiswa       string  `json:"nama_siswa"`
+	NISN            string  `json:"nisn"`
+	NIS             string  `json:"nis"`
+	KelasID         string  `json:"kelas_id"`
+	NamaKelas       string  `json:"nama_kelas"`
+	WaliKelas       string  `json:"wali_kelas"`
+	JumlahAlpa      int     `json:"jumlah_alpa"`
+	JumlahSakit     int     `json:"jumlah_sakit"`
+	JumlahIzin      int     `json:"jumlah_izin"`
+	JumlahTerlambat int     `json:"jumlah_terlambat"`
+	TotalHari       int     `json:"total_hari"`
+	PersenKehadiran float64 `json:"persen_kehadiran"`
+	TingkatRisiko   string  `json:"tingkat_risiko"`
+	CatatanTerakhir string  `json:"catatan_terakhir"`
+}
+
+type AbsensiDetailItem struct {
+	ID         string  `json:"id"`
+	SiswaID    string  `json:"siswa_id"`
+	NamaSiswa  string  `json:"nama_siswa"`
+	NISN       string  `json:"nisn"`
+	NamaKelas  string  `json:"nama_kelas"`
+	Tanggal    string  `json:"tanggal"`
+	WaktuMasuk *string `json:"waktu_masuk,omitempty"`
+	Status     string  `json:"status"`
+	Catatan    string  `json:"catatan"`
+}

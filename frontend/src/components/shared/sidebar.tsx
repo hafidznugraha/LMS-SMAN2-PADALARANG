@@ -17,6 +17,7 @@ import {
   Building2,
   LogOut,
   FileCheck,
+  Settings,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -78,10 +79,12 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/jadwal", label: "Kelola Jadwal", icon: Calendar },
       { href: "/admin/raport", label: "Verifikasi Raport", icon: FileCheck },
+      { href: "/admin/absensi", label: "Rekap Presensi", icon: UserCheck },
       { href: "/admin/kelas", label: "Data Kelas", icon: Building2 },
       { href: "/admin/mapel", label: "Mata Pelajaran", icon: BookOpen },
       { href: "/admin/siswa", label: "Data Siswa", icon: Users },
       { href: "/admin/guru", label: "Data Guru", icon: User },
+      { href: "/admin/pengaturan", label: "Pengaturan Sekolah", icon: Settings },
     ],
   };
 

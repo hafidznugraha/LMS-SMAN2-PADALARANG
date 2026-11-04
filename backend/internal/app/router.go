@@ -56,6 +56,8 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	masterHandler := handler.NewMasterHandler()
 	jadwalHandler := handler.NewJadwalHandler()
 	laporanHandler := handler.NewLaporanHandler()
+	pengaturanHandler := handler.NewPengaturanHandler()
+	absensiHandler := handler.NewAbsensiHandler()
 
 	api := app.Group("/api/v1")
 
@@ -103,6 +105,17 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	laporan.Put("/:id/finalize", middleware.RequireRole(model.RoleKurikulum), laporanHandler.FinalizeLaporan)
 	laporan.Post("/revisi", middleware.RequireRole(model.RoleKurikulum), laporanHandler.RevisiLaporan)
 	laporan.Put("/:id/catatan-wali", middleware.RequireRole(model.RoleKurikulum, model.RoleWaliKelas, model.RoleGuru), laporanHandler.UpdateCatatanWali)
+
+	pengaturan := protected.Group("/pengaturan")
+	pengaturan.Get("/", pengaturanHandler.GetPengaturan)
+	pengaturan.Put("/", middleware.RequireRole(model.RoleKurikulum), pengaturanHandler.UpdatePengaturan)
+	pengaturan.Post("/sinkron-dapodik", middleware.RequireRole(model.RoleKurikulum), pengaturanHandler.TriggerSinkronDapodik)
+
+	absensi := protected.Group("/absensi")
+	absensi.Get("/rekap", absensiHandler.GetRekapSekolah)
+	absensi.Get("/peringatan", absensiHandler.GetPeringatanAbsensi)
+	absensi.Get("/kelas/:id_kelas", absensiHandler.GetRekapRombelDetail)
+	absensi.Get("/export-csv", absensiHandler.ExportAbsensiCSV)
 
 	kurikulum := protected.Group("/kurikulum", middleware.RequireRole(model.RoleKurikulum))
 	kurikulum.Get("/jadwal", func(c *fiber.Ctx) error {
