@@ -17,6 +17,7 @@ import {
   FileCheck2,
   ExternalLink
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
 
 interface TugasModuleProps {
@@ -24,9 +25,10 @@ interface TugasModuleProps {
   submissionsList: PengumpulanTugas[];
   kelasList: Kelas[];
   onOpenCreateTugas: () => void;
-  onSaveNilaiSubmission: (idPengumpulan: string, nilai: number, feedback: string) => void;
+  onSaveNilaiSubmission: (idPengumpulan: string, nilai: number, feedback: string, submission?: PengumpulanTugas) => void;
   activeTugasId?: string | null;
   onClearActiveTugas?: () => void;
+  onOpenGrading?: (tugas: TugasKuis) => void;
 }
 
 export const TugasModule: React.FC<TugasModuleProps> = ({
@@ -37,45 +39,56 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   onSaveNilaiSubmission,
   activeTugasId,
   onClearActiveTugas,
+  onOpenGrading,
 }) => {
   const [selectedJenis, setSelectedJenis] = useState<'ALL' | JenisPenugasan>('ALL');
   const [selectedKelas, setSelectedKelas] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Selected assignment for grading
   const [selectedTugasForGrading, setSelectedTugasForGrading] = useState<TugasKuis | null>(() => {
     if (activeTugasId) {
-      return tugasList.find((t) => t.id_tugas_kuis === activeTugasId) || null;
+      return (
+        tugasList.find(
+          (t) =>
+            t.id_tugas_kuis === activeTugasId ||
+            (t as unknown as { id?: string }).id === activeTugasId
+        ) || null
+      );
     }
     return null;
   });
 
-  // Selected student submission being graded
   const [gradingSubmission, setGradingSubmission] = useState<PengumpulanTugas | null>(null);
   const [inputSkor, setInputSkor] = useState<number | ''>('');
   const [inputFeedback, setInputFeedback] = useState('');
-  const [saveToast, setSaveToast] = useState<string | null>(null);
 
-  // View Rubric Modal
   const [viewRubrikTugas, setViewRubrikTugas] = useState<TugasKuis | null>(null);
 
   const filteredTugas = tugasList.filter((t) => {
     const matchesJenis = selectedJenis === 'ALL' || t.jenis === selectedJenis;
-    const matchesKelas = selectedKelas === 'ALL' || t.id_kelas === selectedKelas;
+    const matchesKelas =
+      selectedKelas === 'ALL' ||
+      t.id_kelas === selectedKelas ||
+      (t as unknown as { kelas_id?: string }).kelas_id === selectedKelas;
     const matchesSearch =
-      t.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.instruksi.toLowerCase().includes(searchQuery.toLowerCase());
+      (t.judul || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.instruksi || (t as unknown as { deskripsi?: string }).deskripsi || '')
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
     return matchesJenis && matchesKelas && matchesSearch && !t.deleted_at;
   });
 
   const handleOpenGrading = (tugas: TugasKuis) => {
     setSelectedTugasForGrading(tugas);
+    if (onOpenGrading) {
+      onOpenGrading(tugas);
+    }
   };
 
   const handleStartGradeStudent = (sub: PengumpulanTugas) => {
     setGradingSubmission(sub);
     setInputSkor(sub.nilai ?? '');
-    setInputFeedback(sub.feedback || '');
+    setInputFeedback(sub.feedback || (sub as unknown as { feedback_guru?: string }).feedback_guru || '');
   };
 
   const handleSaveGrade = (e: React.FormEvent) => {
@@ -84,19 +97,26 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
     const numScore = Number(inputSkor);
     if (isNaN(numScore) || numScore < 0 || numScore > 100) {
-      alert('Skor harus bernilai numerik antara 0 sampai 100 sesuai PRD FR-TG-04.');
+      toast.error('Skor harus bernilai numerik antara 0 sampai 100 sesuai PRD FR-TG-04.');
       return;
     }
 
-    onSaveNilaiSubmission(gradingSubmission.id_pengumpulan, numScore, inputFeedback);
-    setSaveToast(`Nilai untuk ${gradingSubmission.nama_siswa} berhasil disimpan!`);
-    setTimeout(() => setSaveToast(null), 3000);
+    onSaveNilaiSubmission(
+      gradingSubmission.id_pengumpulan || (gradingSubmission as unknown as { id?: string }).id || '',
+      numScore,
+      inputFeedback,
+      gradingSubmission
+    );
+    toast.success(`Nilai untuk ${gradingSubmission.nama_siswa} berhasil disimpan!`);
     setGradingSubmission(null);
   };
 
-  // Submissions for currently selected assignment
   const currentTugasSubmissions = selectedTugasForGrading
-    ? submissionsList.filter((s) => s.id_tugas_kuis === selectedTugasForGrading.id_tugas_kuis)
+    ? submissionsList.filter((s) => {
+        const targetId = selectedTugasForGrading.id_tugas_kuis || (selectedTugasForGrading as unknown as { id?: string }).id;
+        const subTaskId = s.id_tugas_kuis || (s as unknown as { tugas_id?: string }).tugas_id;
+        return !targetId || !subTaskId || subTaskId === targetId;
+      })
     : [];
 
   return (
@@ -121,20 +141,6 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
         </button>
       </div>
 
-      {/* Toast Notification */}
-      {saveToast && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between animate-fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{saveToast}</span>
-          </div>
-          <button onClick={() => setSaveToast(null)} className="text-emerald-600 hover:text-emerald-900">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Filter and Tab Bar */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
@@ -186,76 +192,97 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
         </div>
       </div>
 
-      {/* Tugas List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredTugas.map((tugas) => {
-          const isOverdue = new Date(tugas.tenggat_waktu).getTime() < new Date().getTime();
-          return (
-            <div
-              key={tugas.id_tugas_kuis}
-              className="bg-white border border-slate-200 hover:border-blue-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-bold">
-                      {tugas.nama_kelas}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                      {tugas.jenis}
+      {filteredTugas.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-4">
+          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+            <ClipboardList className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">Belum Ada Penugasan</h3>
+            <p className="text-xs text-slate-500 max-w-sm">
+              {searchQuery || selectedJenis !== 'ALL' || selectedKelas !== 'ALL'
+                ? 'Tidak ada tugas yang sesuai dengan kriteria filter pencarian Anda.'
+                : 'Terbitkan tugas terstruktur, kuis daring, atau proyek praktikum baru untuk siswa Anda.'}
+            </p>
+          </div>
+          <button
+            onClick={onOpenCreateTugas}
+            className="px-4 py-2 bg-[#142d72] hover:bg-[#1a388f] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Buat Tugas Baru</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredTugas.map((tugas) => {
+            const isOverdue = new Date(tugas.tenggat_waktu).getTime() < new Date().getTime();
+            return (
+              <div
+                key={tugas.id_tugas_kuis}
+                className="bg-white border border-slate-200 hover:border-blue-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-bold">
+                        {tugas.nama_kelas}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                        {tugas.jenis}
+                      </span>
+                    </div>
+
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      tugas.jumlah_mengumpulkan >= tugas.total_siswa * 0.8
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {tugas.jumlah_mengumpulkan}/{tugas.total_siswa} Mengumpulkan
                     </span>
                   </div>
 
-                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                    tugas.jumlah_mengumpulkan >= tugas.total_siswa * 0.8
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    {tugas.jumlah_mengumpulkan}/{tugas.total_siswa} Mengumpulkan
-                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">{tugas.judul}</h3>
+                    <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                      {tugas.instruksi}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      Tenggat: {tugas.tenggat_waktu} WIB
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      Format: {tugas.format_file}
+                    </span>
+                  </div>
                 </div>
 
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{tugas.judul}</h3>
-                  <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                    {tugas.instruksi}
-                  </p>
-                </div>
+                <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <button
+                    onClick={() => setViewRubrikTugas(tugas)}
+                    className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Lihat Rubrik</span>
+                  </button>
 
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    Tenggat: {tugas.tenggat_waktu} WIB
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
-                    Format: {tugas.format_file}
-                  </span>
+                  <button
+                    onClick={() => handleOpenGrading(tugas)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>Lembar Penilaian Siswa</span>
+                  </button>
                 </div>
               </div>
-
-              {/* Bottom Actions */}
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  onClick={() => setViewRubrikTugas(tugas)}
-                  className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Lihat Rubrik</span>
-                </button>
-
-                <button
-                  onClick={() => handleOpenGrading(tugas)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                >
-                  <Award className="w-3.5 h-3.5" />
-                  <span>Lembar Penilaian Siswa</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Rubric View Modal */}
       {viewRubrikTugas && (

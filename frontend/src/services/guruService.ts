@@ -1,25 +1,132 @@
-// frontend/src/services/guruService.ts
+import { fetchAPI } from '@/lib/api';
+import { getStoredUser } from '@/lib/auth';
+import { Kelas, PengumpulanTugas, TugasKuis } from '@/types/lms';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
-
-// Default ID Bu Irma & Mapel Matematika XII IPA 1 yang sudah ada di Supabase kamu
 export const DEFAULT_GURU_ID = '298257fb-b4aa-4710-afaa-bbfd63abd5c5';
-export const DEFAULT_MAPEL_ID = '20000000-0000-0000-0000-000000000001'; // MTK-XII
-export const DEFAULT_KELAS_ID = 'f0000000-0000-0000-0000-000000000001'; // XII IPA 1
+export const DEFAULT_MAPEL_ID = '1ca770d9-0e57-471b-95c2-aedc472da0b9';
+export const DEFAULT_KELAS_ID = 'f0000000-0000-0000-0000-000000000001';
 
-// 1. Ambil daftar materi dari Supabase via Backend
-export async function getMateriGuru(kelasId = DEFAULT_KELAS_ID, guruId = DEFAULT_GURU_ID) {
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  error?: string;
+}
+
+export async function getKelasGuru(): Promise<Kelas[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/guru/materi?kelas_id=${kelasId}&guru_id=${guruId}`);
-    const json = await res.json();
-    return json.success ? json.data : [];
+    const res = await fetchAPI<ApiResponse<Array<{ id: string; nama_kelas: string; tingkat: number; jurusan: string }>>>('/guru/kelas');
+    if (res?.success && Array.isArray(res.data)) {
+      return res.data.map((k) => ({
+        id_kelas: k.id,
+        nama_kelas: k.nama_kelas,
+        tingkat: k.tingkat === 10 ? 'X' : k.tingkat === 11 ? 'XI' : 'XII',
+        tahun_ajaran: '2025/2026',
+        jumlah_siswa: 32,
+      }));
+    }
+    return [];
   } catch (err) {
-    console.error('Gagal mengambil materi:', err);
+    console.error(err);
     return [];
   }
 }
 
-// 2. Simpan Materi Baru ke Supabase
+export async function getTugasGuru(params?: { kelas_id?: string; guru_id?: string }): Promise<TugasKuis[]> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.kelas_id) searchParams.append('kelas_id', params.kelas_id);
+    if (params?.guru_id) searchParams.append('guru_id', params.guru_id);
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+
+    const res = await fetchAPI<ApiResponse<TugasKuis[]>>(`/guru/tugas${qs}`);
+    if (res?.success && Array.isArray(res.data)) {
+      return res.data;
+    }
+    return [];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+export async function createTugasGuru(payload: {
+  judul: string;
+  deskripsi: string;
+  instruksi?: string;
+  jenis?: string;
+  deadline: string;
+  tenggat_waktu?: string;
+  format_file?: string;
+  rubrik_penilaian?: string;
+  file_lampiran?: string;
+  kelas_id?: string;
+  guru_id?: string;
+  mapel_id?: string;
+}): Promise<ApiResponse<TugasKuis>> {
+  const user = getStoredUser();
+  const guruId = payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID;
+  const mapelId = payload.mapel_id || user?.extra?.mapel_id || user?.extra?.mapel?.id || DEFAULT_MAPEL_ID;
+
+  const body = {
+    guru_id: guruId,
+    mapel_id: mapelId,
+    kelas_id: payload.kelas_id || DEFAULT_KELAS_ID,
+    judul: payload.judul,
+    deskripsi: payload.deskripsi,
+    instruksi: payload.instruksi || payload.deskripsi,
+    jenis: payload.jenis || 'Tugas',
+    deadline: payload.deadline || payload.tenggat_waktu,
+    tenggat_waktu: payload.tenggat_waktu || payload.deadline,
+    file_lampiran: payload.file_lampiran || payload.format_file || 'pdf, docx',
+    format_file: payload.format_file || 'pdf, docx',
+    rubrik_penilaian: payload.rubrik_penilaian || '',
+  };
+
+  return await fetchAPI<ApiResponse<TugasKuis>>('/guru/tugas', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getTugasSubmissions(tugasId: string): Promise<PengumpulanTugas[]> {
+  try {
+    const res = await fetchAPI<ApiResponse<PengumpulanTugas[]>>(`/guru/tugas/${tugasId}/submissions`);
+    if (res?.success && Array.isArray(res.data)) {
+      return res.data;
+    }
+    return [];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+export async function gradeSubmissionGuru(
+  subId: string,
+  payload: {
+    nilai: number;
+    feedback_guru: string;
+    tugas_id?: string;
+    siswa_id?: string;
+  }
+): Promise<ApiResponse<unknown>> {
+  return await fetchAPI<ApiResponse<unknown>>(`/guru/submissions/${subId}/grade`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getMateriGuru(kelasId = DEFAULT_KELAS_ID, guruId = DEFAULT_GURU_ID) {
+  try {
+    const res = await fetchAPI<ApiResponse<unknown[]>>(`/guru/materi?kelas_id=${kelasId}&guru_id=${guruId}`);
+    return res?.success ? res.data : [];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
 export async function uploadMateriGuru(payload: {
   judul: string;
   deskripsi: string;
@@ -28,10 +135,13 @@ export async function uploadMateriGuru(payload: {
   tipe_file?: string;
   ukuran_mb?: number;
   kelas_id?: string;
+  guru_id?: string;
+  mapel_id?: string;
 }) {
+  const user = getStoredUser();
   const body = {
-    guru_id: DEFAULT_GURU_ID,
-    mapel_id: DEFAULT_MAPEL_ID,
+    guru_id: payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID,
+    mapel_id: payload.mapel_id || user?.extra?.mapel_id || DEFAULT_MAPEL_ID,
     kelas_id: payload.kelas_id || DEFAULT_KELAS_ID,
     judul: payload.judul,
     deskripsi: payload.deskripsi,
@@ -41,49 +151,18 @@ export async function uploadMateriGuru(payload: {
     file_url: payload.file_url || 'https://drive.google.com/sample',
   };
 
-  const res = await fetch(`${API_BASE_URL}/guru/materi`, {
+  return await fetchAPI<ApiResponse<unknown>>('/guru/materi', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  return await res.json();
 }
 
-// 3. Simpan Tugas Baru ke Supabase
-export async function createTugasGuru(payload: {
-  judul: string;
-  deskripsi: string;
-  deadline: string;
-  file_lampiran?: string;
-  kelas_id?: string;
-}) {
-  const body = {
-    guru_id: DEFAULT_GURU_ID,
-    mapel_id: DEFAULT_MAPEL_ID,
-    kelas_id: payload.kelas_id || DEFAULT_KELAS_ID,
-    judul: payload.judul,
-    deskripsi: payload.deskripsi,
-    deadline: payload.deadline,
-    file_lampiran: payload.file_lampiran || '-',
-  };
-
-  const res = await fetch(`${API_BASE_URL}/guru/tugas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return await res.json();
-}
-
-// 4. Update Status Absensi Siswa ke Supabase
 export async function updateAbsensiSiswaGuru(absensiId: string, status: string, catatan = '') {
-  const res = await fetch(`${API_BASE_URL}/guru/absensi/${absensiId}`, {
+  return await fetchAPI<ApiResponse<unknown>>(`/guru/absensi/${absensiId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       status: status.toLowerCase(),
-      catatan: catatan,
+      catatan,
     }),
   });
-  return await res.json();
 }

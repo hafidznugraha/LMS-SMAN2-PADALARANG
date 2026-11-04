@@ -1,48 +1,138 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
 import { TugasModule } from '@/components/tugas/TugasModule';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
-import { INITIAL_TUGAS_LIST, INITIAL_SUBMISSIONS, KELAS_LIST } from '@/data/mockData';
-import { TugasKuis } from '@/types/lms';
+import { getStoredUser } from '@/lib/auth';
+import {
+  getTugasGuru,
+  getKelasGuru,
+  getTugasSubmissions,
+  gradeSubmissionGuru,
+} from '@/services/guruService';
+import { TugasKuis, PengumpulanTugas, Kelas } from '@/types/lms';
 
 export default function TugasPage() {
-  const [tugasList, setTugasList] = useState(INITIAL_TUGAS_LIST);
-  const [submissionsList, setSubmissionsList] = useState(INITIAL_SUBMISSIONS);
+  const [tugasList, setTugasList] = useState<TugasKuis[]>([]);
+  const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentBidangStudi, setCurrentBidangStudi] = useState('Informatika');
 
-  const handleSaveTugas = (newT: Omit<TugasKuis, 'id_tugas_kuis' | 'total_siswa' | 'jumlah_mengumpulkan' | 'jumlah_dinilai'>) => {
-    const created: TugasKuis = {
-      ...newT,
-      id_tugas_kuis: `tugas-${Date.now()}`,
-      total_siswa: 32,
-      jumlah_mengumpulkan: 0,
-      jumlah_dinilai: 0,
-    };
-    setTugasList([created, ...tugasList]);
+  const loadInitialData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const user = getStoredUser();
+      const mapelName =
+        user?.extra?.mapel?.nama_mapel ||
+        (user?.extra?.mapel_nama as string) ||
+        (user?.extra?.bidang_studi as string) ||
+        'Informatika';
+      setCurrentBidangStudi(mapelName);
+
+      const [tugasData, kelasData] = await Promise.all([
+        getTugasGuru(),
+        getKelasGuru(),
+      ]);
+
+      setTugasList(tugasData);
+      setKelasList(kelasData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  const handleOpenGrading = async (tugas: TugasKuis) => {
+    const tugasId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id;
+    if (!tugasId) return;
+
+    try {
+      const subs = await getTugasSubmissions(tugasId);
+      setSubmissionsList(subs);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleSaveNilai = (idSub: string, nilai: number, feedback: string) => {
-    setSubmissionsList(
-      submissionsList.map((s) => (s.id_pengumpulan === idSub ? { ...s, nilai, feedback } : s))
+  const handleSaveTugas = async (newT: TugasKuis) => {
+    setTugasList((prev) => [newT, ...prev]);
+    const refreshed = await getTugasGuru();
+    if (refreshed.length > 0) {
+      setTugasList(refreshed);
+    }
+  };
+
+  const handleSaveNilai = async (
+    idSub: string,
+    nilai: number,
+    feedback: string,
+    sub?: PengumpulanTugas
+  ) => {
+    try {
+      setSubmissionsList((prev) =>
+        prev.map((s) => {
+          const sId = s.id_pengumpulan || (s as unknown as { id?: string }).id;
+          if (sId === idSub) {
+            return {
+              ...s,
+              nilai,
+              feedback,
+              status_kumpul: s.status_kumpul === 'Belum Mengumpulkan' ? 'Tepat Waktu' : s.status_kumpul,
+            };
+          }
+          return s;
+        })
+      );
+
+      await gradeSubmissionGuru(idSub, {
+        nilai,
+        feedback_guru: feedback,
+        tugas_id: sub?.id_tugas_kuis || (sub as unknown as { tugas_id?: string })?.tugas_id,
+        siswa_id: sub?.id_siswa || (sub as unknown as { siswa_id?: string })?.siswa_id,
+      });
+
+      const refreshed = await getTugasGuru();
+      if (refreshed.length > 0) {
+        setTugasList(refreshed);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[#142d72]" />
+        <p className="text-sm font-semibold">Memuat Modul Tugas & Penilaian...</p>
+      </div>
     );
-  };
+  }
 
   return (
     <div>
       <TugasModule
         tugasList={tugasList}
         submissionsList={submissionsList}
-        kelasList={KELAS_LIST}
+        kelasList={kelasList}
         onOpenCreateTugas={() => setIsModalOpen(true)}
         onSaveNilaiSubmission={handleSaveNilai}
+        onOpenGrading={handleOpenGrading}
       />
 
       <CreateTugasModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        kelasList={KELAS_LIST}
-        currentBidangStudi="Matematika Peminatan"
+        kelasList={kelasList}
+        currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveTugas}
       />
     </div>

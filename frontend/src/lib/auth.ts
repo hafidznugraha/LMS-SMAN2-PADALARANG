@@ -13,6 +13,13 @@ export interface AuthUserExtra {
   nip?: string;
   gelar?: string;
   no_telepon?: string;
+  mapel_id?: string;
+  mapel?: {
+    id: string;
+    kode_mapel: string;
+    nama_mapel: string;
+    kategori?: string;
+  };
   is_wali_kelas?: boolean;
   kelas_binaan?: KelasBinaanInfo[];
   siswa_id?: string;

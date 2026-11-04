@@ -2,15 +2,17 @@
 
 import React, { useState } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { TugasKuis, JenisPenugasan, Kelas } from '../../types/lms';
 import { createTugasGuru } from '../../services/guruService';
+import { getStoredUser } from '@/lib/auth';
 
 interface CreateTugasModalProps {
   isOpen: boolean;
   onClose: () => void;
   kelasList: Kelas[];
   currentBidangStudi: string;
-  onSaveTugas: (newTugas: Omit<TugasKuis, 'id_tugas_kuis' | 'total_siswa' | 'jumlah_mengumpulkan' | 'jumlah_dinilai'>) => void;
+  onSaveTugas: (newTugas: TugasKuis) => void;
 }
 
 export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
@@ -27,7 +29,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   const [formatFile, setFormatFile] = useState('pdf, docx');
   const [instruksi, setInstruksi] = useState('');
   const [rubrik, setRubrik] = useState(
-    '1. Ketepatan konsep matematis (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
+    '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,58 +37,42 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!judul.trim()) return;
+    if (!judul.trim()) {
+      toast.error('Judul tugas wajib diisi');
+      return;
+    }
 
     setIsSubmitting(true);
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
+    const user = getStoredUser();
 
     try {
-      // 1. KIRIM DATA KE SUPABASE VIA BACKEND GOLANG
       const res = await createTugasGuru({
-        judul: judul,
-        deskripsi: instruksi || 'Kerjakan tugas sesuai rubrik penilaian',
+        judul: judul.trim(),
+        deskripsi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+        instruksi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+        jenis,
         deadline: tenggatWaktu,
-        file_lampiran: formatFile,
+        tenggat_waktu: tenggatWaktu,
+        format_file: formatFile,
+        rubrik_penilaian: rubrik,
         kelas_id: kelasObj?.id_kelas,
+        guru_id: user?.extra?.guru_id,
+        mapel_id: user?.extra?.mapel_id || (user?.extra?.mapel as { id?: string })?.id,
       });
 
-      console.log('Respon simpan Tugas Supabase:', res);
-
-      // 2. PERBARUI TAMPILAN DI FRONTEND
-      onSaveTugas({
-        id_guru: 'guru-irma-01',
-        id_mapel: 'mapel-mat-pem',
-        nama_mapel: currentBidangStudi,
-        id_kelas: kelasObj?.id_kelas || '',
-        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
-        judul,
-        jenis,
-        tenggat_waktu: tenggatWaktu,
-        format_file: formatFile,
-        rubrik_penilaian: rubrik,
-        instruksi,
-      });
-
-      alert('Berhasil! Tugas baru berhasil disimpan ke Supabase.');
-      onClose();
-    } catch (err) {
-      console.error('Error saat menyimpan tugas ke Supabase:', err);
-      // Tetap update UI lokal
-      onSaveTugas({
-        id_guru: 'guru-irma-01',
-        id_mapel: 'mapel-mat-pem',
-        nama_mapel: currentBidangStudi,
-        id_kelas: kelasObj?.id_kelas || '',
-        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
-        judul,
-        jenis,
-        tenggat_waktu: tenggatWaktu,
-        format_file: formatFile,
-        rubrik_penilaian: rubrik,
-        instruksi,
-      });
-      alert('Tugas tersimpan di tampilan lokal! Pastikan backend Golang aktif di terminal.');
-      onClose();
+      if (res?.success && res.data) {
+        onSaveTugas(res.data);
+        toast.success('Tugas baru berhasil diterbitkan dan disimpan ke database');
+        onClose();
+        setJudul('');
+        setInstruksi('');
+      } else {
+        toast.error(res?.message || 'Gagal menerbitkan tugas');
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      toast.error('Terjadi kesalahan saat menyimpan tugas ke server');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +90,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
               Penerbitan Tugas / Kuis Baru
             </h3>
             <p className="text-xs text-slate-500">
-              Tersambung ke Supabase Cloud • Guru: Ibu Irma Satikarama
+              Mata Pelajaran: {currentBidangStudi}
             </p>
           </div>
           <button
@@ -123,7 +109,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           <input
             type="text"
             required
-            placeholder="Contoh: Latihan Soal Teorema Limit dan Bentuk Tak Tentu"
+            placeholder="Contoh: Latihan Soal Algoritma dan Pemrograman"
             value={judul}
             onChange={(e) => setJudul(e.target.value)}
             className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
@@ -225,7 +211,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
             type="button"
             disabled={isSubmitting}
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
           >
             Batal
           </button>
