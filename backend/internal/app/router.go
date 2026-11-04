@@ -53,8 +53,10 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		ExposeHeaders:    "Set-Cookie",
 	}))
 
+	// Handler Inisialisasi
 	masterHandler := handler.NewMasterHandler()
 	jadwalHandler := handler.NewJadwalHandler()
+	guruHandler := handler.NewGuruHandler() // Handler khusus modul Guru Mapel
 
 	api := app.Group("/api/v1")
 
@@ -69,6 +71,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	protected := api.Group("", middleware.JWTProtected(cfg))
 
+	// Master Data
 	master := protected.Group("/master")
 	master.Get("/kelas", masterHandler.GetKelasList)
 	master.Post("/kelas", middleware.RequireRole(model.RoleKurikulum), masterHandler.CreateKelas)
@@ -81,12 +84,14 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	master.Get("/guru", masterHandler.GetGuruList)
 	master.Get("/siswa", masterHandler.GetSiswaList)
 
+	// User Management
 	users := protected.Group("/users", middleware.RequireRole(model.RoleKurikulum))
 	users.Get("/", masterHandler.GetUsersList)
 	users.Post("/", masterHandler.CreateUser)
 	users.Put("/:id", masterHandler.UpdateUser)
 	users.Delete("/:id", masterHandler.DeleteUser)
 
+	// Jadwal Pelajaran
 	jadwal := protected.Group("/jadwal")
 	jadwal.Get("/", jadwalHandler.GetJadwalList)
 	jadwal.Post("/", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.CreateJadwal)
@@ -98,11 +103,27 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data jadwal kurikulum"})
 	})
 
+	// ==========================================
+	// MODUL GURU MATA PELAJARAN (Bu Irma / Velma)
+	// ==========================================
 	guru := protected.Group("/guru", middleware.RequireRole(model.RoleGuru, model.RoleWaliKelas))
-	guru.Get("/materi", func(c *fiber.Ctx) error {
-		return c.JSON(model.APIResponse{Success: true, Message: "Data materi guru"})
-	})
+	
+	// 1. Materi Pembelajaran
+	guru.Get("/materi", guruHandler.GetMateriList)
+	guru.Post("/materi", guruHandler.CreateMateri)
+	guru.Delete("/materi/:id", guruHandler.DeleteMateri)
 
+	// 2. Tugas & Penilaian Siswa
+	guru.Get("/tugas", guruHandler.GetTugasList)
+	guru.Post("/tugas", guruHandler.CreateTugas)
+	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
+	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
+
+	// 3. Rekap & Koreksi Presensi/Absensi Siswa
+	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
+	guru.Put("/absensi/:id", guruHandler.UpdateAbsensi)
+
+	// Modul Rekan Tim Lain
 	wali := protected.Group("/wali-kelas", middleware.RequireRole(model.RoleGuru, model.RoleWaliKelas))
 	wali.Get("/summary", func(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Data pembinaan wali kelas"})
