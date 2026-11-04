@@ -1,11 +1,9 @@
 package handler
 
 import (
-	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
@@ -30,6 +28,58 @@ func (h *PengaturanHandler) getDB() *gorm.DB {
 	return repository.GetDB()
 }
 
+func (h *PengaturanHandler) loadPengaturanConfig(db *gorm.DB) model.PengaturanSekolah {
+	var config model.PengaturanSekolah
+
+	var profil model.ProfilSekolah
+	if err := db.First(&profil).Error; err == nil {
+		config.ID = profil.ID
+		config.NamaSekolah = profil.NamaSekolah
+		config.NPSN = profil.NPSN
+		config.Akreditasi = profil.Akreditasi
+		config.Alamat = profil.Alamat
+		config.Telepon = profil.Telepon
+		config.Email = profil.Email
+		config.Website = profil.Website
+		config.CreatedAt = profil.CreatedAt
+		config.UpdatedAt = profil.UpdatedAt
+	}
+
+	var ta model.TahunAjaran
+	if err := db.Where("is_aktif = ?", true).First(&ta).Error; err == nil {
+		config.TahunAjaranAktif = ta.Tahun
+		config.SemesterAktif = ta.Semester
+		config.TenggatKunciRaport = ta.TenggatKunciRaport
+	}
+
+	var kepsek model.PejabatSekolah
+	if err := db.Where("jabatan = ? AND is_aktif = ?", "Kepala Sekolah", true).First(&kepsek).Error; err == nil {
+		config.KepalaSekolah = kepsek.NamaPejabat
+		config.NIPKepalaSekolah = kepsek.NIP
+	}
+
+	var waka model.PejabatSekolah
+	if err := db.Where("jabatan = ? AND is_aktif = ?", "Waka Kurikulum", true).First(&waka).Error; err == nil {
+		config.WakaKurikulum = waka.NamaPejabat
+		config.NIPWakaKurikulum = waka.NIP
+	}
+
+	var kbm model.KonfigurasiKBM
+	if err := db.Where("is_aktif = ?", true).First(&kbm).Error; err == nil {
+		config.DurasiKBMMenit = kbm.DurasiKBMMenit
+		config.JamMasuk = kbm.JamMasuk
+		config.JamPulang = kbm.JamPulang
+	}
+
+	var dapodikLog model.LogSinkronDapodik
+	if err := db.Order("terakhir_sinkron desc").First(&dapodikLog).Error; err == nil {
+		config.StatusSinkronisasiDapodik = dapodikLog.Status
+		config.TerakhirSinkron = &dapodikLog.TerakhirSinkron
+	}
+
+	return config
+}
+
 func (h *PengaturanHandler) GetPengaturan(c *fiber.Ctx) error {
 	db := h.getDB()
 	if db == nil {
@@ -39,46 +89,7 @@ func (h *PengaturanHandler) GetPengaturan(c *fiber.Ctx) error {
 		})
 	}
 
-	var config model.PengaturanSekolah
-	err := db.First(&config).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			defaultConfig := model.PengaturanSekolah{
-				ID:                        uuid.New(),
-				NamaSekolah:               "SMA Negeri 2 Padalarang",
-				NPSN:                      "20227927",
-				Akreditasi:                "A",
-				Alamat:                    "Jalan Raya Padalarang No. 45, Kertajaya, Padalarang, Kabupaten Bandung Barat, Jawa Barat 40553",
-				Telepon:                   "(022) 6806123",
-				Email:                     "info@sman2padalarang.sch.id",
-				Website:                   "https://sman2padalarang.sch.id",
-				KepalaSekolah:             "Drs. H. Engkos Kosasih, M.Pd",
-				NIPKepalaSekolah:          "196508121990031008",
-				WakaKurikulum:             "Drs. Herman Wijaya, M.M",
-				NIPWakaKurikulum:          "196804151994031004",
-				TahunAjaranAktif:          "2026/2027",
-				SemesterAktif:             "Ganjil",
-				DurasiKBMMenit:            45,
-				JamMasuk:                  "07:00:00",
-				JamPulang:                 "15:30:00",
-				StatusSinkronisasiDapodik: "Terhubung",
-			}
-			if createErr := db.Create(&defaultConfig).Error; createErr != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
-					Success: false,
-					Message: "Gagal membuat konfigurasi pengaturan bawaan",
-					Error:   createErr.Error(),
-				})
-			}
-			config = defaultConfig
-		} else {
-			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
-				Success: false,
-				Message: "Gagal memuat pengaturan sekolah",
-				Error:   err.Error(),
-			})
-		}
-	}
+	config := h.loadPengaturanConfig(db)
 
 	return c.Status(fiber.StatusOK).JSON(model.APIResponse{
 		Success: true,
@@ -105,78 +116,107 @@ func (h *PengaturanHandler) UpdatePengaturan(c *fiber.Ctx) error {
 		})
 	}
 
-	var config model.PengaturanSekolah
-	if err := db.First(&config).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
-			Success: false,
-			Message: "Pengaturan sekolah belum diinisialisasi",
-		})
+	now := time.Now()
+
+	var profil model.ProfilSekolah
+	if err := db.First(&profil).Error; err == nil {
+		if req.NamaSekolah != "" {
+			profil.NamaSekolah = req.NamaSekolah
+		}
+		if req.NPSN != "" {
+			profil.NPSN = req.NPSN
+		}
+		if req.Akreditasi != "" {
+			profil.Akreditasi = req.Akreditasi
+		}
+		if req.Alamat != "" {
+			profil.Alamat = req.Alamat
+		}
+		if req.Telepon != "" {
+			profil.Telepon = req.Telepon
+		}
+		if req.Email != "" {
+			profil.Email = req.Email
+		}
+		if req.Website != "" {
+			profil.Website = req.Website
+		}
+		profil.UpdatedAt = now
+		_ = db.Save(&profil).Error
 	}
 
-	if req.NamaSekolah != "" {
-		config.NamaSekolah = req.NamaSekolah
-	}
-	if req.NPSN != "" {
-		config.NPSN = req.NPSN
-	}
-	if req.Akreditasi != "" {
-		config.Akreditasi = req.Akreditasi
-	}
-	if req.Alamat != "" {
-		config.Alamat = req.Alamat
-	}
-	if req.Telepon != "" {
-		config.Telepon = req.Telepon
-	}
-	if req.Email != "" {
-		config.Email = req.Email
-	}
-	if req.Website != "" {
-		config.Website = req.Website
-	}
-	if req.KepalaSekolah != "" {
-		config.KepalaSekolah = req.KepalaSekolah
-	}
-	if req.NIPKepalaSekolah != "" {
-		config.NIPKepalaSekolah = req.NIPKepalaSekolah
-	}
-	if req.WakaKurikulum != "" {
-		config.WakaKurikulum = req.WakaKurikulum
-	}
-	if req.NIPWakaKurikulum != "" {
-		config.NIPWakaKurikulum = req.NIPWakaKurikulum
-	}
-	if req.TahunAjaranAktif != "" {
-		config.TahunAjaranAktif = req.TahunAjaranAktif
-	}
-	if req.SemesterAktif != "" {
-		config.SemesterAktif = req.SemesterAktif
-	}
-	if req.DurasiKBMMenit > 0 {
-		config.DurasiKBMMenit = req.DurasiKBMMenit
-	}
-	if req.JamMasuk != "" {
-		config.JamMasuk = req.JamMasuk
-	}
-	if req.JamPulang != "" {
-		config.JamPulang = req.JamPulang
-	}
-	if req.TenggatKunciRaport != "" {
+	if req.TahunAjaranAktif != "" && req.SemesterAktif != "" {
+		_ = db.Model(&model.TahunAjaran{}).Where("is_aktif = ?", true).Update("is_aktif", false).Error
+		var ta model.TahunAjaran
+		if err := db.Where("tahun = ? AND semester = ?", req.TahunAjaranAktif, req.SemesterAktif).First(&ta).Error; err == nil {
+			ta.IsAktif = true
+			if req.TenggatKunciRaport != "" {
+				t, parseErr := time.Parse("2006-01-02", req.TenggatKunciRaport)
+				if parseErr == nil {
+					ta.TenggatKunciRaport = &t
+				}
+			}
+			ta.UpdatedAt = now
+			_ = db.Save(&ta).Error
+		} else {
+			newTA := model.TahunAjaran{
+				Tahun:    req.TahunAjaranAktif,
+				Semester: req.SemesterAktif,
+				IsAktif:  true,
+			}
+			if req.TenggatKunciRaport != "" {
+				t, parseErr := time.Parse("2006-01-02", req.TenggatKunciRaport)
+				if parseErr == nil {
+					newTA.TenggatKunciRaport = &t
+				}
+			}
+			_ = db.Create(&newTA).Error
+		}
+	} else if req.TenggatKunciRaport != "" {
 		t, parseErr := time.Parse("2006-01-02", req.TenggatKunciRaport)
 		if parseErr == nil {
-			config.TenggatKunciRaport = &t
+			_ = db.Model(&model.TahunAjaran{}).Where("is_aktif = ?", true).Updates(map[string]interface{}{
+				"tenggat_kunci_raport": &t,
+				"updated_at":           now,
+			}).Error
 		}
 	}
 
-	config.UpdatedAt = time.Now()
-
-	if err := db.Save(&config).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
-			Success: false,
-			Message: "Gagal menyimpan perubahan pengaturan sekolah",
-			Error:   err.Error(),
-		})
+	if req.KepalaSekolah != "" {
+		_ = db.Model(&model.PejabatSekolah{}).
+			Where("jabatan = ? AND is_aktif = ?", "Kepala Sekolah", true).
+			Updates(map[string]interface{}{
+				"nama_pejabat": req.KepalaSekolah,
+				"nip":          req.NIPKepalaSekolah,
+				"updated_at":   now,
+			}).Error
 	}
+	if req.WakaKurikulum != "" {
+		_ = db.Model(&model.PejabatSekolah{}).
+			Where("jabatan = ? AND is_aktif = ?", "Waka Kurikulum", true).
+			Updates(map[string]interface{}{
+				"nama_pejabat": req.WakaKurikulum,
+				"nip":          req.NIPWakaKurikulum,
+				"updated_at":   now,
+			}).Error
+	}
+
+	var kbm model.KonfigurasiKBM
+	if err := db.Where("is_aktif = ?", true).First(&kbm).Error; err == nil {
+		if req.DurasiKBMMenit > 0 {
+			kbm.DurasiKBMMenit = req.DurasiKBMMenit
+		}
+		if req.JamMasuk != "" {
+			kbm.JamMasuk = req.JamMasuk
+		}
+		if req.JamPulang != "" {
+			kbm.JamPulang = req.JamPulang
+		}
+		kbm.UpdatedAt = now
+		_ = db.Save(&kbm).Error
+	}
+
+	config := h.loadPengaturanConfig(db)
 
 	return c.Status(fiber.StatusOK).JSON(model.APIResponse{
 		Success: true,
@@ -194,20 +234,14 @@ func (h *PengaturanHandler) TriggerSinkronDapodik(c *fiber.Ctx) error {
 		})
 	}
 
-	var config model.PengaturanSekolah
-	if err := db.First(&config).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
-			Success: false,
-			Message: "Pengaturan sekolah tidak ditemukan",
-		})
+	now := time.Now()
+	newLog := model.LogSinkronDapodik{
+		Status:          "Sinkron Berhasil",
+		Keterangan:      "Sinkronisasi data pokok pendidikan terverifikasi Dapodik Kemdikbudristek",
+		TerakhirSinkron: now,
 	}
 
-	now := time.Now()
-	config.TerakhirSinkron = &now
-	config.StatusSinkronisasiDapodik = "Sinkron Berhasil"
-	config.UpdatedAt = now
-
-	if err := db.Save(&config).Error; err != nil {
+	if err := db.Create(&newLog).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal memperbarui status sinkronisasi",
@@ -215,14 +249,17 @@ func (h *PengaturanHandler) TriggerSinkronDapodik(c *fiber.Ctx) error {
 		})
 	}
 
+	var profil model.ProfilSekolah
+	_ = db.First(&profil).Error
+
 	return c.Status(fiber.StatusOK).JSON(model.APIResponse{
 		Success: true,
 		Message: "Sinkronisasi Dapodik berhasil diselesaikan",
 		Data: fiber.Map{
-			"status":           config.StatusSinkronisasiDapodik,
-			"terakhir_sinkron": config.TerakhirSinkron.Format("02 January 2006 15:04:05 WIB"),
-			"npsn":             config.NPSN,
-			"nama_sekolah":     config.NamaSekolah,
+			"status":           newLog.Status,
+			"terakhir_sinkron": now.Format("02 January 2006 15:04:05 WIB"),
+			"npsn":             profil.NPSN,
+			"nama_sekolah":     profil.NamaSekolah,
 		},
 	})
 }

@@ -368,32 +368,103 @@ type CreateNilaiRequest struct {
 }
 
 type PengaturanSekolah struct {
-	ID                        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	NamaSekolah               string     `gorm:"size:150;not null" json:"nama_sekolah"`
-	NPSN                      string     `gorm:"size:20;not null" json:"npsn"`
-	Akreditasi                string     `gorm:"size:5;not null" json:"akreditasi"`
-	Alamat                    string     `gorm:"type:text;not null" json:"alamat"`
-	Telepon                   string     `gorm:"size:30" json:"telepon"`
-	Email                     string     `gorm:"size:100" json:"email"`
-	Website                   string     `gorm:"size:100" json:"website"`
-	KepalaSekolah             string     `gorm:"size:100;not null" json:"kepala_sekolah"`
-	NIPKepalaSekolah          string     `gorm:"size:30" json:"nip_kepala_sekolah"`
-	WakaKurikulum             string     `gorm:"size:100;not null" json:"waka_kurikulum"`
-	NIPWakaKurikulum          string     `gorm:"size:30" json:"nip_waka_kurikulum"`
-	TahunAjaranAktif          string     `gorm:"size:20;not null" json:"tahun_ajaran_aktif"`
-	SemesterAktif             string     `gorm:"size:10;not null" json:"semester_aktif"`
-	TenggatKunciRaport        *time.Time `gorm:"type:date" json:"tenggat_kunci_raport"`
-	DurasiKBMMenit            int        `gorm:"not null" json:"durasi_kbm_menit"`
-	JamMasuk                  string     `gorm:"type:time;not null" json:"jam_masuk"`
-	JamPulang                 string     `gorm:"type:time;not null" json:"jam_pulang"`
-	StatusSinkronisasiDapodik string     `gorm:"size:30" json:"status_sinkronisasi_dapodik"`
+	ID                        uuid.UUID  `json:"id"`
+	NamaSekolah               string     `json:"nama_sekolah"`
+	NPSN                      string     `json:"npsn"`
+	Akreditasi                string     `json:"akreditasi"`
+	Alamat                    string     `json:"alamat"`
+	Telepon                   string     `json:"telepon"`
+	Email                     string     `json:"email"`
+	Website                   string     `json:"website"`
+	KepalaSekolah             string     `json:"kepala_sekolah"`
+	NIPKepalaSekolah          string     `json:"nip_kepala_sekolah"`
+	WakaKurikulum             string     `json:"waka_kurikulum"`
+	NIPWakaKurikulum          string     `json:"nip_waka_kurikulum"`
+	TahunAjaranAktif          string     `json:"tahun_ajaran_aktif"`
+	SemesterAktif             string     `json:"semester_aktif"`
+	TenggatKunciRaport        *time.Time `json:"tenggat_kunci_raport"`
+	DurasiKBMMenit            int        `json:"durasi_kbm_menit"`
+	JamMasuk                  string     `json:"jam_masuk"`
+	JamPulang                 string     `json:"jam_pulang"`
+	StatusSinkronisasiDapodik string     `json:"status_sinkronisasi_dapodik"`
 	TerakhirSinkron           *time.Time `json:"terakhir_sinkron"`
 	CreatedAt                 time.Time  `json:"created_at"`
 	UpdatedAt                 time.Time  `json:"updated_at"`
 }
 
-func (PengaturanSekolah) TableName() string {
-	return "pengaturan_sekolah"
+type ProfilSekolah struct {
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	NamaSekolah string    `gorm:"size:150;not null" json:"nama_sekolah"`
+	NPSN        string    `gorm:"column:npsn;size:20;unique;not null" json:"npsn"`
+	Akreditasi  string    `gorm:"size:5;not null" json:"akreditasi"`
+	Alamat      string    `gorm:"type:text;not null" json:"alamat"`
+	Telepon     string    `gorm:"size:30" json:"telepon"`
+	Email       string    `gorm:"size:100" json:"email"`
+	Website     string    `gorm:"size:100" json:"website"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (ProfilSekolah) TableName() string {
+	return "profil_sekolah"
+}
+
+type TahunAjaran struct {
+	ID                 uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Tahun              string     `gorm:"size:20;not null" json:"tahun"`
+	Semester           string     `gorm:"size:10;not null" json:"semester"`
+	IsAktif            bool       `gorm:"not null;default:false" json:"is_aktif"`
+	TenggatKunciRaport *time.Time `gorm:"type:date" json:"tenggat_kunci_raport"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+func (TahunAjaran) TableName() string {
+	return "tahun_ajaran"
+}
+
+type PejabatSekolah struct {
+	ID             uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Jabatan        string     `gorm:"size:50;not null" json:"jabatan"`
+	NamaPejabat    string     `gorm:"size:150;not null" json:"nama_pejabat"`
+	NIP            string     `gorm:"column:nip;size:30" json:"nip"`
+	GuruID         *uuid.UUID `gorm:"type:uuid" json:"guru_id,omitempty"`
+	Guru           *Guru      `gorm:"foreignKey:GuruID" json:"guru,omitempty"`
+	PeriodeMulai   time.Time  `gorm:"type:date;not null" json:"periode_mulai"`
+	PeriodeSelesai *time.Time `gorm:"type:date" json:"periode_selesai,omitempty"`
+	IsAktif        bool       `gorm:"not null;default:true" json:"is_aktif"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+func (PejabatSekolah) TableName() string {
+	return "pejabat_sekolah"
+}
+
+type KonfigurasiKBM struct {
+	ID             uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DurasiKBMMenit int       `gorm:"not null;default:45" json:"durasi_kbm_menit"`
+	JamMasuk       string    `gorm:"type:time;not null;default:'07:00:00'" json:"jam_masuk"`
+	JamPulang      string    `gorm:"type:time;not null;default:'15:30:00'" json:"jam_pulang"`
+	IsAktif        bool      `gorm:"not null;default:true" json:"is_aktif"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func (KonfigurasiKBM) TableName() string {
+	return "konfigurasi_kbm"
+}
+
+type LogSinkronDapodik struct {
+	ID              uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Status          string    `gorm:"size:50;not null;default:'Terhubung'" json:"status"`
+	Keterangan      string    `gorm:"type:text" json:"keterangan"`
+	TerakhirSinkron time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"terakhir_sinkron"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+func (LogSinkronDapodik) TableName() string {
+	return "log_sinkron_dapodik"
 }
 
 type UpdatePengaturanRequest struct {

@@ -88,6 +88,7 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 - **FR-MST-01 (Manajemen Data Siswa)**: Bagian Kurikulum dapat menambah, melihat rincian, memperbarui data diri, dan menonaktifkan/menghapus data siswa (NIS, nama, kelas, jurusan).
 - **FR-MST-02 (Manajemen Data Guru & Penugasan)**: Kurikulum dapat mengelola akun guru beserta pemetaan mata pelajaran yang diampu.
 - **FR-MST-03 (Manajemen Kelas & Rombel)**: Pengaturan tahun ajaran, tingkat kelas, dan penugasan wali kelas.
+- **FR-MST-04 (Pengaturan Lembaga & Siklus Akademik)**: Kurikulum mengelola identitas profil sekolah, siklus tahun ajaran dan semester aktif, masa jabatan pejabat sekolah (Kepala Sekolah & Waka Kurikulum), konfigurasi jam operasional KBM, serta audit sinkronisasi Dapodik.
 
 ### Modul 3: Manajemen Materi Pembelajaran
 - **FR-MAT-01 (Unggah Materi Ajar)**: Guru dapat menambahkan materi pembelajaran dengan melampirkan berkas (PDF, DOCX, PPT, MP4/Video) atau tautan media luar, dilengkapi judul, deskripsi, dan mata pelajaran.
@@ -340,6 +341,11 @@ erDiagram
     SISWA ||--o{ LAPORAN_AKADEMIK : "memiliki_rapor"
     USERS ||--o{ NOTIFIKASI : "menerima_notifikasi"
 
+    TAHUN_AJARAN ||--o{ JADWAL_PELAJARAN : "periode_jadwal"
+    TAHUN_AJARAN ||--o{ LAPORAN_AKADEMIK : "periode_laporan"
+    GURU ||--o| PEJABAT_SEKOLAH : "dijabat_oleh"
+    PROFIL_SEKOLAH ||--o{ LOG_SINKRON_DAPODIK : "riwayat_sinkron"
+
     USERS {
         string id_user PK
         string email UK
@@ -481,6 +487,51 @@ erDiagram
         time jam_mulai
         time jam_selesai
         string ruangan
+    }
+
+    PROFIL_SEKOLAH {
+        string id PK
+        string nama_sekolah
+        string npsn UK
+        string akreditasi
+        string alamat
+        string telepon
+        string email
+        string website
+    }
+
+    TAHUN_AJARAN {
+        string id PK
+        string tahun
+        string semester
+        boolean is_aktif
+        date tenggat_kunci_raport
+    }
+
+    PEJABAT_SEKOLAH {
+        string id PK
+        string jabatan
+        string nama_pejabat
+        string nip
+        string guru_id FK
+        date periode_mulai
+        date periode_selesai
+        boolean is_aktif
+    }
+
+    KONFIGURASI_KBM {
+        string id PK
+        int durasi_kbm_menit
+        time jam_masuk
+        time jam_pulang
+        boolean is_aktif
+    }
+
+    LOG_SINKRON_DAPODIK {
+        string id PK
+        string status
+        text keterangan
+        datetime terakhir_sinkron
     }
 ```
 
@@ -636,6 +687,63 @@ Pemetaan jadwal kegiatan belajar mengajar per kelas, guru, dan mata pelajaran (p
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `deleted_at` : `TIMESTAMPTZ` - **Nullable** (*GORM Soft Delete index*).
 
+#### 16. Tabel `profil_sekolah`
+Menyimpan data pokok identitas resmi lembaga sekolah (SMAN 2 Padalarang).
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `nama_sekolah` : `VARCHAR(150)` - **Not Null**. Nama resmi instansi sekolah.
+- `npsn` : `VARCHAR(20)` - **Unique**, **Not Null**. Nomor Pokok Sekolah Nasional.
+- `akreditasi` : `VARCHAR(5)` - **Not Null**, default: `'A'`.
+- `alamat` : `TEXT` - **Not Null**. Alamat geografis resmi sekolah.
+- `telepon` : `VARCHAR(30)` - Nomor kontak operasional sekolah.
+- `email` : `VARCHAR(100)` - Alamat surat elektronik resmi sekolah.
+- `website` : `VARCHAR(100)` - Alamat portal website resmi sekolah.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+#### 17. Tabel `tahun_ajaran`
+Mengatur kalender siklus akademik aktif, riwayat semester lampau, serta tenggat penguncian nilai raport.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `tahun` : `VARCHAR(20)` - **Not Null**. Format tahun ajaran kurikulum (misal: '2026/2027').
+- `semester` : `VARCHAR(10)` - **Not Null**, `CHECK (semester IN ('Ganjil', 'Genap'))`.
+- `is_aktif` : `BOOLEAN` - **Default: false**. Penanda periode akademik aktif yang sedang berjalan.
+- `tenggat_kunci_raport` : `DATE` - Batas akhir finalisasi nilai oleh Waka Kurikulum.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `CONSTRAINT uq_tahun_semester` : `UNIQUE(tahun, semester)`.
+
+#### 18. Tabel `pejabat_sekolah`
+Mencatat pimpinan lembaga, struktur jabatan struktural (Kepala Sekolah, Waka Kurikulum), dan masa periode jabatan untuk legalitas penandatanganan raport dan ijazah.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `jabatan` : `VARCHAR(50)` - **Not Null** (misal: 'Kepala Sekolah', 'Waka Kurikulum').
+- `nama_pejabat` : `VARCHAR(150)` - **Not Null**. Nama lengkap pejabat beserta gelar akademik.
+- `nip` : `VARCHAR(30)` - Nomor Induk Pegawai resmi.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL (*opsional*).
+- `periode_mulai` : `DATE` - **Not Null**. Tanggal awal masa bakti jabatan.
+- `periode_selesai` : `DATE` - **Nullable**. Tanggal akhir jabatan (*null jika masih aktif menjabat*).
+- `is_aktif` : `BOOLEAN` - **Default: true**. Status pejabat yang sedang menjabat aktif saat ini.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+#### 19. Tabel `konfigurasi_kbm`
+Parameter operasional kegiatan belajar mengajar harian, jam masuk, jam pulang, dan durasi jam pelajaran (JP).
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `durasi_kbm_menit` : `INT` - **Not Null**, default: `45`. Durasi menit per 1 Jam Pelajaran (JP).
+- `jam_masuk` : `TIME` - **Not Null**, default: `'07:00:00'`. Jam masuk operasional gerbang & absensi pagi.
+- `jam_pulang` : `TIME` - **Not Null**, default: `'15:30:00'`. Jam kepulangan KBM sekolah.
+- `is_aktif` : `BOOLEAN` - **Default: true**.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+#### 20. Tabel `log_sinkron_dapodik`
+Catatan rekam jejak (*audit trail*) pertukaran data dan verifikasi sinkronisasi dengan server Dapodik Kemdikbudristek.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `status` : `VARCHAR(50)` - **Not Null**. Status sinkronisasi (misal: 'Terhubung', 'Sinkron Berhasil', 'Gagal').
+- `keterangan` : `TEXT` - Catatan ringkasan atau rincian transaksi integrasi Dapodik.
+- `terakhir_sinkron` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**. Stempel waktu audit sinkronisasi.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+> **Catatan Kompatibilitas:** Tabel agregat `pengaturan_sekolah` tetap dipertahankan dan disinkronkan secara otomatis oleh backend service guna menjamin *backward compatibility* terhadap modul legacy tanpa menimbulkan *breaking changes*.
+
 ### 5.3 Kebijakan Audit Trail & Soft Deletion (`deleted_at`)
 Seluruh tabel transaksional dan master (`users`, `siswa`, `guru`, `materi`, `tugas_kuis`, `absensi`, `nilai`, `laporan_akademik`, `jadwal_pelajaran`) dilengkapi dengan kolom `deleted_at TIMESTAMPTZ NULL`. GORM secara otomatis menyaring data aktif melalui klausa `WHERE deleted_at IS NULL`, menjamin kepatuhan audit sehingga histori nilai dan presensi tetap terjaga secara konsisten.
 
@@ -704,7 +812,7 @@ Sesuai arahan dan kesepakatan perancangan, sistem LMS SMAN 2 Padalarang mengadop
 1. **Backend Service (REST API)**:
    - **Bahasa Pemrograman**: **Go (Golang)** versi 1.22+.
    - **Web Framework**: **Go Fiber** (v2) – Framework web berkinerja tinggi berbasis engine `fasthttp` dengan alokasi memori minimal (*zero memory allocation*), ideal untuk menangani ribuan *request* presensi simultan.
-   - **Object-Relational Mapping (ORM)**: **GORM** – Memetakan 14 model tabel relasional secara *type-safe* dengan fitur *AutoMigrate* dan dukungan transaksi basis data terintegrasi.
+   - **Object-Relational Mapping (ORM)**: **GORM** – Memetakan 20 model tabel relasional secara *type-safe* dengan fitur *AutoMigrate* dan dukungan transaksi basis data terintegrasi.
    - **Autentikasi & Keamanan Dual-Token**:
      - **Access Token**: JWT berumur pendek (15 menit), ditransmisikan via header `Authorization: Bearer <token>`, memuat payload `user_id`, `email`, dan `role`.
      - **Refresh Token**: JWT berumur panjang (7 hari), disimpan secara aman di dalam *HTTP-only Secure SameSite=Lax Cookie* untuk rotasi perpanjangan sesi otomatis via endpoint `/api/v1/auth/refresh`.
@@ -818,7 +926,7 @@ LMS-SMAN2-PADALARANG/
 |                        SUPABASE CLOUD INFRASTRUCTURE                              |
 |  +-----------------------------------------------------------------------------+  |
 |  | MANAGED POSTGRESQL (Supavisor Connection Pooler :6543 / Direct :5432)       |  |
-|  | 14 Tabel Relasional: users, siswa, guru, materi, tugas, absensi, nilai, dll.|  |
+|  | 20 Tabel Relasional: users, siswa, guru, materi, tugas, absensi, nilai, dll.|  |
 |  +-----------------------------------------------------------------------------+  |
 |  | SUPABASE STORAGE (S3-Compatible Cloud Storage)                              |  |
 |  | - Bucket 'materi-pelajaran' (Streaming Video, PDF, Dokumen Ajar)            |  |
