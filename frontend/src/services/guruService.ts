@@ -1,5 +1,6 @@
 import { fetchAPI } from '@/lib/api';
 import { getStoredUser } from '@/lib/auth';
+import { KELAS_LIST } from '@/data/mockData';
 import { Kelas, PengumpulanTugas, TugasKuis } from '@/types/lms';
 
 export const DEFAULT_GURU_ID = '298257fb-b4aa-4710-afaa-bbfd63abd5c5';
@@ -16,7 +17,7 @@ interface ApiResponse<T> {
 export async function getKelasGuru(): Promise<Kelas[]> {
   try {
     const res = await fetchAPI<ApiResponse<Array<{ id: string; nama_kelas: string; tingkat: number; jurusan: string }>>>('/guru/kelas');
-    if (res?.success && Array.isArray(res.data)) {
+    if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
       return res.data.map((k) => ({
         id_kelas: k.id,
         nama_kelas: k.nama_kelas,
@@ -25,10 +26,10 @@ export async function getKelasGuru(): Promise<Kelas[]> {
         jumlah_siswa: 32,
       }));
     }
-    return [];
+    return KELAS_LIST;
   } catch (err) {
-    console.error(err);
-    return [];
+    console.warn(err);
+    return KELAS_LIST;
   }
 }
 
@@ -45,7 +46,7 @@ export async function getTugasGuru(params?: { kelas_id?: string; guru_id?: strin
     }
     return [];
   } catch (err) {
-    console.error(err);
+    console.warn(err);
     return [];
   }
 }
@@ -97,7 +98,7 @@ export async function getTugasSubmissions(tugasId: string): Promise<PengumpulanT
     }
     return [];
   } catch (err) {
-    console.error(err);
+    console.warn(err);
     return [];
   }
 }
@@ -122,7 +123,7 @@ export async function getMateriGuru(kelasId = DEFAULT_KELAS_ID, guruId = DEFAULT
     const res = await fetchAPI<ApiResponse<unknown[]>>(`/guru/materi?kelas_id=${kelasId}&guru_id=${guruId}`);
     return res?.success ? res.data : [];
   } catch (err) {
-    console.error(err);
+    console.warn(err);
     return [];
   }
 }

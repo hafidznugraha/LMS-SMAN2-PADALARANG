@@ -40,7 +40,7 @@ export default function TugasPage() {
       setTugasList(tugasData);
       setKelasList(kelasData);
     } catch (err) {
-      console.error(err);
+      console.warn(err);
     } finally {
       setIsLoading(false);
     }
