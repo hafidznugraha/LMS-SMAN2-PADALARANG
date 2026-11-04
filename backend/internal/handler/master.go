@@ -613,7 +613,8 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Role == model.RoleGuru || req.Role == model.RoleWaliKelas {
+	switch req.Role {
+	case model.RoleGuru, model.RoleWaliKelas:
 		if strings.TrimSpace(req.NIP) != "" {
 			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIP))
 			if !matched {
@@ -630,7 +631,7 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 				})
 			}
 		}
-	} else if req.Role == model.RoleSiswa {
+	case model.RoleSiswa:
 		if strings.TrimSpace(req.NIS) != "" {
 			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIS))
 			if !matched {
@@ -865,7 +866,8 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 		}
 	}
 
-	if user.Role == model.RoleGuru || user.Role == model.RoleWaliKelas {
+	switch user.Role {
+	case model.RoleGuru, model.RoleWaliKelas:
 		if strings.TrimSpace(req.NIP) != "" {
 			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIP))
 			if !matched {
@@ -875,7 +877,7 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 				})
 			}
 		}
-	} else if user.Role == model.RoleSiswa {
+	case model.RoleSiswa:
 		if strings.TrimSpace(req.NIS) != "" {
 			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIS))
 			if !matched {
@@ -906,7 +908,8 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	if user.Role == model.RoleGuru || user.Role == model.RoleWaliKelas {
+	switch user.Role {
+	case model.RoleGuru, model.RoleWaliKelas:
 		var guru model.Guru
 		if err := tx.Where("user_id = ?", targetID).First(&guru).Error; err == nil {
 			if req.NIP != "" {
@@ -948,7 +951,7 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 				})
 			}
 		}
-	} else if user.Role == model.RoleSiswa {
+	case model.RoleSiswa:
 		var siswa model.Siswa
 		if err := tx.Where("user_id = ?", targetID).First(&siswa).Error; err == nil {
 			if req.NIS != "" {

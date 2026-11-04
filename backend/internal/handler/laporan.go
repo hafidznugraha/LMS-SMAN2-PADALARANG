@@ -53,11 +53,12 @@ func (h *LaporanHandler) GetLaporanSummary(c *fiber.Ctx) error {
 
 	laporanPerKelas := make(map[uuid.UUID][]model.LaporanAkademik)
 	for _, lap := range laporans {
-		if lap.StatusLaporan == model.StatusLaporanDisahkanKurikulum {
+		switch lap.StatusLaporan {
+		case model.StatusLaporanDisahkanKurikulum:
 			totalDisahkan++
-		} else if lap.StatusLaporan == model.StatusLaporanDitinjauWali {
+		case model.StatusLaporanDitinjauWali:
 			totalMenunggu++
-		} else {
+		default:
 			totalDraf++
 		}
 
