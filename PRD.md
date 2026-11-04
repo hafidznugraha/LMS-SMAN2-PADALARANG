@@ -312,10 +312,9 @@ erDiagram
     USERS ||--o| KURIKULUM : "extends / is-a"
     USERS ||--o| GURU : "extends / is-a"
     USERS ||--o| SISWA : "extends / is-a"
-    GURU ||--o| WALIKELAS : "extends / role"
+    GURU ||--o| KELAS : "membina / wali_guru_id"
     
     KELAS ||--o{ SISWA : "memiliki"
-    KELAS ||--o| WALIKELAS : "dibina_oleh"
     
     GURU ||--o{ MATERI : "mengunggah"
     MATA_PELAJARAN ||--o{ MATERI : "kategori"
@@ -380,17 +379,11 @@ erDiagram
     }
 
     KELAS {
-        string id_kelas PK
-        string nama_kelas
-        string tingkat
-        string tahun_ajaran
-    }
-
-    WALIKELAS {
-        string id_wali_kelas PK
-        string id_guru FK
-        string id_kelas FK
-        string tahun_ajaran
+        string id PK
+        string nama_kelas UK
+        int tingkat
+        string jurusan
+        string wali_guru_id FK
     }
 
     MATA_PELAJARAN {
@@ -568,10 +561,12 @@ Entitas tenaga pendidik mata pelajaran.
 
 #### 4. Tabel `kelas`
 Master data ruang kelas/rombongan belajar.
-- `id_kelas` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `nama_kelas` : `VARCHAR(50)` - **Not Null**. Contoh: "XII MIPA 1", "X IPS 2".
-- `tingkat` : `VARCHAR(10)` - **Not Null**, `CHECK (tingkat IN ('X', 'XI', 'XII'))`.
-- `tahun_ajaran` : `VARCHAR(20)` - **Not Null**. Contoh: "2024/2025".
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `nama_kelas` : `VARCHAR(20)` - **Unique**, **Not Null**. Contoh: "XII IPA 1", "X RPL 1".
+- `tingkat` : `INT` - **Not Null**, `CHECK (tingkat IN (10, 11, 12))`.
+- `jurusan` : `VARCHAR(20)` - **Not Null**. Contoh: "MIPA", "IPS", "Umum".
+- `wali_guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL, **Unique** (`uq_kelas_wali_guru`). Guru yang ditugaskan membina rombel kelas ini.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
 #### 5. Tabel `siswa`
 Entitas peserta didik aktif.
@@ -581,20 +576,13 @@ Entitas peserta didik aktif.
 - `id_kelas` : `UUID` - **Foreign Key** ke `kelas(id_kelas)` ON DELETE RESTRICT.
 - `jurusan` : `VARCHAR(50)` - **Not Null**. Peminatan: MIPA, IPS, atau Bahasa.
 
-#### 6. Tabel `wali_kelas`
-Penugasan guru sebagai pembina kelas tertentu per tahun ajaran.
-- `id_wali_kelas` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
-- `id_kelas` : `UUID` - **Foreign Key** ke `kelas(id_kelas)` ON DELETE RESTRICT.
-- `tahun_ajaran` : `VARCHAR(20)` - **Not Null**.
-
-#### 7. Tabel `mata_pelajaran`
+#### 6. Tabel `mata_pelajaran`
 Master data mata pelajaran sekolah.
 - `id_mapel` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `kode_mapel` : `VARCHAR(20)` - **Unique**, **Not Null**. Contoh: "BIO-XII", "MAT-W-X".
 - `nama_mapel` : `VARCHAR(100)` - **Not Null**.
 
-#### 8. Tabel `materi`
+#### 7. Tabel `materi`
 Rekaman berkas materi pembelajaran yang diunggah guru.
 - `id_materi` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
@@ -605,7 +593,7 @@ Rekaman berkas materi pembelajaran yang diunggah guru.
 - `file_url` : `TEXT` - **Not Null**. URL publik/terproteksi pada **Supabase Storage** (bucket: `materi-pelajaran`).
 - `tanggal_unggah` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 9. Tabel `tugas_kuis`
+#### 8. Tabel `tugas_kuis`
 Data penugasan dan kuis dari guru.
 - `id_tugas_kuis` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
@@ -617,7 +605,7 @@ Data penugasan dan kuis dari guru.
 - `format_file` : `VARCHAR(100)` - Ekstensi yang diperbolehkan (misal: "pdf,docx,zip").
 - `rubrik_penilaian` : `TEXT` - Kriteria pemberian skor tugas.
 
-#### 10. Tabel `pengumpulan_tugas`
+#### 9. Tabel `pengumpulan_tugas`
 Rekaman jawaban siswa terhadap tugas tertentu.
 - `id_pengumpulan` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_tugas_kuis` : `UUID` - **Foreign Key** ke `tugas_kuis(id_tugas_kuis)` ON DELETE CASCADE.
@@ -628,7 +616,7 @@ Rekaman jawaban siswa terhadap tugas tertentu.
 - `nilai` : `NUMERIC(5,2)` - **Nullable**. Skor akhir (0.00 – 100.00).
 - `feedback` : `TEXT` - Umpan balik koreksi dari guru.
 
-#### 11. Tabel `absensi`
+#### 10. Tabel `absensi`
 Pencatatan rekam kehadiran siswa pada mata pelajaran.
 - `id_absensi` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
@@ -639,7 +627,7 @@ Pencatatan rekam kehadiran siswa pada mata pelajaran.
 - `status_kehadiran` : `VARCHAR(20)` - **Not Null**, `CHECK (status_kehadiran IN ('Hadir', 'Sakit', 'Izin', 'Alfa'))`.
 - `keterangan` : `VARCHAR(255)` - Catatan tambahan / bukti surat.
 
-#### 12. Tabel `nilai`
+#### 11. Tabel `nilai`
 Rekapitulasi skor evaluasi hasil belajar siswa.
 - `id_nilai` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
@@ -650,7 +638,7 @@ Rekapitulasi skor evaluasi hasil belajar siswa.
 - `skor_huruf` : `CHAR(2)` - Nilai konversi (A, B, C, D).
 - `feedback` : `TEXT` - Catatan guru atas performa siswa.
 
-#### 13. Tabel `laporan_akademik`
+#### 12. Tabel `laporan_akademik`
 Draf dan pengesahan buku leger/rapor akhir semester.
 - `id_laporan` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
@@ -663,7 +651,7 @@ Draf dan pengesahan buku leger/rapor akhir semester.
 - `catatan_wali` : `TEXT` - Ulasan pembinaan karakter dari wali kelas.
 - `status_laporan` : `VARCHAR(25)` - **Default: 'Draf'**, `CHECK (status_laporan IN ('Draf', 'DitinjauWali', 'DisahkanKurikulum'))`.
 
-#### 14. Tabel `notifikasi`
+#### 13. Tabel `notifikasi`
 Daftar antrean pengingat sistem kepada pengguna.
 - `id_notifikasi` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_user` : `UUID` - **Foreign Key** ke `users(id_user)` ON DELETE CASCADE.
@@ -673,7 +661,7 @@ Daftar antrean pengingat sistem kepada pengguna.
 - `status_dibaca` : `BOOLEAN` - **Default: false**.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 15. Tabel `jadwal_pelajaran`
+#### 14. Tabel `jadwal_pelajaran`
 Pemetaan jadwal kegiatan belajar mengajar per kelas, guru, dan mata pelajaran (pengunci sesi absensi otomatis).
 - `id_jadwal` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
@@ -687,7 +675,7 @@ Pemetaan jadwal kegiatan belajar mengajar per kelas, guru, dan mata pelajaran (p
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `deleted_at` : `TIMESTAMPTZ` - **Nullable** (*GORM Soft Delete index*).
 
-#### 16. Tabel `profil_sekolah`
+#### 15. Tabel `profil_sekolah`
 Menyimpan data pokok identitas resmi lembaga sekolah (SMAN 2 Padalarang).
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `nama_sekolah` : `VARCHAR(150)` - **Not Null**. Nama resmi instansi sekolah.
@@ -700,7 +688,7 @@ Menyimpan data pokok identitas resmi lembaga sekolah (SMAN 2 Padalarang).
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 17. Tabel `tahun_ajaran`
+#### 16. Tabel `tahun_ajaran`
 Mengatur kalender siklus akademik aktif, riwayat semester lampau, serta tenggat penguncian nilai raport.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `tahun` : `VARCHAR(20)` - **Not Null**. Format tahun ajaran kurikulum (misal: '2026/2027').
@@ -711,7 +699,7 @@ Mengatur kalender siklus akademik aktif, riwayat semester lampau, serta tenggat 
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `CONSTRAINT uq_tahun_semester` : `UNIQUE(tahun, semester)`.
 
-#### 18. Tabel `pejabat_sekolah`
+#### 17. Tabel `pejabat_sekolah`
 Mencatat pimpinan lembaga, struktur jabatan struktural (Kepala Sekolah, Waka Kurikulum), dan masa periode jabatan untuk legalitas penandatanganan raport dan ijazah.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `jabatan` : `VARCHAR(50)` - **Not Null** (misal: 'Kepala Sekolah', 'Waka Kurikulum').
@@ -724,7 +712,7 @@ Mencatat pimpinan lembaga, struktur jabatan struktural (Kepala Sekolah, Waka Kur
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 19. Tabel `konfigurasi_kbm`
+#### 18. Tabel `konfigurasi_kbm`
 Parameter operasional kegiatan belajar mengajar harian, jam masuk, jam pulang, dan durasi jam pelajaran (JP).
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `durasi_kbm_menit` : `INT` - **Not Null**, default: `45`. Durasi menit per 1 Jam Pelajaran (JP).
@@ -734,7 +722,7 @@ Parameter operasional kegiatan belajar mengajar harian, jam masuk, jam pulang, d
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 20. Tabel `log_sinkron_dapodik`
+#### 19. Tabel `log_sinkron_dapodik`
 Catatan rekam jejak (*audit trail*) pertukaran data dan verifikasi sinkronisasi dengan server Dapodik Kemdikbudristek.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
 - `status` : `VARCHAR(50)` - **Not Null**. Status sinkronisasi (misal: 'Terhubung', 'Sinkron Berhasil', 'Gagal').
@@ -742,7 +730,7 @@ Catatan rekam jejak (*audit trail*) pertukaran data dan verifikasi sinkronisasi 
 - `terakhir_sinkron` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**. Stempel waktu audit sinkronisasi.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-> **Catatan Kompatibilitas:** Tabel agregat `pengaturan_sekolah` tetap dipertahankan dan disinkronkan secara otomatis oleh backend service guna menjamin *backward compatibility* terhadap modul legacy tanpa menimbulkan *breaking changes*.
+> **Catatan Arsitektur:** Relasi penugasan wali kelas dimodelkan secara langsung pada tabel `kelas` (`wali_guru_id`) dengan *unique constraint* `uq_kelas_wali_guru`, menjamin 1 guru hanya membina 1 rombel tanpa memerlukan tabel perantara redundan `wali_kelas`. Tabel monolitik `pengaturan_sekolah` juga telah sepenuhnya dinormalisasi ke 5 tabel terdedikasi (Tabel 15 s.d. 19).
 
 ### 5.3 Kebijakan Audit Trail & Soft Deletion (`deleted_at`)
 Seluruh tabel transaksional dan master (`users`, `siswa`, `guru`, `materi`, `tugas_kuis`, `absensi`, `nilai`, `laporan_akademik`, `jadwal_pelajaran`) dilengkapi dengan kolom `deleted_at TIMESTAMPTZ NULL`. GORM secara otomatis menyaring data aktif melalui klausa `WHERE deleted_at IS NULL`, menjamin kepatuhan audit sehingga histori nilai dan presensi tetap terjaga secara konsisten.
@@ -812,7 +800,7 @@ Sesuai arahan dan kesepakatan perancangan, sistem LMS SMAN 2 Padalarang mengadop
 1. **Backend Service (REST API)**:
    - **Bahasa Pemrograman**: **Go (Golang)** versi 1.22+.
    - **Web Framework**: **Go Fiber** (v2) – Framework web berkinerja tinggi berbasis engine `fasthttp` dengan alokasi memori minimal (*zero memory allocation*), ideal untuk menangani ribuan *request* presensi simultan.
-   - **Object-Relational Mapping (ORM)**: **GORM** – Memetakan 20 model tabel relasional secara *type-safe* dengan fitur *AutoMigrate* dan dukungan transaksi basis data terintegrasi.
+   - **Object-Relational Mapping (ORM)**: **GORM** – Memetakan 19 model tabel relasional secara *type-safe* dengan fitur *AutoMigrate* dan dukungan transaksi basis data terintegrasi.
    - **Autentikasi & Keamanan Dual-Token**:
      - **Access Token**: JWT berumur pendek (15 menit), ditransmisikan via header `Authorization: Bearer <token>`, memuat payload `user_id`, `email`, dan `role`.
      - **Refresh Token**: JWT berumur panjang (7 hari), disimpan secara aman di dalam *HTTP-only Secure SameSite=Lax Cookie* untuk rotasi perpanjangan sesi otomatis via endpoint `/api/v1/auth/refresh`.
@@ -926,7 +914,7 @@ LMS-SMAN2-PADALARANG/
 |                        SUPABASE CLOUD INFRASTRUCTURE                              |
 |  +-----------------------------------------------------------------------------+  |
 |  | MANAGED POSTGRESQL (Supavisor Connection Pooler :6543 / Direct :5432)       |  |
-|  | 20 Tabel Relasional: users, siswa, guru, materi, tugas, absensi, nilai, dll.|  |
+|  | 19 Tabel Relasional: users, siswa, guru, materi, tugas, absensi, nilai, dll.|  |
 |  +-----------------------------------------------------------------------------+  |
 |  | SUPABASE STORAGE (S3-Compatible Cloud Storage)                              |  |
 |  | - Bucket 'materi-pelajaran' (Streaming Video, PDF, Dokumen Ajar)            |  |
