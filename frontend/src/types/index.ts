@@ -15,6 +15,8 @@ export interface Guru {
   nip: string;
   gelar: string;
   no_telepon?: string;
+  mapel_id?: string;
+  mapel?: MataPelajaran;
   user?: User;
   kelas_binaan?: Kelas[];
 }

@@ -488,7 +488,7 @@ func (h *MasterHandler) GetGuruList(c *fiber.Ctx) error {
 		})
 	}
 	var list []model.Guru
-	if err := db.Preload("User").Preload("KelasBinaan").Find(&list).Error; err != nil {
+	if err := db.Preload("User").Preload("Mapel").Preload("KelasBinaan").Find(&list).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data guru",
@@ -589,6 +589,15 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 		}
 	}
 
+	if req.MapelID != "" && req.MapelID != "none" {
+		if _, err := uuid.Parse(req.MapelID); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID mata pelajaran tidak valid",
+			})
+		}
+	}
+
 	db := repository.GetDB()
 	if db == nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
@@ -682,11 +691,32 @@ func (h *MasterHandler) CreateUser(c *fiber.Ctx) error {
 	switch req.Role {
 	case model.RoleGuru, model.RoleWaliKelas:
 		if req.NIP != "" {
+			var parsedMapelID *uuid.UUID
+			if req.MapelID != "" && req.MapelID != "none" {
+				mUUID, err := uuid.Parse(req.MapelID)
+				if err != nil {
+					tx.Rollback()
+					return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+						Success: false,
+						Message: "ID mata pelajaran tidak valid",
+					})
+				}
+				var checkMapel model.MataPelajaran
+				if err := tx.First(&checkMapel, "id = ?", mUUID).Error; err != nil {
+					tx.Rollback()
+					return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+						Success: false,
+						Message: "Mata pelajaran tidak ditemukan",
+					})
+				}
+				parsedMapelID = &mUUID
+			}
 			newGuru := model.Guru{
 				UserID:    newUser.ID,
 				NIP:       req.NIP,
 				Gelar:     req.Gelar,
 				NoTelepon: req.NoTelepon,
+				MapelID:   parsedMapelID,
 			}
 			if err := tx.Create(&newGuru).Error; err != nil {
 				tx.Rollback()
@@ -826,6 +856,15 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 		}
 	}
 
+	if req.MapelID != "" && req.MapelID != "none" {
+		if _, err := uuid.Parse(req.MapelID); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID mata pelajaran tidak valid",
+			})
+		}
+	}
+
 	if user.Role == model.RoleGuru || user.Role == model.RoleWaliKelas {
 		if strings.TrimSpace(req.NIP) != "" {
 			matched, _ := regexp.MatchString(`^[0-9]+$`, strings.TrimSpace(req.NIP))
@@ -877,6 +916,29 @@ func (h *MasterHandler) UpdateUser(c *fiber.Ctx) error {
 				guru.Gelar = strings.TrimSpace(req.Gelar)
 			}
 			guru.NoTelepon = strings.TrimSpace(req.NoTelepon)
+			if req.MapelID != "" {
+				if req.MapelID == "none" {
+					guru.MapelID = nil
+				} else {
+					parsedMapel, err := uuid.Parse(req.MapelID)
+					if err != nil {
+						tx.Rollback()
+						return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+							Success: false,
+							Message: "ID mata pelajaran tidak valid",
+						})
+					}
+					var checkMapel model.MataPelajaran
+					if err := tx.First(&checkMapel, "id = ?", parsedMapel).Error; err != nil {
+						tx.Rollback()
+						return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+							Success: false,
+							Message: "Mata pelajaran tidak ditemukan",
+						})
+					}
+					guru.MapelID = &parsedMapel
+				}
+			}
 			if err := tx.Save(&guru).Error; err != nil {
 				tx.Rollback()
 				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{

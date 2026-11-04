@@ -53,6 +53,10 @@ Halaman inti kurikulum untuk mengatur jadwal pelajaran dengan pencegahan konflik
   - **Quick Add Slot**: Tombol cepat untuk memplot sesi langsung pada slot kosong di tabel jadwal.
   - **Export Data**: Kemampuan unduh jadwal ke format CSV/Excel.
   - **Modal Tambah/Edit Jadwal**: Formulir lengkap memilih kelas, hari, jam mulai-selesai, mata pelajaran, guru pengampu, dan ruang kelas.
+  - **Integrasi Otomatis Guru Pengampu & Mapel**:
+    - Saat Kurikulum memilih Mata Pelajaran, sistem secara otomatis (*auto-select*) memilih guru pengampu yang membidangi mata pelajaran tersebut berdasarkan `mapel_id` di Master Data Guru.
+    - Dropdown Guru Pengampu otomatis difilter sehingga hanya menampilkan tenaga pengajar yang sesuai dengan spesialisasi mata pelajaran yang dipilih.
+    - Dilengkapi label status `Terpilih Otomatis` dan peringatan pemandu bila ada mata pelajaran yang belum ditugaskan guru pengampunya.
 
 ### 3.2. Master Data Siswa (`/admin/siswa`)
 Pusat registrasi dan pembinaan data profil seluruh peserta didik sekolah.
@@ -65,12 +69,26 @@ Pusat registrasi dan pembinaan data profil seluruh peserta didik sekolah.
   - Modal konfirmasi penghapusan aman (*Soft delete / Confirm modal*).
 
 ### 3.3. Master Data Guru & Tenaga Pengajar (`/admin/guru`)
-Pengelolaan akun pendidik dan penugasan akademik.
-- **File Implementasi**: [`frontend/src/app/(dashboard)/admin/guru/page.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/app/(dashboard)/admin/guru/page.tsx)
+Pengelolaan akun pendidik dan penugasan mata pelajaran spesialis akademik (*PRD FR-MST-02*).
+- **File Implementasi Frontend**: [`frontend/src/app/(dashboard)/admin/guru/page.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/app/(dashboard)/admin/guru/page.tsx)
+- **File Implementasi Backend**:
+  - Model & Relasi GORM: [`backend/internal/model/entity.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/model/entity.go) (`Guru.MapelID`, `Guru.Mapel`, `CreateUserRequest.MapelID`, `UpdateUserRequest.MapelID`)
+  - Handler API Master: [`backend/internal/handler/master.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/handler/master.go) (`GetGuruList` preloads `Mapel`, `CreateUser`, `UpdateUser`)
+  - Handler API Jadwal: [`backend/internal/handler/jadwal.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/handler/jadwal.go) (Auto-resolve `guru_id` dari `mapel_id` jika tidak disertakan secara manual)
+  - Pengujian Otomatis: [`backend/internal/app/jadwal_test.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/app/jadwal_test.go)
+- **Skema Database & Relasi**: Migrasi [`backend/migrations/000006_add_mapel_id_to_guru.up.sql`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/migrations/000006_add_mapel_id_to_guru.up.sql) menambahkan foreign key `mapel_id` pada tabel `guru` (referensi ke `mata_pelajaran.id`).
+- **Pemetaan Spesialisasi Guru Resmi SMAN 2 Padalarang**:
+  - `Parhan Romdhoni, S.Si` (NIP: `198809202014021003`) &rarr; Biologi (`BIO-XII`)
+  - `Budi Santoso, S.Pd` (NIP: `197903122005011002`) &rarr; Fisika (`FIS-XII`)
+  - `Dinda, S.Pd` (NIP: `1234292722091345`) &rarr; Fisika (`FIS-XI`)
+  - `Mochammad Hafidz Nugraha, S.Kom` (NIP: `1234567812345678`) &rarr; Informatika (`INF-X`)
+  - `Irma Satikarama, S.Kom` (NIP: `1783972561983`) &rarr; Informatika (`INF-X`)
+  - `Dr. Siti Aminah, M.Pd` (NIP: `198505152010012001`) &rarr; Matematika Peminatan (`MTK-XII`)
 - **Fitur Utama yang Berfungsi**:
-  - Daftar pendidik dengan NIP, gelar akademik (S.Pd, M.Pd, S.Si, dll), email resmi, dan status keaktifan.
+  - Kolom pencarian instan cerdas yang mendukung filter nama guru, NIP, nama mata pelajaran, maupun kode mata pelajaran.
+  - Tabel master guru komprehensif menampilkan kolom **Mata Pelajaran Diampu** lengkap dengan nama mapel, kode referensi (contoh: `BIO-XII`, `INF-X`), dan kategori kurikulum (Eksakta/Kejuruan).
   - Pembuatan akun login otomatis terintegrasi dengan tabel `users` (Password awal: `password123`).
-  - Modal formulir tambah/edit data guru.
+  - Modal formulir tambah/edit data guru dengan dropdown wajib penugasan spesialisasi mata pelajaran terintegrasi ke foreign key `mapel_id`.
   - Pengaturan peran tambahan (penugasan sebagai Guru Pengampu atau penanda Wali Kelas).
 
 ### 3.4. Master Data Kelas & Rombel (`/admin/kelas`)

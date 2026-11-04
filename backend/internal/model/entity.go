@@ -63,13 +63,15 @@ func (Siswa) TableName() string {
 }
 
 type Guru struct {
-	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID      uuid.UUID `gorm:"type:uuid;unique;not null" json:"user_id"`
-	NIP         string    `gorm:"column:nip;size:30;unique;not null" json:"nip"`
-	Gelar       string    `gorm:"size:50" json:"gelar"`
-	NoTelepon   string    `gorm:"size:20" json:"no_telepon"`
-	User        User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	KelasBinaan []Kelas   `gorm:"foreignKey:WaliGuruID" json:"kelas_binaan,omitempty"`
+	ID          uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID      uuid.UUID      `gorm:"type:uuid;unique;not null" json:"user_id"`
+	MapelID     *uuid.UUID     `gorm:"type:uuid" json:"mapel_id,omitempty"`
+	NIP         string         `gorm:"column:nip;size:30;unique;not null" json:"nip"`
+	Gelar       string         `gorm:"size:50" json:"gelar"`
+	NoTelepon   string         `gorm:"size:20" json:"no_telepon"`
+	User        User           `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Mapel       *MataPelajaran `gorm:"foreignKey:MapelID" json:"mapel,omitempty"`
+	KelasBinaan []Kelas        `gorm:"foreignKey:WaliGuruID" json:"kelas_binaan,omitempty"`
 }
 
 func (Guru) TableName() string {
@@ -208,7 +210,7 @@ type UpdateMapelRequest struct {
 
 type CreateJadwalRequest struct {
 	KelasID    string `json:"kelas_id"`
-	GuruID     string `json:"guru_id"`
+	GuruID     string `json:"guru_id,omitempty"`
 	MapelID    string `json:"mapel_id"`
 	Hari       string `json:"hari"`
 	JamMulai   string `json:"jam_mulai"`
@@ -218,7 +220,7 @@ type CreateJadwalRequest struct {
 
 type UpdateJadwalRequest struct {
 	KelasID    string `json:"kelas_id"`
-	GuruID     string `json:"guru_id"`
+	GuruID     string `json:"guru_id,omitempty"`
 	MapelID    string `json:"mapel_id"`
 	Hari       string `json:"hari"`
 	JamMulai   string `json:"jam_mulai"`
@@ -234,6 +236,7 @@ type CreateUserRequest struct {
 	Role         UserRole `json:"role"`
 	NIP          string   `json:"nip,omitempty"`
 	Gelar        string   `json:"gelar,omitempty"`
+	MapelID      string   `json:"mapel_id,omitempty"`
 	NIS          string   `json:"nis,omitempty"`
 	NISN         string   `json:"nisn,omitempty"`
 	KelasID      string   `json:"kelas_id,omitempty"`
@@ -250,6 +253,7 @@ type UpdateUserRequest struct {
 	IsActive     *bool    `json:"is_active,omitempty"`
 	NIP          string   `json:"nip,omitempty"`
 	Gelar        string   `json:"gelar,omitempty"`
+	MapelID      string   `json:"mapel_id,omitempty"`
 	NIS          string   `json:"nis,omitempty"`
 	NISN         string   `json:"nisn,omitempty"`
 	KelasID      string   `json:"kelas_id,omitempty"`

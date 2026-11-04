@@ -86,6 +86,29 @@ func TestMasterAndJadwalEndpoints(t *testing.T) {
 		}
 	})
 
+	t.Run("Create user dengan format mapel_id tidak valid harus return 400 Bad Request", func(t *testing.T) {
+		payload := model.CreateUserRequest{
+			Username:    "guru_test_mapel",
+			Password:    "password123",
+			NamaLengkap: "Guru Test Mapel",
+			Email:       "testmapel@guru.sch.id",
+			Role:        model.RoleGuru,
+			NIP:         "198501012022011001",
+			MapelID:     "bukan-uuid",
+		}
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+kurikulumToken)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request: %v", err)
+		}
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected 400, got %d", resp.StatusCode)
+		}
+	})
+
 	t.Run("Create jadwal oleh siswa harus return 403 Forbidden", func(t *testing.T) {
 		payload := model.CreateJadwalRequest{
 			KelasID:    uuid.New().String(),

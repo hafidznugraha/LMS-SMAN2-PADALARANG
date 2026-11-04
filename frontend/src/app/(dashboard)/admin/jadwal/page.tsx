@@ -198,10 +198,16 @@ export default function KelolaJadwalPage() {
         await loadJadwal(classes[0].id);
       }
       if (resMapel.data && resMapel.data.length > 0) {
-        setFormMapelId(resMapel.data[0].id);
-      }
-      if (resGuru.data && resGuru.data.length > 0) {
-        setFormGuruId(resGuru.data[0].id);
+        const firstMapelId = resMapel.data[0].id;
+        setFormMapelId(firstMapelId);
+        const matching = (resGuru.data || []).filter(
+          (g) => g.mapel_id === firstMapelId || g.mapel?.id === firstMapelId
+        );
+        if (matching.length > 0) {
+          setFormGuruId(matching[0].id);
+        } else if (resGuru.data && resGuru.data.length > 0) {
+          setFormGuruId(resGuru.data[0].id);
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -229,10 +235,39 @@ export default function KelolaJadwalPage() {
     loadJadwal(k.id);
   };
 
+  const availableGurusForMapel = useMemo(() => {
+    if (!formMapelId) return [];
+    return guruList.filter(
+      (g) => g.mapel_id === formMapelId || g.mapel?.id === formMapelId
+    );
+  }, [guruList, formMapelId]);
+
+  const handleMapelChange = (newMapelId: string) => {
+    setFormMapelId(newMapelId);
+    const matchingGurus = guruList.filter(
+      (g) => g.mapel_id === newMapelId || g.mapel?.id === newMapelId
+    );
+    if (matchingGurus.length > 0) {
+      setFormGuruId(matchingGurus[0].id);
+    } else {
+      setFormGuruId("");
+    }
+  };
+
   const handleOpenModal = (presetHari?: string, presetStart?: string, presetEnd?: string) => {
     setEditingJadwal(null);
     if (selectedKelas) {
       setFormKelasId(selectedKelas.id);
+    }
+    const initialMapelId = mapelList.length > 0 ? mapelList[0].id : "";
+    setFormMapelId(initialMapelId);
+    if (initialMapelId) {
+      const matching = guruList.filter(
+        (g) => g.mapel_id === initialMapelId || g.mapel?.id === initialMapelId
+      );
+      setFormGuruId(matching.length > 0 ? matching[0].id : "");
+    } else {
+      setFormGuruId("");
     }
     setFormHari(presetHari || "Senin");
     setFormJamMulai(presetStart || "07:30");
@@ -261,6 +296,18 @@ export default function KelolaJadwalPage() {
   const handleCreateJadwal = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    if (!formMapelId) {
+      toast.error("Mata pelajaran wajib dipilih");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!formGuruId) {
+      toast.error("Guru pengampu wajib dipilih atau ditentukan di Master Guru");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       if (editingJadwal) {
@@ -1280,7 +1327,7 @@ export default function KelolaJadwalPage() {
                 </div>
                 <select
                   value={formMapelId}
-                  onChange={(e) => setFormMapelId(e.target.value)}
+                  onChange={(e) => handleMapelChange(e.target.value)}
                   required
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
                 >
@@ -1297,19 +1344,53 @@ export default function KelolaJadwalPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Guru Pengampu</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">Guru Pengampu</label>
+                  {availableGurusForMapel.length === 1 && (
+                    <span className="text-[11px] text-blue-900 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Terpilih Otomatis
+                    </span>
+                  )}
+                </div>
                 <select
                   value={formGuruId}
                   onChange={(e) => setFormGuruId(e.target.value)}
                   required
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
+                  disabled={availableGurusForMapel.length === 0}
+                  className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white font-medium ${
+                    availableGurusForMapel.length === 0
+                      ? "border-amber-300 bg-amber-50/50 text-amber-800"
+                      : "border-slate-300 text-slate-800"
+                  }`}
                 >
-                  {guruList.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.user?.nama_lengkap || "Guru"} ({g.nip})
+                  {availableGurusForMapel.length === 0 ? (
+                    <option value="">
+                      Belum ada guru yang ditugaskan untuk mapel ini
                     </option>
-                  ))}
+                  ) : (
+                    availableGurusForMapel.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.user?.nama_lengkap || "Guru"}{g.gelar ? `, ${g.gelar}` : ""} ({g.nip})
+                      </option>
+                    ))
+                  )}
                 </select>
+                {availableGurusForMapel.length === 0 && (
+                  <p className="text-[11px] text-amber-700 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    Silakan tautkan guru ke mata pelajaran ini di{" "}
+                    <Link href="/admin/guru" target="_blank" className="underline font-semibold hover:text-amber-900">
+                      Master Data Guru
+                    </Link>
+                    .
+                  </p>
+                )}
+                {availableGurusForMapel.length > 1 && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Terdapat {availableGurusForMapel.length} guru pengampu untuk mata pelajaran ini. Anda dapat memilih salah satunya.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
