@@ -55,6 +55,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	masterHandler := handler.NewMasterHandler()
 	jadwalHandler := handler.NewJadwalHandler()
+	laporanHandler := handler.NewLaporanHandler()
 
 	api := app.Group("/api/v1")
 
@@ -92,6 +93,16 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	jadwal.Post("/", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.CreateJadwal)
 	jadwal.Put("/:id", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.UpdateJadwal)
 	jadwal.Delete("/:id", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.DeleteJadwal)
+
+	laporan := protected.Group("/laporan")
+	laporan.Get("/summary", laporanHandler.GetLaporanSummary)
+	laporan.Get("/kelas/:id_kelas", laporanHandler.GetLaporanByKelas)
+	laporan.Get("/export-csv", laporanHandler.ExportLegerCSV)
+	laporan.Post("/generate", middleware.RequireRole(model.RoleKurikulum), laporanHandler.GenerateLaporan)
+	laporan.Put("/finalize-batch", middleware.RequireRole(model.RoleKurikulum), laporanHandler.FinalizeBatch)
+	laporan.Put("/:id/finalize", middleware.RequireRole(model.RoleKurikulum), laporanHandler.FinalizeLaporan)
+	laporan.Post("/revisi", middleware.RequireRole(model.RoleKurikulum), laporanHandler.RevisiLaporan)
+	laporan.Put("/:id/catatan-wali", middleware.RequireRole(model.RoleKurikulum, model.RoleWaliKelas, model.RoleGuru), laporanHandler.UpdateCatatanWali)
 
 	kurikulum := protected.Group("/kurikulum", middleware.RequireRole(model.RoleKurikulum))
 	kurikulum.Get("/jadwal", func(c *fiber.Ctx) error {

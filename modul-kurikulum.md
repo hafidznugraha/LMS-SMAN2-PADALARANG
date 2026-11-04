@@ -97,11 +97,26 @@ Pusat pemantauan eksekutif akademik.
   - Akses cepat (*action shortcuts*) ke seluruh modul master data dan tombol Verifikasi Raport.
 
 ### 3.7. Verifikasi Raport & Pengesahan Leger (`/admin/raport`)
-Modul pengesahan hasil belajar siswa, validasi draf leger rombel, dan penguncian status rapor semester resmi.
-- **File Implementasi**: [`frontend/src/app/(dashboard)/admin/raport/page.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/app/(dashboard)/admin/raport/page.tsx)
+Modul pengesahan hasil belajar siswa, validasi draf leger rombel, dan penguncian status rapor semester resmi (*Fullstack Database & API Integrated*).
+- **File Implementasi Frontend**: [`frontend/src/app/(dashboard)/admin/raport/page.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/app/(dashboard)/admin/raport/page.tsx)
+- **File Implementasi Backend**:
+  - Migrasi Database: [`backend/migrations/000004_create_nilai_and_update_laporan.up.sql`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/migrations/000004_create_nilai_and_update_laporan.up.sql)
+  - Data Seeder Awal: [`backend/seeds/laporan_seeds.sql`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/seeds/laporan_seeds.sql)
+  - Model & DTO: [`backend/internal/model/entity.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/model/entity.go) & [`backend/internal/model/response.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/model/response.go)
+  - Handler API Go Fiber: [`backend/internal/handler/laporan.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/handler/laporan.go)
+  - Pengujian Otomatis: [`backend/internal/app/laporan_test.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/app/laporan_test.go)
+- **Endpoint API Aktif**:
+  - `GET /api/v1/laporan/summary`: Statistik kelulusan, ringkasan per rombel, dan rata-rata sekolah.
+  - `GET /api/v1/laporan/kelas/:id_kelas`: Pengambilan draf buku leger dan rincian nilai per mapel (mendukung parameter `all`).
+  - `POST /api/v1/laporan/generate`: Inisiasi kompilasi nilai tugas, UTS, UAS, dan absensi menjadi draf leger.
+  - `PUT /api/v1/laporan/:id/finalize`: Pengesahan dan penguncian resmi (*read-only lock*) per siswa.
+  - `PUT /api/v1/laporan/finalize-batch`: Pengesahan kolektif seluruh siswa dalam rombel atau sekolah.
+  - `POST /api/v1/laporan/revisi`: Pengembalian draf rapor ke Wali Kelas dengan catatan perbaikan nilai.
+  - `PUT /api/v1/laporan/:id/catatan-wali`: Penginputan catatan pembinaan karakter oleh Wali Kelas.
+  - `GET /api/v1/laporan/export-csv`: Streaming pengunduhan buku leger resmi format CSV/Excel.
 - **Fitur Utama yang Berfungsi**:
   - Ringkasan metrik status pengesahan: Total Siswa, Rapor Disahkan (`DisahkanKurikulum` - Terkunci), Menunggu Verifikasi (`DitinjauWali`), dan Rata-rata Nilai Sekolah.
-  - Pemantauan status leger per rombel (XII IPA 1, XII IPA 3) dengan progress bar kelengkapan nilai, rata-rata kelas, dan tombol aksi batch pengesahan rombel.
+  - Pemantauan status leger per rombel (XII IPA 1, XII IPA 3, X IPS 1, X IPS 2, X RPL 1) dengan progress bar kelengkapan nilai, rata-rata kelas, dan tombol aksi batch pengesahan rombel.
   - Tabel Buku Leger Nilai Komprehensif dengan filter rombel, filter status pengesahan, dan pencarian instan nama/NISN.
   - Modal Pratinjau Lembar Rapor Resmi berformat cetak dengan Kop Resmi SMAN 2 Padalarang, rincian skor pengetahuan & keterampilan per mapel, capaian kompetensi, rekap presensi (S/I/A), catatan perkembangan wali kelas, dan kolom tanda tangan digital.
   - Fitur Pengesahan & Penguncian Nilai (*Finalization Lock*) per siswa maupun per kelas (Batch) dengan dialog konfirmasi aman.
@@ -141,18 +156,17 @@ Berikut adalah modul yang telah tertera pada PRD dan rancangan desain yang tersi
 
 ```mermaid
 flowchart TD
-    A[Modul Selesai: Master Data & Jadwal KBM] --> B[Tahap 1: Pembuatan Halaman Verifikasi Raport /admin/raport]
-    B --> C[Tahap 2: Integrasi Alur Lock Raport & Pengesahan Leger]
+    A[Modul Selesai: Master Data & Jadwal KBM] --> B[Tahap 1: Antarmuka Verifikasi Raport /admin/raport - Selesai]
+    B --> C[Tahap 2: Integrasi Fullstack Database & API Lock Raport - Selesai]
     C --> D[Tahap 3: Pembuatan Halaman Pengaturan Sekolah /admin/pengaturan]
-    D --> E[Tahap 4: Sinkronisasi Sidebar Navigasi Kurikulum]
-    E --> F[Tahap 5: Pengujian End-to-End Alur Akademik Lengkap]
+    D --> E[Tahap 4: Rekapitulasi Presensi Sekolah /admin/absensi]
+    E --> F[Tahap 5: Pengujian End-to-End Siklus Akademik Lengkap]
 ```
 
-1. **Pembuatan Halaman Verifikasi Raport (`/admin/raport`)**:
-   - Membangun tabel status leger seluruh rombel (Tingkat X, XI, XII).
-   - Menampilkan indikator status (*Draf*, *DitinjauWali*, *DisahkanKurikulum*).
-   - Menyediakan modal peninjauan nilai leger per kelas dan tombol konfirmasi penguncian raport.
-2. **Penambahan Menu pada Sidebar Kurikulum**:
-   - Mendaftarkan rute `Verifikasi Raport` dan `Pengaturan Sekolah` pada [`frontend/src/components/shared/sidebar.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/components/shared/sidebar.tsx).
-3. **Pembuatan Halaman Pengaturan Sekolah (`/admin/pengaturan`)**:
+1. **Verifikasi Raport & Pengesahan Leger (`/admin/raport`) - SELESAI**:
+   - Backend Go Fiber & Supabase PostgreSQL: Migrasi `nilai` & `laporan_akademik`, seeder awal, DTO model, dan 8 endpoint RESTful lengkap.
+   - Frontend Next.js: Metrik KPI, pemantauan rombel, filter multi-kriteria, modal lembar rapor resmi, modal pengembalian revisi, dan aksi pengesahan batch.
+2. **Pembuatan Halaman Pengaturan Sekolah (`/admin/pengaturan`)**:
    - Formulir kontrol Tahun Ajaran dan Semester aktif.
+3. **Rekapitulasi Presensi Sekolah Lintas Kelas (`/admin/absensi`)**:
+   - Panel audit presensi dan persentase kehadiran per rombel.

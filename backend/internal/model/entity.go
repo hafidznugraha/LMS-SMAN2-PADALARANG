@@ -257,3 +257,101 @@ type UpdateUserRequest struct {
 	NoTelepon    string   `json:"no_telepon,omitempty"`
 	Alamat       string   `json:"alamat,omitempty"`
 }
+
+type JenisPenilaian string
+
+const (
+	PenilaianTugas         JenisPenilaian = "Tugas"
+	PenilaianUlanganHarian JenisPenilaian = "UlanganHarian"
+	PenilaianUTS           JenisPenilaian = "UTS"
+	PenilaianUAS           JenisPenilaian = "UAS"
+)
+
+type Nilai struct {
+	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SiswaID        uuid.UUID      `gorm:"type:uuid;not null" json:"siswa_id"`
+	GuruID         uuid.UUID      `gorm:"type:uuid;not null" json:"guru_id"`
+	MapelID        uuid.UUID      `gorm:"type:uuid;not null" json:"mapel_id"`
+	JenisPenilaian JenisPenilaian `gorm:"type:varchar(20);not null" json:"jenis_penilaian"`
+	SkorAngka      float64        `gorm:"type:numeric(5,2);not null" json:"skor_angka"`
+	SkorHuruf      string         `gorm:"size:2" json:"skor_huruf"`
+	Feedback       string         `gorm:"type:text" json:"feedback"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      *time.Time     `gorm:"index" json:"deleted_at,omitempty"`
+	Siswa          *Siswa         `gorm:"foreignKey:SiswaID" json:"siswa,omitempty"`
+	Guru           *Guru          `gorm:"foreignKey:GuruID" json:"guru,omitempty"`
+	Mapel          *MataPelajaran `gorm:"foreignKey:MapelID" json:"mapel,omitempty"`
+}
+
+func (Nilai) TableName() string {
+	return "nilai"
+}
+
+type StatusLaporan string
+
+const (
+	StatusLaporanDraf              StatusLaporan = "Draf"
+	StatusLaporanDitinjauWali      StatusLaporan = "DitinjauWali"
+	StatusLaporanDisahkanKurikulum StatusLaporan = "DisahkanKurikulum"
+)
+
+type LaporanAkademik struct {
+	ID                uuid.UUID     `gorm:"column:id_laporan;type:uuid;primaryKey;default:gen_random_uuid()" json:"id_laporan"`
+	SiswaID           uuid.UUID     `gorm:"column:id_siswa;type:uuid;not null" json:"id_siswa"`
+	Semester          string        `gorm:"size:10;not null" json:"semester"`
+	TahunAjaran       string        `gorm:"size:20;not null" json:"tahun_ajaran"`
+	NilaiPengetahuan  *float64      `gorm:"column:nilai_pengetahuan;type:numeric(5,2)" json:"nilai_pengetahuan"`
+	NilaiKeterampilan *float64      `gorm:"column:nilai_keterampilan;type:numeric(5,2)" json:"nilai_keterampilan"`
+	RataRataAkhir     *float64      `gorm:"column:rata_rata_akhir;type:numeric(5,2)" json:"rata_rata_akhir"`
+	PredikatAkhir     string        `gorm:"column:predikat_akhir;size:5" json:"predikat_akhir"`
+	DeskripsiNilai    string        `gorm:"column:deskripsi_nilai;type:text" json:"deskripsi_nilai"`
+	CatatanWali       string        `gorm:"column:catatan_wali;type:text" json:"catatan_wali"`
+	CatatanRevisi     string        `gorm:"column:catatan_revisi;type:text" json:"catatan_revisi"`
+	StatusLaporan     StatusLaporan `gorm:"column:status_laporan;size:25;default:'Draf'" json:"status_laporan"`
+	DisahkanPada      *time.Time    `gorm:"column:disahkan_pada" json:"disahkan_pada"`
+	DisahkanOleh      string        `gorm:"column:disahkan_oleh;size:100" json:"disahkan_oleh"`
+	CreatedAt         time.Time     `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt         time.Time     `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt         *time.Time    `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
+	Siswa             *Siswa        `gorm:"foreignKey:SiswaID" json:"siswa,omitempty"`
+}
+
+func (LaporanAkademik) TableName() string {
+	return "laporan_akademik"
+}
+
+type FinalizeLaporanRequest struct {
+	Semester    string `json:"semester"`
+	TahunAjaran string `json:"tahun_ajaran"`
+}
+
+type FinalizeBatchRequest struct {
+	KelasID     string   `json:"kelas_id"`
+	LaporanIDs  []string `json:"laporan_ids"`
+	Semester    string   `json:"semester"`
+	TahunAjaran string   `json:"tahun_ajaran"`
+}
+
+type RevisiLaporanRequest struct {
+	IDLaporan     string `json:"id_laporan"`
+	CatatanRevisi string `json:"catatan_revisi"`
+}
+
+type UpdateCatatanWaliRequest struct {
+	CatatanWali string `json:"catatan_wali"`
+}
+
+type GenerateLaporanRequest struct {
+	KelasID     string `json:"kelas_id"`
+	Semester    string `json:"semester"`
+	TahunAjaran string `json:"tahun_ajaran"`
+}
+
+type CreateNilaiRequest struct {
+	SiswaID        string  `json:"siswa_id"`
+	MapelID        string  `json:"mapel_id"`
+	JenisPenilaian string  `json:"jenis_penilaian"`
+	SkorAngka      float64 `json:"skor_angka"`
+	Feedback       string  `json:"feedback"`
+}
