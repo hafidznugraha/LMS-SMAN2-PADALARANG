@@ -2,25 +2,28 @@
 
 import React, { useState } from 'react';
 import { X, Upload, CheckCircle2, Loader2 } from 'lucide-react';
-import { Materi, MateriFormat, Kelas } from '../../types/lms';
+import { MateriFormat, Kelas } from '../../types/lms';
 
 interface UploadMateriModalProps {
   isOpen: boolean;
   onClose: () => void;
-  kelasList: Kelas[];
-  currentBidangStudi: string;
+  kelasList?: Kelas[];
+  currentBidangStudi?: string;
   onSaveMateri: (newMateri: any) => void;
 }
 
 export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
   isOpen,
   onClose,
-  kelasList,
-  currentBidangStudi,
+  kelasList = [], // Default aman berupa array kosong agar tidak undefined
+  currentBidangStudi = 'Matematika Peminatan',
   onSaveMateri,
 }) => {
   const [judul, setJudul] = useState('');
-  const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
+  // Pengaman opsional chaining '?.[0]' dan fallback ke ID Supabase XII IPA 1 yang sah
+  const [idKelas, setIdKelas] = useState(
+    kelasList?.[0]?.id_kelas || 'f0000000-0000-0000-0000-000000000001'
+  );
   const [deskripsi, setDeskripsi] = useState('');
   const [formatFile, setFormatFile] = useState<MateriFormat>('PDF');
   const [simulatedFileName, setSimulatedFileName] = useState('');
@@ -34,10 +37,10 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
     if (!judul.trim()) return;
 
     setIsSubmitting(true);
-    const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
+    const kelasObj = (kelasList || []).find((k) => k.id_kelas === idKelas);
 
     try {
-      // 1. TEMBAK LANGSUNG KE BACKEND GOLANG DENGAN KOLOM SESUAI ENTITY.GO
+      // KIRIM KE BACKEND GOLANG DENGAN STRUCT RESMI ENTITY.GO
       const res = await fetch('http://localhost:8080/api/v1/guru/materi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,7 +61,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
 
       if (json.success) {
         alert('BERHASIL! Materi baru telah disimpan ke Supabase.');
-        onSaveMateri(json.data); // Panggil refresh di halaman
+        onSaveMateri(json.data);
         onClose();
       } else {
         alert('Gagal dari backend: ' + json.message);
@@ -119,11 +122,18 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
               onChange={(e) => setIdKelas(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
             >
-              {kelasList.map((k) => (
-                <option key={k.id_kelas} value={k.id_kelas}>
-                  Kelas {k.nama_kelas}
-                </option>
-              ))}
+              {(kelasList && kelasList.length > 0) ? (
+                kelasList.map((k) => (
+                  <option key={k.id_kelas} value={k.id_kelas}>
+                    Kelas {k.nama_kelas}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="f0000000-0000-0000-0000-000000000001">Kelas XII IPA 1</option>
+                  <option value="f0000000-0000-0000-0000-000000000002">Kelas XII IPA 3</option>
+                </>
+              )}
             </select>
           </div>
 

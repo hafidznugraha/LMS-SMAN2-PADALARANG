@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { 
   BookOpen, 
@@ -19,34 +21,35 @@ import {
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 
 interface MateriModuleProps {
-  materiList: Materi[];
-  kelasList: Kelas[];
+  materiList?: Materi[];
+  kelasList?: Kelas[];
   onUploadMateri: () => void;
-  onEditMateri: (materi: Materi) => void;
-  onDeleteMateri: (id: string) => void;
-  onDownloadMateri: (materi: Materi) => void;
+  onEditMateri?: (materi: Materi) => void;
+  onDeleteMateri?: (id: string) => void;
+  onDownloadMateri?: (materi: Materi) => void;
 }
 
 export const MateriModule: React.FC<MateriModuleProps> = ({
-  materiList,
-  kelasList,
+  materiList = [],
+  kelasList = [],
   onUploadMateri,
-  onEditMateri,
-  onDeleteMateri,
-  onDownloadMateri,
+  onEditMateri = () => {},
+  onDeleteMateri = () => {},
+  onDownloadMateri = () => {},
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKelas, setSelectedKelas] = useState('ALL');
   const [selectedFormat, setSelectedFormat] = useState('ALL');
   const [previewMateri, setPreviewMateri] = useState<Materi | null>(null);
 
-  const filteredMateri = materiList.filter((m) => {
+  // Pengaman agar filter tidak crash jika materiList kosong
+  const filteredMateri = (materiList || []).filter((m) => {
     const matchesSearch =
-      m.judul_materi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.deskripsi.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesKelas = selectedKelas === 'ALL' || m.id_kelas === selectedKelas;
-    const matchesFormat = selectedFormat === 'ALL' || m.format_file === selectedFormat;
-    const isNotDeleted = !m.deleted_at;
+      (m?.judul_materi || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m?.deskripsi || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesKelas = selectedKelas === 'ALL' || m?.id_kelas === selectedKelas;
+    const matchesFormat = selectedFormat === 'ALL' || m?.format_file === selectedFormat;
+    const isNotDeleted = !m?.deleted_at;
     return matchesSearch && matchesKelas && matchesFormat && isNotDeleted;
   });
 
@@ -112,7 +115,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                 className="text-xs font-semibold bg-transparent text-slate-700 focus:outline-none cursor-pointer"
               >
                 <option value="ALL">Semua Kelas</option>
-                {kelasList.map((k) => (
+                {(kelasList || []).map((k) => (
                   <option key={k.id_kelas} value={k.id_kelas}>
                     Kelas {k.nama_kelas}
                   </option>
@@ -176,7 +179,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                   </div>
 
                   <span className="text-[11px] text-slate-400 font-mono">
-                    {materi.tanggal_unggah.split(' ')[0]}
+                    {materi.tanggal_unggah ? materi.tanggal_unggah.split(' ')[0] : '2026-11-05'}
                   </span>
                 </div>
 
@@ -193,7 +196,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
               {/* Actions */}
               <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <div className="text-[11px] text-slate-400">
-                  <span>{materi.unduhan_count} siswa telah mengunduh</span>
+                  <span>{materi.unduhan_count || 0} siswa telah mengunduh</span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
