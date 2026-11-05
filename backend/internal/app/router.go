@@ -65,6 +65,8 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	api.Get("/health", handler.HealthCheckHandler)
 
+	api.Get("/siswa/tugas", guruHandler.GetTugasSiswa)
+
 	// Auth Rute
 	auth := api.Group("/auth")
 	auth.Get("/altcha-challenge", handler.AltchaChallengeHandler(cfg))
@@ -87,6 +89,10 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
 	guru.Post("/absensi", guruHandler.SaveOrUpdateAbsensi)
 	guru.Put("/absensi/:id", guruHandler.SaveOrUpdateAbsensi)
+
+	// 4. Modul Penilaian Siswa
+	guru.Get("/nilai", guruHandler.GetNilaiList)
+	guru.Post("/nilai", guruHandler.SaveNilai)
 
 	protected := api.Group("", middleware.JWTProtected(cfg))
 

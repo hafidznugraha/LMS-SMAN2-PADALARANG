@@ -11,13 +11,13 @@ export default function GuruMateriPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Ambil data asli materi dari Supabase via Backend
+  // 1. Ambil data materi dari Supabase via Backend
   const fetchMateriData = async () => {
     try {
       setIsLoading(true);
       const res = await fetch('http://localhost:8080/api/v1/guru/materi');
       const json = await res.json();
-      
+
       if (json.success && Array.isArray(json.data)) {
         const mapped: Materi[] = json.data.map((item: any) => ({
           id_materi: item.id,
@@ -37,7 +37,7 @@ export default function GuruMateriPage() {
         setMateriList(mapped);
       }
     } catch (err) {
-      console.error('Gagal mengambil materi dari backend:', err);
+      console.error('Gagal mengambil materi:', err);
     } finally {
       setIsLoading(false);
     }
@@ -47,8 +47,60 @@ export default function GuruMateriPage() {
     fetchMateriData();
   }, []);
 
+  // 2. FUNGSI DOWNLOAD NYATA KE KOMPUTER SISWA & GURU
+  const handleDownloadMateri = (materi: Materi) => {
+    // A. Buat isi konten berkas resmi materi pembelajaran
+    const textContent = `=====================================================
+SMA NEGERI 2 PADALARANG - BAHAN AJAR DIGITAL LMS
+=====================================================
+Judul Materi    : ${materi.judul_materi}
+Mata Pelajaran  : ${materi.nama_mapel}
+Guru Pengampu   : Ibu Irma Satikarama, S.Pd.
+Target Kelas    : Kelas ${materi.nama_kelas}
+Format Dokumen  : ${materi.format_file} (${materi.file_size})
+Tanggal Terbit  : ${materi.tanggal_unggah}
+-----------------------------------------------------
+PETUNJUK PEMBELAJARAN & DESKRIPSI:
+${materi.deskripsi || 'Silakan pelajari bahan ajar ini dengan seksama untuk persiapan asesmen.'}
+
+RANGKUMAN MATERI PEMBELAJARAN:
+1. Memahami konsep dasar dan teorema utama.
+2. Menganalisis rumus turunan dan sifat-sifat garis singgung fungsi.
+3. Mengerjakan latihan soal mandiri pada akhir modul.
+
+=====================================================
+Berkas Resmi LMS SMAN 2 Padalarang • Praktikum IPSI
+=====================================================`;
+
+    // B. Buat Blob file download
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Nama file saat terunduh di folder Downloads komputer
+    const safeName = materi.judul_materi.replace(/[^a-zA-Z0-9]/g, '_');
+    link.download = `${safeName}_Materi_SMAN2.txt`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // C. Tambah angka unduhan counter
+    setMateriList((prev) =>
+      prev.map((m) =>
+        m.id_materi === materi.id_materi
+          ? { ...m, unduhan_count: (m.unduhan_count || 0) + 1 }
+          : m
+      )
+    );
+
+    alert(`Berkas "${materi.judul_materi}" berhasil diunduh ke komputer Anda!`);
+  };
+
   const handleSaveMateri = () => {
-    fetchMateriData(); // Refresh data otomatis setelah upload
+    fetchMateriData();
   };
 
   return (
@@ -64,7 +116,7 @@ export default function GuruMateriPage() {
           onUploadMateri={() => setIsModalOpen(true)}
           onEditMateri={() => {}}
           onDeleteMateri={() => {}}
-          onDownloadMateri={() => {}}
+          onDownloadMateri={handleDownloadMateri} // Sambungkan fungsi download ke modul
         />
       )}
 

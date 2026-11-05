@@ -14,7 +14,6 @@ import {
   Trash2, 
   Edit3, 
   Eye, 
-  CheckCircle, 
   X,
   FileCode
 } from 'lucide-react';
@@ -42,7 +41,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
   const [selectedFormat, setSelectedFormat] = useState('ALL');
   const [previewMateri, setPreviewMateri] = useState<Materi | null>(null);
 
-  // Pengaman agar filter tidak crash jika materiList kosong
+  // Filter materi berdasarkan pencarian, kelas, dan format
   const filteredMateri = (materiList || []).filter((m) => {
     const matchesSearch =
       (m?.judul_materi || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -235,7 +234,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
         </div>
       )}
 
-      {/* Online Viewer / Pratinjau Modal */}
+      {/* Online Viewer / Pratinjau Interaktif Dokumen */}
       {previewMateri && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
@@ -249,7 +248,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                     {previewMateri.judul_materi}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Kelas {previewMateri.nama_kelas} • {previewMateri.nama_mapel}
+                    Kelas {previewMateri.nama_kelas} • {previewMateri.nama_mapel} • Guru: Bu Irma Satikarama
                   </p>
                 </div>
               </div>
@@ -261,46 +260,55 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
               </button>
             </div>
 
-            {/* Viewer Simulation Screen */}
-            <div className="bg-slate-950 rounded-xl p-6 text-white min-h-60 flex flex-col justify-center items-center text-center space-y-3">
-              {previewMateri.format_file === 'MP4' ? (
-                <>
-                  <Video className="w-12 h-12 text-sky-400 animate-pulse" />
-                  <p className="text-sm font-semibold">Video Streaming Player</p>
-                  <p className="text-xs text-slate-400 max-w-sm">
-                    Simulasi Web Video Player untuk media ajar berukuran {previewMateri.file_size}.
-                  </p>
-                  <div className="w-full max-w-md bg-slate-800 rounded-full h-2 mt-4 overflow-hidden">
-                    <div className="bg-sky-500 h-full w-2/5"></div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <FileText className="w-12 h-12 text-blue-400" />
-                  <p className="text-sm font-semibold">Online Document & Slide Reader</p>
-                  <p className="text-xs text-slate-400 max-w-sm">
-                    Pratinjau berkas {previewMateri.format_file} terintegrasi di browser siswa dan guru.
-                  </p>
-                </>
-              )}
+            {/* Viewer Layar Dokumen / Slide Presentasi */}
+            <div className="bg-slate-900 rounded-2xl p-6 text-white min-h-[220px] flex flex-col justify-between border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 text-xs text-slate-400">
+                <span className="font-mono bg-blue-900/40 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-700/50">
+                  Pratinjau Dokumen {previewMateri.format_file}
+                </span>
+                <span>Ukuran: {previewMateri.file_size || '3.5 MB'}</span>
+              </div>
+
+              <div className="my-6 text-center space-y-2">
+                <div className="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-2xl mx-auto flex items-center justify-center mb-3">
+                  {getFormatIcon(previewMateri.format_file)}
+                </div>
+                <h4 className="text-lg font-bold text-white tracking-tight">
+                  {previewMateri.judul_materi}
+                </h4>
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Bahan ajar digital terverifikasi SMAN 2 Padalarang. Siswa dapat membaca petunjuk atau mengunduh dokumen secara lengkap.
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 rounded-xl p-3 text-[11px] text-slate-300 flex items-center justify-between">
+                <span>Status: Siap diunduh dan dipelajari</span>
+                <span className="text-emerald-400 font-semibold">● Terhubung Supabase</span>
+              </div>
             </div>
 
+            {/* Deskripsi Materi */}
             <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-700 space-y-1">
-              <p className="font-bold text-slate-900">Deskripsi & Catatan Guru:</p>
-              <p className="leading-relaxed">{previewMateri.deskripsi}</p>
+              <p className="font-bold text-slate-900">Deskripsi & Arahan Belajar Siswa:</p>
+              <p className="leading-relaxed">
+                {previewMateri.deskripsi || 'Tidak ada catatan tambahan untuk materi ini.'}
+              </p>
             </div>
 
+            {/* Tombol Aksi Unduh dan Tutup */}
             <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => onDownloadMateri(previewMateri)}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-2 cursor-pointer"
+                onClick={() => {
+                  onDownloadMateri(previewMateri);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer"
               >
                 <Download className="w-4 h-4" />
-                <span>Unduh Berkas ({previewMateri.file_size})</span>
+                <span>Unduh Berkas Sekarang ({previewMateri.file_size || '3.5 MB'})</span>
               </button>
               <button
                 onClick={() => setPreviewMateri(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
               >
                 Tutup Pratinjau
               </button>
@@ -310,4 +318,4 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
       )}
     </div>
   );
-};
+}; 
