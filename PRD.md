@@ -124,7 +124,7 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 ### Modul 7: Laporan Akademik (Leger & Rapor) & Sistem Notifikasi
 - **FR-LAP-01 (Generasi Leger Nilai Otomatis)**: Sistem mengompilasi seluruh nilai mata pelajaran dan rekap presensi menjadi draf laporan akademik siswa secara terotomatisasi.
 - **FR-LAP-02 (Penambahan Catatan Wali Kelas)**: Wali kelas meninjau draf laporan dan menambahkan deskripsi capaian perkembangan kepribadian/akademik siswa.
-- **FR-LAP-03 (Pengesahan Kurikulum)**: Kurikulum melakukan verifikasi akhir dan mengunci laporan untuk dicetak menjadi rapor resmi.
+- **FR-LAP-03 (Pengesahan Kurikulum & Integrasi Identitas Resmi Dokumen Rapor)**: Kurikulum melakukan verifikasi akhir dan mengunci laporan untuk dicetak menjadi rapor resmi. Format cetak dan pratinjau rapor secara dinamis mengintegrasikan identitas lembaga (nama sekolah, alamat, kontak) serta pejabat penandatangan resmi (Kepala Sekolah & Waka Kurikulum beserta NIP) langsung dari tabel basis data pengaturan sekolah (*pejabat_sekolah* dan *profil_sekolah*) tanpa nilai statis (*zero hardcode*).
 - **FR-NOTIF-01 (Notifikasi Otomatis)**: Sistem mengirimkan pemberitahuan otomatis ke dashboard pengguna:
   - *Siswa*: Notifikasi penerbitan tugas baru dan peringatan mendekati deadline (H-1).
   - *Guru*: Notifikasi jadwal presensi kelas dan pengingat koreksi tugas yang belum dinilai.

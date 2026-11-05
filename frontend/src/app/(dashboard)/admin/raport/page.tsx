@@ -38,6 +38,7 @@ import {
   StatusLaporan,
   RombelLegerSummary,
   NilaiMapelDetail,
+  PengaturanSekolah,
 } from "@/types";
 
 const INITIAL_REPORT_DATA: LaporanAkademik[] = [
@@ -366,6 +367,7 @@ export default function VerifikasiRaportPage() {
   const [selectedSemester, setSelectedSemester] = useState<"Ganjil" | "Genap">("Ganjil");
   const [selectedTahun, setSelectedTahun] = useState("2026/2027");
   const [isLoading, setIsLoading] = useState(false);
+  const [pengaturan, setPengaturan] = useState<PengaturanSekolah | null>(null);
 
   const [activeModalLaporan, setActiveModalLaporan] = useState<LaporanAkademik | null>(null);
   const [isRevisiModalOpen, setIsRevisiModalOpen] = useState(false);
@@ -388,6 +390,26 @@ export default function VerifikasiRaportPage() {
 
   const printAreaRef = useRef<HTMLDivElement>(null);
 
+  const raportDateText = useMemo(() => {
+    if (pengaturan?.tenggat_kunci_raport) {
+      try {
+        const d = new Date(pengaturan.tenggat_kunci_raport);
+        if (!isNaN(d.getTime())) {
+          return `Padalarang, ${d.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}`;
+        }
+      } catch {}
+    }
+    return `Padalarang, ${new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })}`;
+  }, [pengaturan]);
+
   const mapResponseToLaporan = useCallback((item: any): LaporanAkademik => {
     return {
       id: item.id_laporan || item.id,
@@ -400,7 +422,13 @@ export default function VerifikasiRaportPage() {
       nama_kelas: item.rombel || item.nama_kelas,
       tingkat: item.tingkat || 12,
       jurusan: item.jurusan || "MIPA",
-      wali_kelas_nama: item.wali_kelas || item.wali_kelas_nama || "Budi Santoso, S.Pd",
+      wali_kelas_nama: item.wali_kelas || item.wali_kelas_nama || "-",
+      wali_nip: item.wali_nip || undefined,
+      kepala_sekolah: item.kepala_sekolah,
+      nip_kepala_sekolah: item.nip_kepala_sekolah,
+      nama_sekolah: item.nama_sekolah,
+      alamat_sekolah: item.alamat_sekolah,
+      telepon_sekolah: item.telepon_sekolah,
       semester: (item.semester || selectedSemester) as "Ganjil" | "Genap",
       tahun_ajaran: item.tahun_ajaran || selectedTahun,
       nilai_pengetahuan: item.pengetahuan ?? item.nilai_pengetahuan ?? 0,
@@ -436,17 +464,22 @@ export default function VerifikasiRaportPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [summaryRes, listRes] = await Promise.all([
+      const [summaryRes, listRes, pengaturanRes] = await Promise.all([
         fetchAPI<{ success: boolean; data: ApiSummaryData }>(
           `/laporan/summary?semester=${selectedSemester}&tahun_ajaran=${encodeURIComponent(selectedTahun)}`
         ),
         fetchAPI<{ success: boolean; data: any[] }>(
           `/laporan/kelas/all?semester=${selectedSemester}&tahun_ajaran=${encodeURIComponent(selectedTahun)}`
         ),
+        fetchAPI<{ data: PengaturanSekolah }>("/pengaturan"),
       ]);
 
       if (summaryRes?.data) {
         setApiSummary(summaryRes.data);
+      }
+
+      if (pengaturanRes?.data) {
+        setPengaturan(pengaturanRes.data);
       }
 
       if (listRes?.data && listRes.data.length > 0) {
@@ -531,7 +564,7 @@ export default function VerifikasiRaportPage() {
         statusRombel = "Draf";
       }
 
-      const waliName = siswaInKelas[0]?.wali_kelas_nama || (k.nama_kelas === "XII IPA 1" ? "Budi Santoso, S.Pd" : "Dr. Siti Aminah, M.Pd");
+      const waliName = siswaInKelas[0]?.wali_kelas_nama || "-";
 
       return {
         kelas_id: k.id,
@@ -1203,10 +1236,10 @@ export default function VerifikasiRaportPage() {
                       Dinas Pendidikan • Cabang Dinas Pendidikan Wilayah VI
                     </h3>
                     <h1 className="text-lg font-black uppercase text-blue-900 tracking-tight">
-                      SMA Negeri 2 Padalarang
+                      {pengaturan?.nama_sekolah || activeModalLaporan.nama_sekolah || "SMA Negeri 2 Padalarang"}
                     </h1>
                     <p className="text-[11px] text-slate-600">
-                      Jalan Raya Padalarang No. 45 Kab. Bandung Barat 40553 • Telp (022) 6806123
+                      {pengaturan?.alamat || activeModalLaporan.alamat_sekolah || "Jalan Raya Padalarang No. 45 Kab. Bandung Barat 40553"} • Telp {pengaturan?.telepon || activeModalLaporan.telepon_sekolah || "(022) 6806123"}
                     </p>
                   </div>
                 </div>
@@ -1357,17 +1390,26 @@ export default function VerifikasiRaportPage() {
                   <p className="border-b border-slate-400 mx-6"></p>
                 </div>
                 <div>
-                  <p>Padalarang, 20 Desember 2026</p>
+                  <p>{raportDateText}</p>
                   <p>Wali Kelas,</p>
                   <div className="h-12"></div>
                   <p className="font-bold underline">{activeModalLaporan.wali_kelas_nama}</p>
+                  {activeModalLaporan.wali_nip && activeModalLaporan.wali_nip !== "-" && (
+                    <p className="text-[10px] text-slate-500">NIP. {activeModalLaporan.wali_nip}</p>
+                  )}
                 </div>
                 <div>
                   <p>Mengetahui,</p>
-                  <p>Kepala SMAN 2 Padalarang</p>
+                  <p>Kepala {pengaturan?.nama_sekolah || activeModalLaporan.nama_sekolah || "SMAN 2 Padalarang"}</p>
                   <div className="h-12"></div>
-                  <p className="font-bold underline">Drs. H. Engkos Kosasih, M.Pd</p>
-                  <p className="text-[10px] text-slate-500">NIP. 196508121990031008</p>
+                  <p className="font-bold underline">
+                    {pengaturan?.kepala_sekolah || activeModalLaporan.kepala_sekolah || "Kepala Sekolah"}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {pengaturan?.nip_kepala_sekolah || activeModalLaporan.nip_kepala_sekolah
+                      ? `NIP. ${pengaturan?.nip_kepala_sekolah || activeModalLaporan.nip_kepala_sekolah}`
+                      : "-"}
+                  </p>
                 </div>
               </div>
 
@@ -1376,7 +1418,7 @@ export default function VerifikasiRaportPage() {
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
                     <span>
-                      Rapor ini telah disahkan resmi oleh: <strong>{activeModalLaporan.disahkan_oleh || "Drs. Herman Wijaya, M.M"}</strong>
+                      Rapor ini telah disahkan resmi oleh: <strong>{activeModalLaporan.disahkan_oleh || pengaturan?.waka_kurikulum || "Kurikulum"}</strong>
                     </span>
                   </div>
                   <span className="text-[10px] text-emerald-700">{activeModalLaporan.disahkan_pada}</span>

@@ -199,6 +199,26 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 	var allMapel []model.MataPelajaran
 	db.Find(&allMapel)
 
+	var kepsek model.PejabatSekolah
+	kepsekNama := ""
+	kepsekNIP := ""
+	if err := db.Where("jabatan = ? AND is_aktif = ?", "Kepala Sekolah", true).First(&kepsek).Error; err == nil {
+		kepsekNama = kepsek.NamaPejabat
+		kepsekNIP = kepsek.NIP
+	}
+
+	var profil model.ProfilSekolah
+	namaSekolah := "SMA Negeri 2 Padalarang"
+	alamatSekolah := ""
+	teleponSekolah := ""
+	if err := db.First(&profil).Error; err == nil {
+		if profil.NamaSekolah != "" {
+			namaSekolah = profil.NamaSekolah
+		}
+		alamatSekolah = profil.Alamat
+		teleponSekolah = profil.Telepon
+	}
+
 	results := make([]model.StudentRaportDetailResponse, 0, len(laporans))
 	for _, lap := range laporans {
 		if lap.Siswa == nil {
@@ -219,8 +239,8 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 		kelasIDStr := ""
 		tingkatVal := 12
 		jurusanVal := "MIPA"
-		waliNama := "Dr. Siti Aminah, M.Pd"
-		waliNIP := "198505152010012001"
+		waliNama := "-"
+		waliNIP := "-"
 
 		if s.Kelas != nil {
 			rombelNama = s.Kelas.NamaKelas
@@ -354,6 +374,11 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 			Jurusan:           jurusanVal,
 			WaliKelas:         waliNama,
 			WaliNIP:           waliNIP,
+			KepalaSekolah:     kepsekNama,
+			NIPKepalaSekolah:  kepsekNIP,
+			NamaSekolah:       namaSekolah,
+			AlamatSekolah:     alamatSekolah,
+			TeleponSekolah:    teleponSekolah,
 			NilaiPengetahuan:  pengetahuanVal,
 			NilaiKeterampilan: keterampilanVal,
 			RataRata:          rataRataVal,
@@ -515,7 +540,19 @@ func (h *LaporanHandler) FinalizeLaporan(c *fiber.Ctx) error {
 		})
 	}
 
-	officerName := "Drs. Herman Wijaya, M.M"
+	officerName := "Bagian Kurikulum"
+	if uidVal, ok := c.Locals("user_id").(string); ok && uidVal != "" {
+		var u model.User
+		if err := db.First(&u, "id = ?", uidVal).Error; err == nil && u.NamaLengkap != "" {
+			officerName = u.NamaLengkap
+		}
+	}
+	if officerName == "Bagian Kurikulum" {
+		var waka model.PejabatSekolah
+		if err := db.Where("jabatan = ? AND is_aktif = ?", "Waka Kurikulum", true).First(&waka).Error; err == nil && waka.NamaPejabat != "" {
+			officerName = waka.NamaPejabat
+		}
+	}
 	now := time.Now()
 
 	laporan.StatusLaporan = model.StatusLaporanDisahkanKurikulum
@@ -556,7 +593,19 @@ func (h *LaporanHandler) FinalizeBatch(c *fiber.Ctx) error {
 		})
 	}
 
-	officerName := "Drs. Herman Wijaya, M.M"
+	officerName := "Bagian Kurikulum"
+	if uidVal, ok := c.Locals("user_id").(string); ok && uidVal != "" {
+		var u model.User
+		if err := db.First(&u, "id = ?", uidVal).Error; err == nil && u.NamaLengkap != "" {
+			officerName = u.NamaLengkap
+		}
+	}
+	if officerName == "Bagian Kurikulum" {
+		var waka model.PejabatSekolah
+		if err := db.Where("jabatan = ? AND is_aktif = ?", "Waka Kurikulum", true).First(&waka).Error; err == nil && waka.NamaPejabat != "" {
+			officerName = waka.NamaPejabat
+		}
+	}
 	now := time.Now()
 
 	updateQuery := db.Model(&model.LaporanAkademik{})

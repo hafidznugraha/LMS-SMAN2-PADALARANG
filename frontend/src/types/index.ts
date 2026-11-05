@@ -113,6 +113,12 @@ export interface LaporanAkademik {
   tingkat: number;
   jurusan: string;
   wali_kelas_nama: string;
+  wali_nip?: string;
+  kepala_sekolah?: string;
+  nip_kepala_sekolah?: string;
+  nama_sekolah?: string;
+  alamat_sekolah?: string;
+  telepon_sekolah?: string;
   semester: "Ganjil" | "Genap";
   tahun_ajaran: string;
   nilai_pengetahuan: number;
