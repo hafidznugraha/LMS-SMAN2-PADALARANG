@@ -12,12 +12,37 @@ import (
 	"github.com/google/uuid"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/repository"
+	"gorm.io/gorm"
 )
 
 type LaporanHandler struct{}
 
 func NewLaporanHandler() *LaporanHandler {
 	return &LaporanHandler{}
+}
+
+func resolveTahunAjaran(db *gorm.DB, sem, ta string) (string, string, error) {
+	sem = strings.TrimSpace(sem)
+	ta = strings.TrimSpace(ta)
+	if sem != "" && ta != "" {
+		return sem, ta, nil
+	}
+	var activeTA model.TahunAjaran
+	if err := db.Where("is_aktif = ?", true).First(&activeTA).Error; err == nil && activeTA.Tahun != "" {
+		if ta == "" {
+			ta = activeTA.Tahun
+		}
+		if sem == "" {
+			sem = activeTA.Semester
+		}
+	}
+	if ta == "" {
+		return "", "", fmt.Errorf("tahun ajaran aktif tidak ditemukan di sistem")
+	}
+	if sem == "" {
+		sem = "Ganjil"
+	}
+	return sem, ta, nil
 }
 
 func (h *LaporanHandler) GetLaporanSummary(c *fiber.Ctx) error {
@@ -29,8 +54,14 @@ func (h *LaporanHandler) GetLaporanSummary(c *fiber.Ctx) error {
 		})
 	}
 
-	semester := c.Query("semester", "Ganjil")
-	tahunAjaran := c.Query("tahun_ajaran", "2026/2027")
+	semester, tahunAjaran, err := resolveTahunAjaran(db, c.Query("semester"), c.Query("tahun_ajaran"))
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tahun ajaran belum ditentukan atau tidak ada yang aktif di database",
+			Error:   err.Error(),
+		})
+	}
 
 	var listKelas []model.Kelas
 	if err := db.Preload("WaliGuru.User").Order("tingkat asc, nama_kelas asc").Find(&listKelas).Error; err != nil {
@@ -168,8 +199,14 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 	idKelasParam := c.Params("id_kelas")
 	statusParam := c.Query("status", "")
 	searchParam := strings.ToLower(strings.TrimSpace(c.Query("search", "")))
-	semester := c.Query("semester", "Ganjil")
-	tahunAjaran := c.Query("tahun_ajaran", "2026/2027")
+	semester, tahunAjaran, err := resolveTahunAjaran(db, c.Query("semester"), c.Query("tahun_ajaran"))
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tahun ajaran belum ditentukan atau tidak ada yang aktif di database",
+			Error:   err.Error(),
+		})
+	}
 
 	query := db.Preload("Siswa.User").
 		Preload("Siswa.Kelas.WaliGuru.User").
@@ -425,11 +462,14 @@ func (h *LaporanHandler) GenerateLaporan(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Semester == "" {
-		req.Semester = "Ganjil"
-	}
-	if req.TahunAjaran == "" {
-		req.TahunAjaran = "2026/2027"
+	var errTA error
+	req.Semester, req.TahunAjaran, errTA = resolveTahunAjaran(db, req.Semester, req.TahunAjaran)
+	if errTA != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tahun ajaran belum ditentukan atau tidak ada yang aktif di database",
+			Error:   errTA.Error(),
+		})
 	}
 
 	query := db.Model(&model.Siswa{})
@@ -789,8 +829,14 @@ func (h *LaporanHandler) ExportLegerCSV(c *fiber.Ctx) error {
 		})
 	}
 
-	semester := c.Query("semester", "Ganjil")
-	tahunAjaran := c.Query("tahun_ajaran", "2026/2027")
+	semester, tahunAjaran, err := resolveTahunAjaran(db, c.Query("semester"), c.Query("tahun_ajaran"))
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tahun ajaran belum ditentukan atau tidak ada yang aktif di database",
+			Error:   err.Error(),
+		})
+	}
 
 	var laporans []model.LaporanAkademik
 	if err := db.Preload("Siswa.User").

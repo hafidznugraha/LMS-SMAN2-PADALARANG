@@ -72,7 +72,18 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 
 	guruUUID, err := uuid.Parse(req.GuruID)
 	if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5")
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID Guru tidak valid atau belum diisi",
+		})
+	}
+
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID Kelas tidak valid atau belum diisi",
+		})
 	}
 
 	mapelUUID, err := uuid.Parse(req.MapelID)
@@ -82,13 +93,11 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
 		} else {
-			mapelUUID = uuid.MustParse("1ca770d9-0e57-471b-95c2-aedc472da0b9")
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID Mata Pelajaran tidak valid atau belum diisi",
+			})
 		}
-	}
-
-	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001")
 	}
 
 	db := repository.GetDB()
@@ -227,7 +236,18 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 
 	guruUUID, err := uuid.Parse(req.GuruID)
 	if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5")
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID Guru tidak valid atau belum diisi",
+		})
+	}
+
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID Kelas tidak valid atau belum diisi",
+		})
 	}
 
 	mapelUUID, err := uuid.Parse(req.MapelID)
@@ -236,13 +256,11 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
 		} else {
-			mapelUUID = uuid.MustParse("1ca770d9-0e57-471b-95c2-aedc472da0b9")
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID Mata Pelajaran tidak valid atau belum diisi",
+			})
 		}
-	}
-
-	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001")
 	}
 
 	deadlineStr := strings.TrimSpace(req.Deadline)

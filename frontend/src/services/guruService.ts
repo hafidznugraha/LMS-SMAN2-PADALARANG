@@ -1,11 +1,6 @@
 import { fetchAPI } from '@/lib/api';
 import { getStoredUser } from '@/lib/auth';
-import { KELAS_LIST } from '@/data/mockData';
 import { Kelas, PengumpulanTugas, TugasKuis } from '@/types/lms';
-
-export const DEFAULT_GURU_ID = '298257fb-b4aa-4710-afaa-bbfd63abd5c5';
-export const DEFAULT_MAPEL_ID = '1ca770d9-0e57-471b-95c2-aedc472da0b9';
-export const DEFAULT_KELAS_ID = 'f0000000-0000-0000-0000-000000000001';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -22,14 +17,14 @@ export async function getKelasGuru(): Promise<Kelas[]> {
         id_kelas: k.id,
         nama_kelas: k.nama_kelas,
         tingkat: k.tingkat === 10 ? 'X' : k.tingkat === 11 ? 'XI' : 'XII',
-        tahun_ajaran: '2025/2026',
-        jumlah_siswa: 32,
+        tahun_ajaran: '',
+        jumlah_siswa: 0,
       }));
     }
-    return KELAS_LIST;
+    return [];
   } catch (err) {
     console.warn(err);
-    return KELAS_LIST;
+    return [];
   }
 }
 
@@ -61,26 +56,26 @@ export async function createTugasGuru(payload: {
   format_file?: string;
   rubrik_penilaian?: string;
   file_lampiran?: string;
-  kelas_id?: string;
+  kelas_id: string;
   guru_id?: string;
   mapel_id?: string;
 }): Promise<ApiResponse<TugasKuis>> {
   const user = getStoredUser();
-  const guruId = payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID;
-  const mapelId = payload.mapel_id || user?.extra?.mapel_id || user?.extra?.mapel?.id || DEFAULT_MAPEL_ID;
+  const guruId = payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || '';
+  const mapelId = payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel?.id as string) || '';
 
   const body = {
     guru_id: guruId,
     mapel_id: mapelId,
-    kelas_id: payload.kelas_id || DEFAULT_KELAS_ID,
+    kelas_id: payload.kelas_id,
     judul: payload.judul,
     deskripsi: payload.deskripsi,
     instruksi: payload.instruksi || payload.deskripsi,
     jenis: payload.jenis || 'Tugas',
     deadline: payload.deadline || payload.tenggat_waktu,
     tenggat_waktu: payload.tenggat_waktu || payload.deadline,
-    file_lampiran: payload.file_lampiran || payload.format_file || 'pdf, docx',
-    format_file: payload.format_file || 'pdf, docx',
+    file_lampiran: payload.file_lampiran || payload.format_file || '',
+    format_file: payload.format_file || '',
     rubrik_penilaian: payload.rubrik_penilaian || '',
   };
 
@@ -118,10 +113,15 @@ export async function gradeSubmissionGuru(
   });
 }
 
-export async function getMateriGuru(kelasId = DEFAULT_KELAS_ID, guruId = DEFAULT_GURU_ID) {
+export async function getMateriGuru(kelasId?: string, guruId?: string) {
   try {
-    const res = await fetchAPI<ApiResponse<unknown[]>>(`/guru/materi?kelas_id=${kelasId}&guru_id=${guruId}`);
-    return res?.success ? res.data : [];
+    const searchParams = new URLSearchParams();
+    if (kelasId) searchParams.append('kelas_id', kelasId);
+    if (guruId) searchParams.append('guru_id', guruId);
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+
+    const res = await fetchAPI<ApiResponse<unknown[]>>(`/guru/materi${qs}`);
+    return res?.success && Array.isArray(res.data) ? res.data : [];
   } catch (err) {
     console.warn(err);
     return [];
@@ -135,21 +135,21 @@ export async function uploadMateriGuru(payload: {
   file_url: string;
   tipe_file?: string;
   ukuran_mb?: number;
-  kelas_id?: string;
+  kelas_id: string;
   guru_id?: string;
   mapel_id?: string;
 }) {
   const user = getStoredUser();
   const body = {
-    guru_id: payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID,
-    mapel_id: payload.mapel_id || user?.extra?.mapel_id || DEFAULT_MAPEL_ID,
-    kelas_id: payload.kelas_id || DEFAULT_KELAS_ID,
+    guru_id: payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || '',
+    mapel_id: payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel?.id as string) || '',
+    kelas_id: payload.kelas_id,
     judul: payload.judul,
     deskripsi: payload.deskripsi,
     tipe: payload.tipe || 'pdf',
     tipe_file: payload.tipe_file || 'PDF',
-    ukuran_mb: payload.ukuran_mb || 2.5,
-    file_url: payload.file_url || 'https://drive.google.com/sample',
+    ukuran_mb: payload.ukuran_mb || 0,
+    file_url: payload.file_url,
   };
 
   return await fetchAPI<ApiResponse<unknown>>('/guru/materi', {
