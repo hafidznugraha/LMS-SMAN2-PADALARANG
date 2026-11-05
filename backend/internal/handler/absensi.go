@@ -312,8 +312,20 @@ func (h *AbsensiHandler) ExportAbsensiCSV(c *fiber.Ctx) error {
 		})
 	}
 
+	kelasID := strings.TrimSpace(c.Query("kelas_id"))
+	if kelasID == "" {
+		kelasID = strings.TrimSpace(c.Query("id_kelas"))
+	}
+
+	query := db.Preload("User").Preload("Kelas")
+	if kelasID != "" && kelasID != "all" {
+		if parsedKelas, err := uuid.Parse(kelasID); err == nil {
+			query = query.Where("kelas_id = ?", parsedKelas)
+		}
+	}
+
 	var listSiswa []model.Siswa
-	if err := db.Preload("User").Preload("Kelas").Order("kelas_id asc").Find(&listSiswa).Error; err != nil {
+	if err := query.Order("kelas_id asc").Find(&listSiswa).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal memuat data siswa untuk ekspor",

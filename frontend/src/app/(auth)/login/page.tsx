@@ -190,12 +190,14 @@ export default function LoginPage() {
                 <span className="text-[11px] text-slate-400">Default: password123</span>
               </div>
 
-              <div className="flex justify-center items-center w-full pt-1 pb-1">
-                <AltchaWidget
-                  ref={altchaRef}
-                  onStateChange={(p) => setAltchaPayload(p)}
-                />
-              </div>
+             {process.env.NEXT_PUBLIC_ENABLE_ALTCHA !== "false" && (
+                <div className="flex justify-center items-center w-full pt-1 pb-1">
+                  <AltchaWidget
+                    ref={altchaRef}
+                    onStateChange={(p) => setAltchaPayload(p)}
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
