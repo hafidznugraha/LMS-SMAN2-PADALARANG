@@ -1,6 +1,5 @@
 import { fetchAPI } from '@/lib/api';
 import { getStoredUser } from '@/lib/auth';
-import { KELAS_LIST } from '@/data/mockData';
 import { Kelas, PengumpulanTugas, TugasKuis } from '@/types/lms';
 
 export const DEFAULT_GURU_ID = '298257fb-b4aa-4710-afaa-bbfd63abd5c5';
@@ -17,7 +16,7 @@ interface ApiResponse<T> {
 export async function getKelasGuru(): Promise<Kelas[]> {
   try {
     const res = await fetchAPI<ApiResponse<Array<{ id: string; nama_kelas: string; tingkat: number; jurusan: string }>>>('/guru/kelas');
-    if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+    if (res?.success && Array.isArray(res.data)) {
       return res.data.map((k) => ({
         id_kelas: k.id,
         nama_kelas: k.nama_kelas,
@@ -26,10 +25,10 @@ export async function getKelasGuru(): Promise<Kelas[]> {
         jumlah_siswa: 32,
       }));
     }
-    return KELAS_LIST;
+    return [];
   } catch (err) {
-    console.warn(err);
-    return KELAS_LIST;
+    console.error(err);
+    return [];
   }
 }
 
@@ -46,7 +45,7 @@ export async function getTugasGuru(params?: { kelas_id?: string; guru_id?: strin
     }
     return [];
   } catch (err) {
-    console.warn(err);
+    console.error(err);
     return [];
   }
 }
@@ -98,7 +97,7 @@ export async function getTugasSubmissions(tugasId: string): Promise<PengumpulanT
     }
     return [];
   } catch (err) {
-    console.warn(err);
+    console.error(err);
     return [];
   }
 }
@@ -118,12 +117,16 @@ export async function gradeSubmissionGuru(
   });
 }
 
-export async function getMateriGuru(kelasId = DEFAULT_KELAS_ID, guruId = DEFAULT_GURU_ID) {
+export async function getMateriGuru(kelasId?: string, guruId?: string) {
   try {
-    const res = await fetchAPI<ApiResponse<unknown[]>>(`/guru/materi?kelas_id=${kelasId}&guru_id=${guruId}`);
-    return res?.success ? res.data : [];
+    const params = new URLSearchParams();
+    if (kelasId && kelasId !== 'ALL') params.append('kelas_id', kelasId);
+    if (guruId && guruId !== 'ALL') params.append('guru_id', guruId);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetchAPI<ApiResponse<unknown[]>>(`/guru/materi${qs}`);
+    return res?.success && Array.isArray(res.data) ? res.data : [];
   } catch (err) {
-    console.warn(err);
+    console.error('getMateriGuru error:', err);
     return [];
   }
 }
@@ -132,24 +135,49 @@ export async function uploadMateriGuru(payload: {
   judul: string;
   deskripsi: string;
   tipe: string;
-  file_url: string;
+  file_url?: string;
   tipe_file?: string;
   ukuran_mb?: number;
   kelas_id?: string;
   guru_id?: string;
   mapel_id?: string;
+  file?: File | null;
 }) {
   const user = getStoredUser();
+  const guruId = payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID;
+  const mapelId = payload.mapel_id || user?.extra?.mapel_id || DEFAULT_MAPEL_ID;
+  const kelasId = payload.kelas_id || DEFAULT_KELAS_ID;
+
+  if (payload.file) {
+    const formData = new FormData();
+    formData.append('file', payload.file);
+    formData.append('judul', payload.judul);
+    formData.append('deskripsi', payload.deskripsi);
+    formData.append('tipe', payload.tipe || 'pdf');
+    formData.append('tipe_file', payload.tipe_file || 'PDF');
+    formData.append('kelas_id', kelasId);
+    formData.append('guru_id', guruId);
+    formData.append('mapel_id', mapelId);
+    if (payload.file_url) {
+      formData.append('file_url', payload.file_url);
+    }
+
+    return await fetchAPI<ApiResponse<unknown>>('/guru/materi', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
   const body = {
-    guru_id: payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID,
-    mapel_id: payload.mapel_id || user?.extra?.mapel_id || DEFAULT_MAPEL_ID,
-    kelas_id: payload.kelas_id || DEFAULT_KELAS_ID,
+    guru_id: guruId,
+    mapel_id: mapelId,
+    kelas_id: kelasId,
     judul: payload.judul,
     deskripsi: payload.deskripsi,
     tipe: payload.tipe || 'pdf',
     tipe_file: payload.tipe_file || 'PDF',
     ukuran_mb: payload.ukuran_mb || 2.5,
-    file_url: payload.file_url || 'https://drive.google.com/sample',
+    file_url: payload.file_url || '',
   };
 
   return await fetchAPI<ApiResponse<unknown>>('/guru/materi', {

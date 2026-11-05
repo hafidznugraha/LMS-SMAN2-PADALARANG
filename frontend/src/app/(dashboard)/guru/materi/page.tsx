@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { MateriModule } from '@/components/materi/MateriModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
 import { KELAS_LIST } from '@/data/mockData';
-import { Materi } from '@/types/lms';
+import { Materi, MateriFormat } from '@/types/lms';
+import { generateClientMateriPDF } from '@/lib/pdfHelper';
 
 export default function GuruMateriPage() {
   const [materiList, setMateriList] = useState<Materi[]>([]);
@@ -15,7 +16,7 @@ export default function GuruMateriPage() {
   const fetchMateriData = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('http://localhost:8080/api/v1/guru/materi');
+      const res = await fetch('/api/v1/guru/materi');
       const json = await res.json();
 
       if (json.success && Array.isArray(json.data)) {
@@ -28,7 +29,7 @@ export default function GuruMateriPage() {
           nama_kelas: 'XII IPA 1',
           judul_materi: item.judul,
           deskripsi: item.deskripsi || '',
-          format_file: (item.tipe_file || 'PDF').toUpperCase(),
+          format_file: (item.tipe_file || 'PDF').toUpperCase() as MateriFormat,
           file_url: item.file_url || '',
           file_size: `${item.ukuran_mb || 3.5} MB`,
           unduhan_count: item.jumlah_melihat || 0,
@@ -47,47 +48,9 @@ export default function GuruMateriPage() {
     fetchMateriData();
   }, []);
 
-  // 2. FUNGSI DOWNLOAD NYATA KE KOMPUTER SISWA & GURU
-  const handleDownloadMateri = (materi: Materi) => {
-    // A. Buat isi konten berkas resmi materi pembelajaran
-    const textContent = `=====================================================
-SMA NEGERI 2 PADALARANG - BAHAN AJAR DIGITAL LMS
-=====================================================
-Judul Materi    : ${materi.judul_materi}
-Mata Pelajaran  : ${materi.nama_mapel}
-Guru Pengampu   : Ibu Irma Satikarama, S.Pd.
-Target Kelas    : Kelas ${materi.nama_kelas}
-Format Dokumen  : ${materi.format_file} (${materi.file_size})
-Tanggal Terbit  : ${materi.tanggal_unggah}
------------------------------------------------------
-PETUNJUK PEMBELAJARAN & DESKRIPSI:
-${materi.deskripsi || 'Silakan pelajari bahan ajar ini dengan seksama untuk persiapan asesmen.'}
-
-RANGKUMAN MATERI PEMBELAJARAN:
-1. Memahami konsep dasar dan teorema utama.
-2. Menganalisis rumus turunan dan sifat-sifat garis singgung fungsi.
-3. Mengerjakan latihan soal mandiri pada akhir modul.
-
-=====================================================
-Berkas Resmi LMS SMAN 2 Padalarang • Praktikum IPSI
-=====================================================`;
-
-    // B. Buat Blob file download
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    
-    // Nama file saat terunduh di folder Downloads komputer
-    const safeName = materi.judul_materi.replace(/[^a-zA-Z0-9]/g, '_');
-    link.download = `${safeName}_Materi_SMAN2.txt`;
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    // C. Tambah angka unduhan counter
+  // 2. FUNGSI DOWNLOAD NYATA KE KOMPUTER SISWA & GURU (PDF RESMI)
+  const handleDownloadMateri = async (materi: Materi) => {
+    // A. Optimistic counter increment
     setMateriList((prev) =>
       prev.map((m) =>
         m.id_materi === materi.id_materi
@@ -96,7 +59,51 @@ Berkas Resmi LMS SMAN 2 Padalarang • Praktikum IPSI
       )
     );
 
-    alert(`Berkas "${materi.judul_materi}" berhasil diunduh ke komputer Anda!`);
+    const ext = (materi.format_file || 'PDF').toLowerCase();
+    const cleanTitle = materi.judul_materi
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, '_')
+      .replace(/\s+/g, '_');
+    const filename = `${cleanTitle}.${ext}`;
+
+    try {
+      // Panggil backend Go Fiber download endpoint
+      const res = await fetch(`/api/v1/guru/materi/${encodeURIComponent(materi.id_materi)}/download`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const mimeType = ext === 'pdf' ? 'application/pdf' : blob.type || 'application/octet-stream';
+        const pdfBlob = new Blob([blob], { type: mimeType });
+        const url = URL.createObjectURL(pdfBlob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend download endpoint error, generating client PDF fallback:', err);
+    }
+
+    // B. Fallback menghasilkan file binary PDF 1.4 resmi dan valid (Bukan plain text!)
+    const pdfBytes = generateClientMateriPDF({
+      judul_materi: materi.judul_materi,
+      nama_kelas: materi.nama_kelas,
+      nama_mapel: materi.nama_mapel,
+      deskripsi: materi.deskripsi,
+    });
+    const fallbackBlob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+    const fallbackUrl = URL.createObjectURL(fallbackBlob);
+    const link = document.createElement('a');
+    link.href = fallbackUrl;
+    link.download = filename.endsWith('.pdf') ? filename : `${cleanTitle}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(fallbackUrl);
   };
 
   const handleSaveMateri = () => {
@@ -116,7 +123,7 @@ Berkas Resmi LMS SMAN 2 Padalarang • Praktikum IPSI
           onUploadMateri={() => setIsModalOpen(true)}
           onEditMateri={() => {}}
           onDeleteMateri={() => {}}
-          onDownloadMateri={handleDownloadMateri} // Sambungkan fungsi download ke modul
+          onDownloadMateri={handleDownloadMateri}
         />
       )}
 
