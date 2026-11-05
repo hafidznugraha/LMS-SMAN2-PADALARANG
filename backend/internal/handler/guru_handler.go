@@ -608,43 +608,108 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	})
 }
 
-// 9. PUT /api/v1/guru/absensi/:id - Koreksi presensi siswa
-func (h *GuruHandler) UpdateAbsensi(c *fiber.Ctx) error {
-	absenIDStr := c.Params("id")
-	absenUUID, err := uuid.Parse(absenIDStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-			Success: false,
-			Message: "ID absensi tidak valid",
-		})
+// 9. POST /api/v1/guru/absensi - Menyimpan atau memperbarui kehadiran siswa ke Supabase
+func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
+	var req struct {
+		AbsensiID string `json:"absensi_id"`
+		SiswaID   string `json:"siswa_id"`
+		KelasID   string `json:"kelas_id"`
+		Tanggal   string `json:"tanggal"`
+		Status    string `json:"status"` // 'hadir', 'sakit', 'izin', 'alfa'
+		Catatan   string `json:"catatan"`
 	}
 
-	var req model.UpdateAbsensiStatusRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
-			Message: "Payload tidak valid",
+			Message: "Payload presensi tidak valid",
 		})
 	}
+
+	// 1. Wajib jadikan status huruf kecil agar sesuai check constraint Supabase
+	statusClean := strings.ToLower(strings.TrimSpace(req.Status))
+	if statusClean == "alfa" {
+		statusClean = "alpa" // database menggunakan 'alpa'
+	}
+
+	tanggalStr := strings.TrimSpace(req.Tanggal)
+	if tanggalStr == "" {
+		tanggalStr = time.Now().Format("2006-01-02")
+	}
+	tglParsed, _ := time.Parse("2006-01-02", tanggalStr)
 
 	db := repository.GetDB()
-	res := db.Model(&model.Absensi{}).
-		Where("id = ?", absenUUID).
-		Updates(map[string]interface{}{
-			"status":  strings.ToLower(strings.TrimSpace(req.Status)),
-			"catatan": req.Catatan,
-		})
 
-	if res.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
-			Success: false,
-			Message: "Gagal memperbarui status presensi",
-			Error:   res.Error.Error(),
-		})
+	// 2. Jika ada absensi_id, update data yang sudah ada
+	if req.AbsensiID != "" {
+		if absenUUID, err := uuid.Parse(req.AbsensiID); err == nil {
+			errUpdate := db.Model(&model.Absensi{}).
+				Where("id = ?", absenUUID).
+				Updates(map[string]interface{}{
+					"status":  statusClean,
+					"catatan": req.Catatan,
+				}).Error
+
+			if errUpdate == nil {
+				return c.JSON(model.APIResponse{
+					Success: true,
+					Message: "Status presensi berhasil diperbarui di Supabase",
+				})
+			}
+		}
 	}
 
-	return c.JSON(model.APIResponse{
-		Success: true,
-		Message: "Status kehadiran berhasil divalidasi oleh guru",
+	// 3. Jika belum ada absensi_id, cari berdasarkan siswa_id, kelas_id, dan tanggal
+	siswaUUID, errSiswa := uuid.Parse(req.SiswaID)
+	kelasUUID, errKelas := uuid.Parse(req.KelasID)
+	if errKelas != nil {
+		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // XII IPA 1
+	}
+
+	if errSiswa == nil {
+		var existing model.Absensi
+		errFind := db.Where("siswa_id = ? AND kelas_id = ? AND tanggal = ?", siswaUUID, kelasUUID, tglParsed).First(&existing).Error
+
+		if errFind == nil {
+			// Update yang sudah ada
+			db.Model(&existing).Updates(map[string]interface{}{
+				"status":  statusClean,
+				"catatan": req.Catatan,
+			})
+			return c.JSON(model.APIResponse{
+				Success: true,
+				Message: "Presensi siswa berhasil diperbarui",
+				Data:    existing,
+			})
+		} else {
+			// Buat baris baru di Supabase
+			nowTime := time.Now().Format("15:04:05")
+			newAbsen := model.Absensi{
+				ID:         uuid.New(),
+				SiswaID:    siswaUUID,
+				KelasID:    kelasUUID,
+				Tanggal:    tglParsed,
+				WaktuMasuk: &nowTime,
+				Status:     model.AbsensiStatus(statusClean),
+				Catatan:    req.Catatan,
+				CreatedAt:  time.Now(),
+			}
+			if err := db.Create(&newAbsen).Error; err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+					Success: false,
+					Message: "Gagal menyimpan presensi baru: " + err.Error(),
+				})
+			}
+			return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
+				Success: true,
+				Message: "Presensi baru siswa berhasil masuk ke Supabase",
+				Data:    newAbsen,
+			})
+		}
+	}
+
+	return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+		Success: false,
+		Message: "ID Siswa wajib valid",
 	})
 }

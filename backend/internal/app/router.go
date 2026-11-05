@@ -83,8 +83,10 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
 	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
 	guru.Post("/submissions/:id/grade", guruHandler.GradeSubmission)
+	// 3. Rekap & Koreksi Presensi/Absensi Siswa
 	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
-	guru.Put("/absensi/:id", guruHandler.UpdateAbsensi)
+	guru.Post("/absensi", guruHandler.SaveOrUpdateAbsensi)
+	guru.Put("/absensi/:id", guruHandler.SaveOrUpdateAbsensi)
 
 	protected := api.Group("", middleware.JWTProtected(cfg))
 
