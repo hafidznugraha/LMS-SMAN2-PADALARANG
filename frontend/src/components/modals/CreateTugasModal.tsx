@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, JenisPenugasan, Kelas } from '../../types/lms';
@@ -25,13 +25,23 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   const [judul, setJudul] = useState('');
   const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
   const [jenis, setJenis] = useState<JenisPenugasan>('Tugas');
-  const [tenggatWaktu, setTenggatWaktu] = useState('2026-11-10 23:59:00');
+  const [tenggatWaktu, setTenggatWaktu] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return `${d.toISOString().slice(0, 10)} 23:59:00`;
+  });
   const [formatFile, setFormatFile] = useState('pdf, docx');
   const [instruksi, setInstruksi] = useState('');
   const [rubrik, setRubrik] = useState(
     '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!idKelas && kelasList.length > 0) {
+      setIdKelas(kelasList[0].id_kelas);
+    }
+  }, [kelasList, idKelas]);
 
   if (!isOpen) return null;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -16,11 +16,11 @@ import {
   BookOpen,
   ArrowLeft
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { MetricCard } from '@/components/ui/metric-card';
 import { Button } from '@/components/ui/button';
 import { getStoredUser, AuthUser } from '@/lib/auth';
 
-// Komponen-komponen modul guru
 import { MateriModule } from '@/components/materi/MateriModule';
 import { TugasModule } from '@/components/tugas/TugasModule';
 import { AbsensiModule } from '@/components/absensi/AbsensiModule';
@@ -30,93 +30,298 @@ import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
 import { BranchCollabInfoModal } from '@/components/modals/BranchCollabInfoModal';
 
 import {
-  KELAS_LIST,
-  INITIAL_MATERI_LIST,
-  INITIAL_TUGAS_LIST,
-  INITIAL_SUBMISSIONS,
-  INITIAL_ABSENSI_TODAY,
-  INITIAL_NILAI_LIST,
-} from '@/data/mockData';
-import { Materi, TugasKuis, PengumpulanTugas, Absensi, StatusKehadiran, NilaiSiswa } from '@/types/lms';
+  getKelasGuru,
+  getMateriGuru,
+  deleteMateriGuru,
+  getTugasGuru,
+  getTugasSubmissions,
+  gradeSubmissionGuru,
+  getAbsensiGuru,
+  updateAbsensiSiswaGuru,
+  getNilaiGuru,
+  updateNilaiGuru,
+  getJadwalGuru,
+} from '@/services/guruService';
+
+import {
+  Materi,
+  TugasKuis,
+  PengumpulanTugas,
+  Absensi,
+  StatusKehadiran,
+  NilaiSiswa,
+  Kelas,
+  JadwalPelajaran,
+} from '@/types/lms';
 
 export default function GuruDashboardPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-
-  // Tab View Aktif: 'dashboard' | 'materi' | 'tugas' | 'absensi' | 'nilai'
   const [activeView, setActiveView] = useState<'dashboard' | 'materi' | 'tugas' | 'absensi' | 'nilai'>('dashboard');
 
-  // State Data
-  const [materiList, setMateriList] = useState<Materi[]>(INITIAL_MATERI_LIST);
-  const [tugasList, setTugasList] = useState<TugasKuis[]>(INITIAL_TUGAS_LIST);
-  const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>(INITIAL_SUBMISSIONS);
-  const [absensiList, setAbsensiList] = useState<Absensi[]>(INITIAL_ABSENSI_TODAY);
-  const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>(INITIAL_NILAI_LIST);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [materiList, setMateriList] = useState<Materi[]>([]);
+  const [tugasList, setTugasList] = useState<TugasKuis[]>([]);
+  const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>([]);
+  const [absensiList, setAbsensiList] = useState<Absensi[]>([]);
+  const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>([]);
+  const [jadwalList, setJadwalList] = useState<JadwalPelajaran[]>([]);
 
-  // Modal State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateTugasOpen, setIsCreateTugasOpen] = useState(false);
   const [isBranchInfoOpen, setIsBranchInfoOpen] = useState(false);
   const [selectedTugasId, setSelectedTugasId] = useState<string | null>(null);
-  const [selectedKelasId, setSelectedKelasId] = useState<string>('f0000000-0000-0000-0000-000000000001');
+  const [selectedKelasId, setSelectedKelasId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const user = getStoredUser();
-    if (user) {
-      setCurrentUser(user);
-    }
-  }, []);
+  const teacherName = currentUser?.nama_lengkap || 'Pendidik';
+  const currentBidangStudi =
+    currentUser?.extra?.mapel?.nama_mapel ||
+    (currentUser?.extra?.mapel_nama as string) ||
+    (currentUser?.extra?.bidang_studi as string) ||
+    'Mata Pelajaran';
 
-  const teacherName = currentUser?.nama_lengkap || 'Irma Satikarama, S.Pd.';
   const isWali = Boolean(
     currentUser?.extra?.is_wali_kelas ||
       (currentUser?.extra?.kelas_binaan && currentUser.extra.kelas_binaan.length > 0) ||
       currentUser?.role === 'wali_kelas'
   );
   const kelasBinaan = currentUser?.extra?.kelas_binaan?.[0];
-  const namaKelasBinaan = kelasBinaan?.nama_kelas || 'XII IPA 1';
+  const namaKelasBinaan = kelasBinaan?.nama_kelas || '';
 
-  // Handler Simpan Materi
-  const handleSaveMateri = (newM: Omit<Materi, 'id_materi' | 'tanggal_unggah' | 'unduhan_count'>) => {
-    const created: Materi = {
-      ...newM,
-      id_materi: `mat-${Date.now()}`,
-      tanggal_unggah: '2026-11-04 10:00',
-      unduhan_count: 0,
-    };
-    setMateriList([created, ...materiList]);
+  const loadAllData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const user = getStoredUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+      const mapelId = (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
+
+      const [kelasData, materiData, allTugas, jadwalData] = await Promise.all([
+        getKelasGuru(),
+        getMateriGuru(),
+        getTugasGuru(),
+        getJadwalGuru({ guru_id: guruId }),
+      ]);
+
+      setKelasList(kelasData);
+      setMateriList(materiData);
+      setTugasList(allTugas);
+      setJadwalList(jadwalData);
+
+      const targetKelas = kelasData[0]?.id_kelas || '';
+      setSelectedKelasId(targetKelas);
+
+      if (targetKelas) {
+        const [absData, nilData] = await Promise.all([
+          getAbsensiGuru(targetKelas),
+          getNilaiGuru(targetKelas, mapelId, guruId),
+        ]);
+        setAbsensiList(absData);
+        setNilaiList(nilData);
+      }
+    } catch (err) {
+      console.warn(err);
+      toast.error('Gagal memuat data dashboard guru');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+  const handleKelasChangeForAbsensi = async (kId: string) => {
+    setSelectedKelasId(kId);
+    try {
+      const data = await getAbsensiGuru(kId);
+      setAbsensiList(data);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const handleKelasChangeForNilai = async (kId: string) => {
+    setSelectedKelasId(kId);
+    try {
+      const user = getStoredUser();
+      const mapelId = (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+      const data = await getNilaiGuru(kId, mapelId, guruId);
+      setNilaiList(data);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const handleSaveMateri = async (newM: Omit<Materi, 'id_materi' | 'tanggal_unggah' | 'unduhan_count'>) => {
+    const refreshed = await getMateriGuru();
+    if (refreshed.length > 0) {
+      setMateriList(refreshed);
+    } else {
+      const created: Materi = {
+        ...newM,
+        id_materi: `mat-${Date.now()}`,
+        tanggal_unggah: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        unduhan_count: 0,
+      };
+      setMateriList((prev) => [created, ...prev]);
+    }
     setActiveView('materi');
   };
 
-  // Handler Simpan Tugas
-  const handleSaveTugas = (newT: Omit<TugasKuis, 'id_tugas_kuis' | 'total_siswa' | 'jumlah_mengumpulkan' | 'jumlah_dinilai'>) => {
-    const created: TugasKuis = {
-      ...newT,
-      id_tugas_kuis: `tugas-${Date.now()}`,
-      total_siswa: 32,
-      jumlah_mengumpulkan: 0,
-      jumlah_dinilai: 0,
-    };
-    setTugasList([created, ...tugasList]);
+  const handleDeleteMateri = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus materi ini?')) return;
+    try {
+      const res = await deleteMateriGuru(id);
+      if (res?.success) {
+        setMateriList((prev) => prev.filter((m) => m.id_materi !== id));
+        toast.success('Materi berhasil dihapus');
+      } else {
+        toast.error(res?.message || 'Gagal menghapus materi');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Terjadi kesalahan saat menghapus materi');
+    }
+  };
+
+  const handleDownloadMateri = (materi: Materi) => {
+    if (materi.file_url && materi.file_url.startsWith('http')) {
+      window.open(materi.file_url, '_blank');
+      return;
+    }
+    const element = document.createElement('a');
+    const file = new Blob(
+      [`Materi: ${materi.judul_materi}\nKelas: ${materi.nama_kelas}\nFormat: ${materi.format_file}\n\n${materi.deskripsi}`],
+      { type: 'text/plain' }
+    );
+    element.href = URL.createObjectURL(file);
+    element.download = `${materi.judul_materi.replace(/\s+/g, '_')}.${(materi.format_file || 'txt').toLowerCase()}`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const handleSaveTugas = async (newT: TugasKuis) => {
+    setTugasList((prev) => [newT, ...prev]);
+    const refreshed = await getTugasGuru();
+    if (refreshed.length > 0) {
+      setTugasList(refreshed);
+    }
     setActiveView('tugas');
   };
 
-  // Handler Simpan Nilai Tugas Siswa
-  const handleSaveNilaiSubmission = (idSub: string, nilai: number, feedback: string) => {
-    setSubmissionsList(
-      submissionsList.map((s) => (s.id_pengumpulan === idSub ? { ...s, nilai, feedback } : s))
-    );
+  const handleOpenGrading = async (tugas: TugasKuis) => {
+    const tugasId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id;
+    if (!tugasId) return;
+
+    try {
+      const subs = await getTugasSubmissions(tugasId);
+      setSubmissionsList(subs);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Handler Update Kehadiran
-  const handleUpdateStatus = (idAbsen: string, status: StatusKehadiran) => {
-    setAbsensiList(
-      absensiList.map((a) => (a.id_absensi === idAbsen ? { ...a, status_kehadiran: status } : a))
-    );
+  const handleSaveNilaiSubmission = async (
+    idSub: string,
+    nilai: number,
+    feedback: string,
+    sub?: PengumpulanTugas
+  ) => {
+    try {
+      setSubmissionsList((prev) =>
+        prev.map((s) => {
+          const sId = s.id_pengumpulan || (s as unknown as { id?: string }).id;
+          if (sId === idSub) {
+            return {
+              ...s,
+              nilai,
+              feedback,
+              status_kumpul: s.status_kumpul === 'Belum Mengumpulkan' ? 'Tepat Waktu' : s.status_kumpul,
+            };
+          }
+          return s;
+        })
+      );
+
+      await gradeSubmissionGuru(idSub, {
+        nilai,
+        feedback_guru: feedback,
+        tugas_id: sub?.id_tugas_kuis || (sub as unknown as { tugas_id?: string })?.tugas_id,
+        siswa_id: sub?.id_siswa || (sub as unknown as { siswa_id?: string })?.siswa_id,
+      });
+      toast.success('Nilai tugas berhasil disimpan');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menyimpan nilai');
+    }
   };
+
+  const handleUpdateStatusKehadiran = async (idAbsen: string, status: StatusKehadiran, catatan = '') => {
+    setAbsensiList((prev) =>
+      prev.map((a) => (a.id_absensi === idAbsen ? { ...a, status_kehadiran: status, keterangan: catatan } : a))
+    );
+
+    try {
+      const res = await updateAbsensiSiswaGuru(idAbsen, status, catatan);
+      if (res?.success) {
+        toast.success(`Presensi diperbarui: ${status}`);
+      }
+    } catch (err) {
+      console.warn(err);
+      toast.error('Gagal menyimpan presensi');
+    }
+  };
+
+  const handleUpdateNilai = async (updated: NilaiSiswa) => {
+    setNilaiList((prev) =>
+      prev.map((n) => (n.id_nilai === updated.id_nilai || n.id_siswa === updated.id_siswa ? updated : n))
+    );
+
+    try {
+      const user = getStoredUser();
+      const res = await updateNilaiGuru({
+        siswa_id: updated.id_siswa,
+        guru_id: (user?.extra?.guru_id as string) || (user?.id as string) || '',
+        mapel_id: (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '',
+        nilai_tugas: updated.nilai_tugas,
+        nilai_uh: updated.nilai_uh,
+        nilai_uts: updated.nilai_uts,
+        nilai_uas: updated.nilai_uas,
+        feedback: updated.feedback,
+      });
+
+      if (res?.success) {
+        toast.success(`Nilai ${updated.nama_siswa} berhasil disimpan`);
+      }
+    } catch (err) {
+      console.warn(err);
+      toast.error('Gagal memperbarui nilai');
+    }
+  };
+
+  const hariList = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const todayHari = hariList[new Date().getDay()];
+  const jadwalHariIni = jadwalList.filter((j) => j.hari === todayHari || !j.hari);
+  const displayJadwal = jadwalHariIni.length > 0 ? jadwalHariIni : jadwalList.slice(0, 3);
+
+  const kuisCount = tugasList.filter((t) => t.jenis?.toLowerCase() === 'kuis').length;
+  const pendingEvaluationCount = tugasList.reduce(
+    (acc, t) => acc + Math.max(0, (t.jumlah_mengumpulkan || 0) - (t.jumlah_dinilai || 0)),
+    0
+  );
+
+  const tugasPerluDinilai = tugasList.filter(
+    (t) => (t.jumlah_mengumpulkan || 0) > 0 || (t.total_siswa || 0) > 0
+  );
 
   return (
     <div className="space-y-6">
-      {/* Tombol Kembali jika sedang membuka sub-halaman Materi / Tugas / Absensi */}
       {activeView !== 'dashboard' && (
         <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
           <button
@@ -132,19 +337,18 @@ export default function GuruDashboardPage() {
         </div>
       )}
 
-      {/* 1. TAMPILAN DASHBOARD UTAMA */}
       {activeView === 'dashboard' && (
         <>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Selamat Datang, {teacherName} 👏
+                Selamat Datang, {teacherName}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-600">
                 <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 font-semibold">
                   Guru Pengampu
                 </span>
-                {isWali && (
+                {isWali && namaKelasBinaan && (
                   <>
                     <span>•</span>
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-semibold border border-emerald-300/60">
@@ -152,11 +356,15 @@ export default function GuruDashboardPage() {
                     </span>
                   </>
                 )}
-                <span>•</span>
-                <span>NIP: {currentUser?.extra?.nip || '1783972561983'}</span>
+                {currentUser?.extra?.nip && (
+                  <>
+                    <span>•</span>
+                    <span>NIP: {currentUser.extra.nip}</span>
+                  </>
+                )}
                 <span>•</span>
                 <span className="font-medium text-slate-800">
-                  Mata Pelajaran: Matematika Peminatan
+                  Mata Pelajaran: {currentBidangStudi}
                 </span>
               </div>
             </div>
@@ -183,15 +391,13 @@ export default function GuruDashboardPage() {
             </div>
           </div>
 
-          {/* Banner Khusus jika Guru merangkap Wali Kelas */}
-          {isWali && (
+          {isWali && namaKelasBinaan && (
             <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white shadow-md border border-emerald-700/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300">
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/30">
                     Tugas Tambahan Aktif
                   </span>
-                  <span>Semester Ganjil 2026/2027</span>
                 </div>
                 <h2 className="text-base font-bold text-white">
                   Wali Kelas: Rombel {namaKelasBinaan}
@@ -216,13 +422,12 @@ export default function GuruDashboardPage() {
             </div>
           )}
 
-          {/* 4 Kartu Metrik Interaktif */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div onClick={() => setActiveView('materi')} className="cursor-pointer">
               <MetricCard
-                title="Total Kelas"
-                value="5"
-                subtitle="Kelas Binaan & Reguler"
+                title="Total Rombel"
+                value={`${kelasList.length}`}
+                subtitle="Rombongan Belajar Aktif"
                 icon={Users}
                 variant="primary"
               />
@@ -230,8 +435,8 @@ export default function GuruDashboardPage() {
             <div onClick={() => setActiveView('tugas')} className="cursor-pointer">
               <MetricCard
                 title="Tugas Perlu Dinilai"
-                value="64"
-                subtitle="Menunggu evaluasi guru"
+                value={`${pendingEvaluationCount}`}
+                subtitle="Berkas tugas menunggu respon"
                 icon={ClipboardCheck}
                 variant="white"
               />
@@ -239,175 +444,135 @@ export default function GuruDashboardPage() {
             <div onClick={() => setActiveView('tugas')} className="cursor-pointer">
               <MetricCard
                 title="Kuis Aktif"
-                value="3"
-                subtitle="Sesi penilaian berlangsung"
+                value={`${kuisCount}`}
+                subtitle="Asesmen daring aktif"
                 icon={HelpCircle}
                 variant="cyan"
               />
             </div>
-            <div onClick={() => setActiveView('absensi')} className="cursor-pointer">
+            <div onClick={() => setActiveView('materi')} className="cursor-pointer">
               <MetricCard
-                title="Kehadiran Siswa Hari Ini"
-                value="95%"
-                subtitle="800 dari 823 siswa hadir"
-                icon={UserCheck}
+                title="Materi Pembelajaran"
+                value={`${materiList.length}`}
+                subtitle="Berkas ajar tersimpan"
+                icon={BookOpen}
                 variant="success"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* Kolom Kiri: Jadwal Mengajar */}
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-blue-900" />
-                  Jadwal Mengajar Hari Ini (Senin)
+                  Jadwal Mengajar ({todayHari})
                 </h2>
-                <span className="text-xs text-slate-500 font-medium">Semester Ganjil 2026/2027</span>
               </div>
 
               <div className="space-y-3">
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-blue-300 transition-all">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 text-[11px] font-bold rounded-md bg-blue-50 text-blue-900 border border-blue-200">
-                        XII IPA 1
-                      </span>
-                      <span className="text-xs text-slate-500 font-medium">32 Siswa</span>
-                    </div>
-                    <h3 className="text-sm font-bold text-slate-900">Matematika Peminatan</h3>
-                    <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-blue-700" />
-                        07:00 - 09:00 WIB
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        Ruang R.XII-1
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:self-center">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="text-xs cursor-pointer"
-                      onClick={() => {
-                        setSelectedKelasId('f0000000-0000-0000-0000-000000000001');
-                        setActiveView('absensi');
-                      }}
+                {displayJadwal.length > 0 ? (
+                  displayJadwal.map((j) => (
+                    <div
+                      key={j.id_jadwal}
+                      className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-blue-300 transition-all"
                     >
-                      Absensi Kelas
-                    </Button>
-                  </div>
-                </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 text-[11px] font-bold rounded-md bg-blue-50 text-blue-900 border border-blue-200">
+                            {j.nama_kelas}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">{j.hari}</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-900">{j.nama_mapel}</h3>
+                        <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-blue-700" />
+                            {j.jam_mulai} - {j.jam_selesai} WIB
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            Ruang {j.ruangan}
+                          </span>
+                        </div>
+                      </div>
 
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-blue-300 transition-all">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 text-[11px] font-bold rounded-md bg-blue-50 text-blue-900 border border-blue-200">
-                        XII IPA 3
-                      </span>
-                      <span className="text-xs text-slate-500 font-medium">30 Siswa</span>
+                      <div className="flex items-center gap-2 sm:self-center">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs cursor-pointer"
+                          onClick={() => {
+                            setSelectedKelasId(j.id_kelas);
+                            handleKelasChangeForAbsensi(j.id_kelas);
+                            setActiveView('absensi');
+                          }}
+                        >
+                          Absensi Kelas
+                        </Button>
+                      </div>
                     </div>
-                    <h3 className="text-sm font-bold text-slate-900">Matematika Peminatan</h3>
-                    <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-blue-700" />
-                        09:30 - 11:30 WIB
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        Ruang R.XII-3
-                      </span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 bg-white rounded-2xl border border-slate-200 text-center text-slate-500 text-xs">
+                    Tidak ada jadwal mengajar pada sesi hari ini.
                   </div>
-
-                  <div className="flex items-center gap-2 sm:self-center">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="text-xs cursor-pointer"
-                      onClick={() => {
-                        setSelectedKelasId('f0000000-0000-0000-0000-000000000002');
-                        setActiveView('absensi');
-                      }}
-                    >
-                      Absensi Kelas
-                    </Button>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Kolom Kanan: Tugas & Bahan Ajar */}
             <div className="lg:col-span-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <ClipboardCheck className="w-5 h-5 text-amber-600" />
                   Tugas Perlu Dinilai
                 </h2>
-                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-900">
-                  2 Tugas Menunggu
-                </span>
+                {pendingEvaluationCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-900">
+                    {pendingEvaluationCount} Menunggu
+                  </span>
+                )}
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3.5">
-                <div className="pb-3 border-b border-slate-100 last:border-0 last:pb-0 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">
-                        Latihan Matriks dan Determinan Ordo 3x3
-                      </h4>
-                      <p className="text-[11px] text-slate-500">Kelas XII IPA 1</p>
-                    </div>
-                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded-md shrink-0">
-                      28/32 Mengumpulkan
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-[11px] text-slate-400">Tenggat: Kemarin, 23:59 WIB</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedTugasId('tugas-01');
-                        setActiveView('tugas');
-                      }}
-                      className="text-xs font-semibold text-blue-900 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+                {tugasPerluDinilai.length > 0 ? (
+                  tugasPerluDinilai.slice(0, 3).map((t) => (
+                    <div
+                      key={t.id_tugas_kuis}
+                      className="pb-3 border-b border-slate-100 last:border-0 last:pb-0 space-y-2"
                     >
-                      Buka Penilaian <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pb-3 border-b border-slate-100 last:border-0 last:pb-0 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">
-                        Analisis Limit Fungsi Aljabar Tak Hingga
-                      </h4>
-                      <p className="text-[11px] text-slate-500">Kelas XII IPA 3</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{t.judul}</h4>
+                          <p className="text-[11px] text-slate-500">Kelas {t.nama_kelas}</p>
+                        </div>
+                        <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded-md shrink-0">
+                          {t.jumlah_mengumpulkan}/{t.total_siswa} Mengumpulkan
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-[11px] text-slate-400">
+                          Tenggat: {t.tenggat_waktu ? t.tenggat_waktu.slice(0, 16) : '-'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTugasId(t.id_tugas_kuis);
+                            handleOpenGrading(t);
+                            setActiveView('tugas');
+                          }}
+                          className="text-xs font-semibold text-blue-900 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+                        >
+                          Buka Penilaian <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700 rounded-md shrink-0">
-                      18/30 Mengumpulkan
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-[11px] text-slate-400">Tenggat: Hari Ini, 18:00 WIB</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedTugasId('tugas-02');
-                        setActiveView('tugas');
-                      }}
-                      className="text-xs font-semibold text-blue-900 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
-                    >
-                      Buka Penilaian <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400 py-3 text-center">
+                    Semua penugasan siswa telah dinilai.
+                  </p>
+                )}
               </div>
 
               <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-xs flex items-center justify-between">
@@ -432,65 +597,85 @@ export default function GuruDashboardPage() {
         </>
       )}
 
-      {/* 2. MODUL MATERI */}
       {activeView === 'materi' && (
         <MateriModule
           materiList={materiList}
-          kelasList={KELAS_LIST}
+          kelasList={kelasList}
           onUploadMateri={() => setIsUploadOpen(true)}
-          onEditMateri={(m) => alert(`Edit materi: ${m.judul_materi}`)}
-          onDeleteMateri={(id) => setMateriList(materiList.filter((m) => m.id_materi !== id))}
-          onDownloadMateri={(m) => alert(`Mengunduh berkas ${m.judul_materi}...`)}
+          onEditMateri={(m) => {
+            const newTitle = prompt('Perbarui Judul Materi:', m.judul_materi);
+            if (newTitle && newTitle.trim()) {
+              setMateriList((prev) =>
+                prev.map((item) =>
+                  item.id_materi === m.id_materi ? { ...item, judul_materi: newTitle.trim() } : item
+                )
+              );
+              toast.success('Judul materi berhasil diubah');
+            }
+          }}
+          onDeleteMateri={handleDeleteMateri}
+          onDownloadMateri={handleDownloadMateri}
         />
       )}
 
-      {/* 3. MODUL TUGAS & PENILAIAN */}
       {activeView === 'tugas' && (
         <TugasModule
           tugasList={tugasList}
           submissionsList={submissionsList}
-          kelasList={KELAS_LIST}
+          kelasList={kelasList}
           activeTugasId={selectedTugasId}
           onClearActiveTugas={() => setSelectedTugasId(null)}
           onOpenCreateTugas={() => setIsCreateTugasOpen(true)}
+          onOpenGrading={handleOpenGrading}
           onSaveNilaiSubmission={handleSaveNilaiSubmission}
         />
       )}
 
-      {/* 4. MODUL ABSENSI */}
       {activeView === 'absensi' && (
         <AbsensiModule
           absensiList={absensiList}
-          kelasList={KELAS_LIST}
+          kelasList={kelasList}
           initialKelasId={selectedKelasId}
-          onUpdateStatusKehadiran={handleUpdateStatus}
-          onVerifyAbsensi={(kId) => alert(`Presensi kelas telah diverifikasi!`)}
+          onKelasChange={handleKelasChangeForAbsensi}
+          onDateChange={async (dateVal) => {
+            if (selectedKelasId) {
+              const data = await getAbsensiGuru(selectedKelasId, dateVal);
+              setAbsensiList(data);
+            }
+          }}
+          onUpdateStatusKehadiran={handleUpdateStatusKehadiran}
+          onVerifyAbsensi={() => {
+            setAbsensiList((prev) =>
+              prev.map((a) => (a.id_kelas === selectedKelasId ? { ...a, diverifikasi_oleh_guru: true } : a))
+            );
+            toast.success('Presensi kelas berhasil diverifikasi');
+          }}
         />
       )}
 
-      {/* 5. MODUL NILAI */}
       {activeView === 'nilai' && (
         <NilaiModule
           nilaiList={nilaiList}
-          kelasList={KELAS_LIST}
-          onUpdateNilai={(u) => setNilaiList(nilaiList.map((n) => (n.id_nilai === u.id_nilai ? u : n)))}
+          kelasList={kelasList}
+          namaMapel={currentBidangStudi}
+          onKelasChange={handleKelasChangeForNilai}
+          onUpdateNilai={handleUpdateNilai}
         />
       )}
 
-      {/* 6. POPUP MODAL UPLOAD, BUAT TUGAS & INFO BRANCH */}
       <UploadMateriModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
-        kelasList={KELAS_LIST}
-        currentBidangStudi="Matematika Peminatan"
+        kelasList={kelasList}
+        currentBidangStudi={currentBidangStudi}
         onSaveMateri={handleSaveMateri}
       />
 
       <CreateTugasModal
         isOpen={isCreateTugasOpen}
         onClose={() => setIsCreateTugasOpen(false)}
-        kelasList={KELAS_LIST}
-        currentBidangStudi="Matematika Peminatan"
+        kelasList={kelasList}
+        currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveTugas}
       />
 

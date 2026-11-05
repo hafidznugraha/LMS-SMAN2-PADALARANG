@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Award, 
   Search, 
@@ -19,14 +19,18 @@ interface NilaiModuleProps {
   nilaiList: NilaiSiswa[];
   kelasList: Kelas[];
   onUpdateNilai: (updated: NilaiSiswa) => void;
+  onKelasChange?: (kelasId: string) => void;
+  namaMapel?: string;
 }
 
 export const NilaiModule: React.FC<NilaiModuleProps> = ({
   nilaiList,
   kelasList,
   onUpdateNilai,
+  onKelasChange,
+  namaMapel,
 }) => {
-  const [selectedKelasId, setSelectedKelasId] = useState('k-12-ipa-1');
+  const [selectedKelasId, setSelectedKelasId] = useState(kelasList[0]?.id_kelas || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingStudent, setEditingStudent] = useState<NilaiSiswa | null>(null);
   const [tugasVal, setTugasVal] = useState<number>(0);
@@ -36,17 +40,22 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
   const [feedbackVal, setFeedbackVal] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!selectedKelasId && kelasList.length > 0) {
+      setSelectedKelasId(kelasList[0].id_kelas);
+    }
+  }, [kelasList, selectedKelasId]);
+
   const currentKelas = kelasList.find((k) => k.id_kelas === selectedKelasId) || kelasList[0];
 
   const classGrades = nilaiList.filter((n) => {
-    const matchesKelas = n.id_kelas === selectedKelasId;
+    const matchesKelas = !selectedKelasId || n.id_kelas === selectedKelasId;
     const matchesSearch =
       n.nama_siswa.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.nis.includes(searchQuery);
     return matchesKelas && matchesSearch;
   });
 
-  // Calculate class average
   const classAvg = classGrades.length
     ? (
         classGrades.reduce((acc, curr) => acc + curr.nilai_akhir, 0) /
@@ -79,7 +88,6 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     e.preventDefault();
     if (!editingStudent) return;
 
-    // Bobot Kurikulum: Tugas 30%, UH 20%, UTS 25%, UAS 25%
     const calculatedFinal = Number(
       (tugasVal * 0.3 + uhVal * 0.2 + utsVal * 0.25 + uasVal * 0.25).toFixed(1)
     );
@@ -102,6 +110,13 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     setEditingStudent(null);
   };
 
+  const handleSelectKelas = (kId: string) => {
+    setSelectedKelasId(kId);
+    if (onKelasChange) {
+      onKelasChange(kId);
+    }
+  };
+
   const handleExportCSV = () => {
     const headers = ['No', 'Nama Siswa', 'NIS', 'Tugas (30%)', 'UH (20%)', 'UTS (25%)', 'UAS (25%)', 'Nilai Akhir', 'Predikat', 'Feedback'];
     const rows = classGrades.map((g, idx) => [
@@ -121,7 +136,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Leger_Nilai_${currentKelas.nama_kelas}_Matematika.csv`);
+    link.setAttribute('download', `Leger_Nilai_${currentKelas?.nama_kelas || 'Kelas'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -129,14 +144,13 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Modul Penilaian Akademik Mata Pelajaran
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Pengelolaan buku nilai (Tugas, UH, UTS, UAS), pembobotan terprogram, dan konversi predikat (FR-NIL-01 s/d 04)
+            Pengelolaan buku nilai (Tugas, UH, UTS, UAS), pembobotan terprogram, dan konversi predikat
           </p>
         </div>
 
@@ -163,9 +177,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
         </div>
       )}
 
-      {/* Class Selector & Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Class Selection & Search */}
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2">
           <div className="flex gap-2">
             <div className="flex-1">
@@ -174,7 +186,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
               </label>
               <select
                 value={selectedKelasId}
-                onChange={(e) => setSelectedKelasId(e.target.value)}
+                onChange={(e) => handleSelectKelas(e.target.value)}
                 className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
                 {kelasList.map((k) => (
@@ -199,7 +211,6 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
           </div>
         </div>
 
-        {/* Average Metric Card */}
         <div className="bg-[#1d4ed8] text-white rounded-2xl p-4 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold text-blue-100 uppercase tracking-wider">
@@ -213,7 +224,6 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
           </div>
         </div>
 
-        {/* Predicate Breakdown */}
         <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs grid grid-cols-4 gap-1 text-center">
           <div className="bg-emerald-50 rounded-xl p-2">
             <span className="text-[10px] font-bold text-emerald-700">Predikat A</span>
@@ -234,13 +244,12 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
         </div>
       </div>
 
-      {/* Grade Table */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-4 h-4 text-blue-600" />
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Buku Nilai Mata Pelajaran: Matematika Peminatan ({currentKelas.nama_kelas})
+              Buku Nilai Mata Pelajaran: {namaMapel || 'Mata Pelajaran'} ({currentKelas?.nama_kelas || ''})
             </h4>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -315,7 +324,6 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
         </div>
       </div>
 
-      {/* Edit Student Grade Modal */}
       {editingStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <form
@@ -328,7 +336,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
                   Input & Koreksi Nilai Siswa
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {editingStudent.nama_siswa} • NIS: {editingStudent.nis} ({currentKelas.nama_kelas})
+                  {editingStudent.nama_siswa} • NIS: {editingStudent.nis} ({currentKelas?.nama_kelas || ''})
                 </p>
               </div>
               <button
@@ -406,7 +414,6 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
               </div>
             </div>
 
-            {/* Live calculation preview */}
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-semibold text-blue-900">
               <span>Proyeksi Nilai Akhir Otomatis:</span>
               <span className="text-base font-bold font-mono text-blue-700">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   UserCheck, 
   Calendar, 
@@ -21,6 +21,8 @@ interface AbsensiModuleProps {
   onUpdateStatusKehadiran: (idAbsensi: string, newStatus: StatusKehadiran, keterangan?: string) => void;
   onVerifyAbsensi: (kelasId: string) => void;
   initialKelasId?: string;
+  onKelasChange?: (kelasId: string) => void;
+  onDateChange?: (tanggal: string) => void;
 }
 
 export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
@@ -29,18 +31,26 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
   onUpdateStatusKehadiran,
   onVerifyAbsensi,
   initialKelasId,
+  onKelasChange,
+  onDateChange,
 }) => {
-  const [selectedKelasId, setSelectedKelasId] = useState<string>(initialKelasId || 'k-12-ipa-1');
-  const [selectedDate, setSelectedDate] = useState('2026-11-03');
+  const [selectedKelasId, setSelectedKelasId] = useState<string>(initialKelasId || kelasList[0]?.id_kelas || '');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [viewingKeterangan, setViewingKeterangan] = useState<Absensi | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (initialKelasId) {
+      setSelectedKelasId(initialKelasId);
+    } else if (!selectedKelasId && kelasList.length > 0) {
+      setSelectedKelasId(kelasList[0].id_kelas);
+    }
+  }, [initialKelasId, kelasList, selectedKelasId]);
+
   const currentKelas = kelasList.find((k) => k.id_kelas === selectedKelasId) || kelasList[0];
 
-  // Filter attendance for selected class
-  const classAttendance = absensiList.filter((a) => a.id_kelas === selectedKelasId);
+  const classAttendance = absensiList.filter((a) => !selectedKelasId || a.id_kelas === selectedKelasId);
 
-  // Counters
   const hadirCount = classAttendance.filter((a) => a.status_kehadiran === 'Hadir').length;
   const sakitCount = classAttendance.filter((a) => a.status_kehadiran === 'Sakit').length;
   const izinCount = classAttendance.filter((a) => a.status_kehadiran === 'Izin').length;
@@ -50,20 +60,33 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
 
   const handleVerify = () => {
     onVerifyAbsensi(selectedKelasId);
-    setToastMessage(`Presensi harian untuk ${currentKelas.nama_kelas} berhasil diverifikasi & dikunci oleh Guru Pengampu.`);
+    setToastMessage(`Presensi harian untuk ${currentKelas?.nama_kelas || 'kelas'} berhasil diverifikasi.`);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleSelectKelas = (kId: string) => {
+    setSelectedKelasId(kId);
+    if (onKelasChange) {
+      onKelasChange(kId);
+    }
+  };
+
+  const handleSelectDate = (dateVal: string) => {
+    setSelectedDate(dateVal);
+    if (onDateChange) {
+      onDateChange(dateVal);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Modul Presensi & Validasi Absensi Siswa
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Validasi kehadiran mandiri siswa secara langsung (real-time) sesuai FR-ABS-03 & Sequence 28
+            Validasi kehadiran siswa terintegrasi secara langsung dengan sistem
           </p>
         </div>
 
@@ -88,9 +111,7 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
         </div>
       )}
 
-      {/* Class Selection & Quick Metrics Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Class and Date Picker */}
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[140px]">
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -98,7 +119,7 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
             </label>
             <select
               value={selectedKelasId}
-              onChange={(e) => setSelectedKelasId(e.target.value)}
+              onChange={(e) => handleSelectKelas(e.target.value)}
               className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               {kelasList.map((k) => (
@@ -116,13 +137,12 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => handleSelectDate(e.target.value)}
               className="w-full px-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none"
             />
           </div>
         </div>
 
-        {/* Attendance Percentage */}
         <div className="bg-[#059669] text-white rounded-2xl p-4 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold text-emerald-100 uppercase tracking-wider">
@@ -136,7 +156,6 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
           </div>
         </div>
 
-        {/* Status Breakdown Summary */}
         <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs grid grid-cols-4 gap-1 text-center">
           <div className="bg-emerald-50 rounded-xl p-2">
             <span className="text-[10px] font-bold text-emerald-700">HADIR</span>
@@ -157,17 +176,16 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
         </div>
       </div>
 
-      {/* Attendance Verification Table */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-blue-600" />
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Daftar Presensi Kelas {currentKelas.nama_kelas}
+              Daftar Presensi Kelas {currentKelas?.nama_kelas || ''}
             </h4>
           </div>
           <span className="text-xs text-slate-500 font-medium">
-            Mata Pelajaran: Matematika Peminatan (07:00 - 09:00 WIB)
+            Tanggal Sesi: {selectedDate}
           </span>
         </div>
 
@@ -198,7 +216,6 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
                     )}
                   </td>
 
-                  {/* Interactive Status Segmented Buttons */}
                   <td className="py-3 px-4 text-center">
                     <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200 gap-0.5">
                       {(['Hadir', 'Sakit', 'Izin', 'Alfa'] as StatusKehadiran[]).map((status) => {
@@ -258,7 +275,6 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
         </div>
       </div>
 
-      {/* Keterangan & Bukti Surat Modal */}
       {viewingKeterangan && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -280,7 +296,7 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
             <div className="p-4 bg-slate-50 rounded-xl space-y-2 text-xs">
               <p className="font-bold text-slate-700">Alasan / Catatan Siswa:</p>
               <p className="text-slate-800 leading-relaxed italic bg-white p-3 rounded-lg border border-slate-200">
-                "{viewingKeterangan.keterangan}"
+                &ldquo;{viewingKeterangan.keterangan}&rdquo;
               </p>
               {viewingKeterangan.bukti_surat_url && (
                 <div className="pt-2">

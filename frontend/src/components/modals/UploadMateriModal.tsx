@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 import { uploadMateriGuru } from '../../services/guruService';
+import { getStoredUser } from '@/lib/auth';
 
 interface UploadMateriModalProps {
   isOpen: boolean;
@@ -28,62 +30,63 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
   const [fileSize, setFileSize] = useState('3.8 MB');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!idKelas && kelasList.length > 0) {
+      setIdKelas(kelasList[0].id_kelas);
+    }
+  }, [kelasList, idKelas]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!judul.trim()) return;
+    if (!judul.trim()) {
+      toast.error('Judul materi pembelajaran wajib diisi');
+      return;
+    }
 
     setIsSubmitting(true);
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
+    const user = getStoredUser();
 
     try {
-      // 1. KIRIM DATA KE SUPABASE VIA BACKEND GOLANG
+      const generatedUrl = `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`;
       const res = await uploadMateriGuru({
-        judul: judul,
-        deskripsi: deskripsi,
+        judul: judul.trim(),
+        deskripsi: deskripsi.trim(),
         tipe: formatFile.toLowerCase(),
         tipe_file: formatFile,
         ukuran_mb: parseFloat(fileSize) || 3.5,
-        file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`,
+        file_url: generatedUrl,
         kelas_id: kelasObj?.id_kelas,
+        guru_id: user?.extra?.guru_id,
+        mapel_id: user?.extra?.mapel_id || (user?.extra?.mapel as { id?: string })?.id,
       });
 
-      console.log('Respon simpan Supabase:', res);
-
-      // 2. PERBARUI TAMPILAN DI LAYAR FRONTEND
-      onSaveMateri({
-        id_guru: 'guru-irma-01',
-        id_mapel: 'mapel-mat-pem',
-        nama_mapel: currentBidangStudi,
-        id_kelas: kelasObj?.id_kelas || '',
-        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
-        judul_materi: judul,
-        deskripsi: deskripsi,
-        format_file: formatFile,
-        file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`,
-        file_size: fileSize,
-      });
-
-      alert('Berhasil! Materi telah berhasil diunggah dan disimpan ke Supabase.');
-      onClose();
+      if (res?.success) {
+        onSaveMateri({
+          id_guru: (user?.extra?.guru_id as string) || (user?.id as string) || '',
+          id_mapel: (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '',
+          nama_mapel: currentBidangStudi,
+          id_kelas: kelasObj?.id_kelas || '',
+          nama_kelas: kelasObj?.nama_kelas || 'Kelas',
+          judul_materi: judul.trim(),
+          deskripsi: deskripsi.trim(),
+          format_file: formatFile,
+          file_url: generatedUrl,
+          file_size: fileSize,
+        });
+        toast.success('Materi pembelajaran berhasil diunggah');
+        onClose();
+        setJudul('');
+        setDeskripsi('');
+        setSimulatedFileName('');
+      } else {
+        toast.error(res?.message || 'Gagal menyimpan materi ke server');
+      }
     } catch (err) {
-      console.error('Error saat menyimpan ke Supabase:', err);
-      // Tetap perbarui UI lokal jika backend sedang tidak tersambung
-      onSaveMateri({
-        id_guru: 'guru-irma-01',
-        id_mapel: 'mapel-mat-pem',
-        nama_mapel: currentBidangStudi,
-        id_kelas: kelasObj?.id_kelas || '',
-        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
-        judul_materi: judul,
-        deskripsi: deskripsi,
-        format_file: formatFile,
-        file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`,
-        file_size: fileSize,
-      });
-      alert('Materi tersimpan di tampilan lokal! (Catatan: Pastikan backend Golang aktif di terminal agar masuk ke Supabase).');
-      onClose();
+      console.error(err);
+      toast.error('Terjadi kesalahan saat mengunggah materi ke server');
     } finally {
       setIsSubmitting(false);
     }
@@ -101,7 +104,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
               Upload Materi Pembelajaran Baru
             </h3>
             <p className="text-xs text-slate-500">
-              Tersambung ke Supabase Cloud • Guru: Ibu Irma Satikarama
+              Mata Pelajaran: {currentBidangStudi}
             </p>
           </div>
           <button
@@ -208,7 +211,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
             type="button"
             disabled={isSubmitting}
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
           >
             Batal
           </button>
