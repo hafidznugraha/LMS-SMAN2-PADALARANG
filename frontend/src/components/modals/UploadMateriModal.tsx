@@ -3,14 +3,13 @@
 import React, { useState } from 'react';
 import { X, Upload, CheckCircle2, Loader2 } from 'lucide-react';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
-import { uploadMateriGuru } from '../../services/guruService';
 
 interface UploadMateriModalProps {
   isOpen: boolean;
   onClose: () => void;
   kelasList: Kelas[];
   currentBidangStudi: string;
-  onSaveMateri: (newMateri: Omit<Materi, 'id_materi' | 'tanggal_unggah' | 'unduhan_count'>) => void;
+  onSaveMateri: (newMateri: any) => void;
 }
 
 export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
@@ -25,7 +24,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
   const [deskripsi, setDeskripsi] = useState('');
   const [formatFile, setFormatFile] = useState<MateriFormat>('PDF');
   const [simulatedFileName, setSimulatedFileName] = useState('');
-  const [fileSize, setFileSize] = useState('3.8 MB');
+  const [fileSize, setFileSize] = useState('3.5 MB');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -38,52 +37,35 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
 
     try {
-      // 1. KIRIM DATA KE SUPABASE VIA BACKEND GOLANG
-      const res = await uploadMateriGuru({
-        judul: judul,
-        deskripsi: deskripsi,
-        tipe: formatFile.toLowerCase(),
-        tipe_file: formatFile,
-        ukuran_mb: parseFloat(fileSize) || 3.5,
-        file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`,
-        kelas_id: kelasObj?.id_kelas,
+      // 1. TEMBAK LANGSUNG KE BACKEND GOLANG DENGAN KOLOM SESUAI ENTITY.GO
+      const res = await fetch('http://localhost:8080/api/v1/guru/materi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guru_id: '298257fb-b4aa-4710-afaa-bbfd63abd5c5', // Bu Irma
+          mapel_id: '20000000-0000-0000-0000-000000000001', // Matematika Peminatan
+          kelas_id: kelasObj?.id_kelas || 'f0000000-0000-0000-0000-000000000001',
+          judul: judul,
+          deskripsi: deskripsi || 'Bahan ajar Matematika Peminatan',
+          tipe_file: formatFile,
+          ukuran_mb: parseFloat(fileSize) || 3.5,
+          file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi'}.${formatFile.toLowerCase()}`,
+        }),
       });
 
-      console.log('Respon simpan Supabase:', res);
+      const json = await res.json();
+      console.log('Respon Backend Supabase:', json);
 
-      // 2. PERBARUI TAMPILAN DI LAYAR FRONTEND
-      onSaveMateri({
-        id_guru: 'guru-irma-01',
-        id_mapel: 'mapel-mat-pem',
-        nama_mapel: currentBidangStudi,
-        id_kelas: kelasObj?.id_kelas || '',
-        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
-        judul_materi: judul,
-        deskripsi: deskripsi,
-        format_file: formatFile,
-        file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`,
-        file_size: fileSize,
-      });
-
-      alert('Berhasil! Materi telah berhasil diunggah dan disimpan ke Supabase.');
-      onClose();
-    } catch (err) {
-      console.error('Error saat menyimpan ke Supabase:', err);
-      // Tetap perbarui UI lokal jika backend sedang tidak tersambung
-      onSaveMateri({
-        id_guru: 'guru-irma-01',
-        id_mapel: 'mapel-mat-pem',
-        nama_mapel: currentBidangStudi,
-        id_kelas: kelasObj?.id_kelas || '',
-        nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
-        judul_materi: judul,
-        deskripsi: deskripsi,
-        format_file: formatFile,
-        file_url: `https://storage.sman2padalarang.sch.id/materi/${simulatedFileName || 'berkas_materi_ajar'}.${formatFile.toLowerCase()}`,
-        file_size: fileSize,
-      });
-      alert('Materi tersimpan di tampilan lokal! (Catatan: Pastikan backend Golang aktif di terminal agar masuk ke Supabase).');
-      onClose();
+      if (json.success) {
+        alert('BERHASIL! Materi baru telah disimpan ke Supabase.');
+        onSaveMateri(json.data); // Panggil refresh di halaman
+        onClose();
+      } else {
+        alert('Gagal dari backend: ' + json.message);
+      }
+    } catch (err: any) {
+      console.error('Koneksi backend gagal:', err);
+      alert('Gagal menghubungi backend di port 8080. Pastikan go run cmd/api/main.go sedang menyala di terminal!');
     } finally {
       setIsSubmitting(false);
     }
@@ -208,7 +190,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
             type="button"
             disabled={isSubmitting}
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
           >
             Batal
           </button>
