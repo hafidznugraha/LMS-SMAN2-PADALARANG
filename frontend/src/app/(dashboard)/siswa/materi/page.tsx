@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { fetchAPI } from "@/lib/api";
 import { useSiswaMateri } from "@/hooks/useSiswaMateri";
 import { cn, formatTanggal, getMapelBadgeClass } from "@/lib/utils";
-import type { APIResponse, SiswaMateriDownload } from "@/types/api";
+import type { APIResponse, SiswaMateri, SiswaMateriDownload } from "@/types/api";
 
 function formatUkuran(mb: number) {
   if (!mb) return "";
@@ -67,7 +67,12 @@ export default function SiswaMateriPage() {
     setMapelId("");
   }
 
-  const items = data?.items ?? [];
+  const items: SiswaMateri[] = Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray(data)
+    ? (data as unknown as SiswaMateri[])
+    : [];
+  const mapelList = Array.isArray(data?.mapel) ? data.mapel : [];
   const adaFilter = Boolean(search || mapelId);
 
   return (
@@ -92,7 +97,7 @@ export default function SiswaMateriPage() {
         />
       </div>
 
-      {data && data.mapel.length > 0 && (
+      {mapelList.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button
             type="button"
@@ -106,7 +111,7 @@ export default function SiswaMateriPage() {
           >
             Semua
           </button>
-          {data.mapel.map((m) => (
+          {mapelList.map((m) => (
             <button
               key={m.id}
               type="button"

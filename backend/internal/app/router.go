@@ -69,9 +69,6 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	api.Get("/health", handler.HealthCheckHandler)
 
-	api.Get("/siswa/tugas", guruHandler.GetTugasSiswa)
-	api.Get("/siswa/materi", guruHandler.GetMateriList)
-	api.Get("/siswa/materi/:id/download", guruHandler.DownloadMateri)
 	api.Get("/materi", guruHandler.GetMateriList)
 	api.Get("/materi/:id/download", guruHandler.DownloadMateri)
 
