@@ -41,299 +41,6 @@ import {
   PengaturanSekolah,
 } from "@/types";
 
-const INITIAL_REPORT_DATA: LaporanAkademik[] = [
-  {
-    id: "60000000-0000-0000-0000-000000000001",
-    siswa_id: "10000000-0000-0000-0000-000000000001",
-    nis: "24251001",
-    nisn: "0067891234",
-    nama_siswa: "Laura Firdaus",
-    jenis_kelamin: "Perempuan",
-    kelas_id: "f0000000-0000-0000-0000-000000000001",
-    nama_kelas: "XII IPA 1",
-    tingkat: 12,
-    jurusan: "MIPA",
-    wali_kelas_nama: "Budi Santoso, S.Pd",
-    semester: "Ganjil",
-    tahun_ajaran: "2026/2027",
-    nilai_pengetahuan: 88.5,
-    nilai_keterampilan: 89.0,
-    rata_rata_akhir: 88.75,
-    predikat_akhir: "A",
-    deskripsi_nilai: "Memiliki pemahaman komprehensif dalam mata pelajaran eksakta dan keterampilan analisis yang sangat matang.",
-    catatan_wali: "Menunjukkan dedikasi tinggi, konsisten hadir tepat waktu, dan aktif memimpin kelompok diskusi.",
-    status_laporan: "DitinjauWali",
-    kehadiran: {
-      hadir: 98,
-      sakit: 1,
-      izin: 1,
-      alfa: 0,
-      persentase: 98,
-    },
-    nilai_mapel: [
-      {
-        kode_mapel: "MTK-XII",
-        nama_mapel: "Matematika Peminatan",
-        kategori: "Eksakta",
-        pengetahuan: 89,
-        keterampilan: 90.5,
-        nilai_akhir: 89,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Matematika Peminatan.",
-      },
-      {
-        kode_mapel: "FIS-XII",
-        nama_mapel: "Fisika",
-        kategori: "Eksakta",
-        pengetahuan: 89,
-        keterampilan: 90.5,
-        nilai_akhir: 89,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Fisika.",
-      },
-      {
-        kode_mapel: "BIO-XII",
-        nama_mapel: "Biologi",
-        kategori: "Eksakta",
-        pengetahuan: 88,
-        keterampilan: 89.5,
-        nilai_akhir: 88,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Biologi.",
-      },
-    ],
-  },
-  {
-    id: "60000000-0000-0000-0000-000000000002",
-    siswa_id: "10000000-0000-0000-0000-000000000002",
-    nis: "24251020",
-    nisn: "0067891235",
-    nama_siswa: "Ahmad Fikri Ramadhan",
-    jenis_kelamin: "Laki-laki",
-    kelas_id: "f0000000-0000-0000-0000-000000000001",
-    nama_kelas: "XII IPA 1",
-    tingkat: 12,
-    jurusan: "MIPA",
-    wali_kelas_nama: "Budi Santoso, S.Pd",
-    semester: "Ganjil",
-    tahun_ajaran: "2026/2027",
-    nilai_pengetahuan: 84.0,
-    nilai_keterampilan: 86.0,
-    rata_rata_akhir: 85.0,
-    predikat_akhir: "B",
-    deskripsi_nilai: "Mencapai ketuntasan kompetensi dengan performa stabil pada penilaian tugas dan ujian.",
-    catatan_wali: "Rajin berdiskusi di kelas, pertahankan antusiasme dan ketelitian dalam pengerjaan tugas eksakta.",
-    status_laporan: "DitinjauWali",
-    kehadiran: {
-      hadir: 95,
-      sakit: 1,
-      izin: 1,
-      alfa: 0,
-      persentase: 95,
-    },
-    nilai_mapel: [
-      {
-        kode_mapel: "MTK-XII",
-        nama_mapel: "Matematika Peminatan",
-        kategori: "Eksakta",
-        pengetahuan: 85,
-        keterampilan: 86.5,
-        nilai_akhir: 85,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Matematika Peminatan.",
-      },
-      {
-        kode_mapel: "FIS-XII",
-        nama_mapel: "Fisika",
-        kategori: "Eksakta",
-        pengetahuan: 84,
-        keterampilan: 85.5,
-        nilai_akhir: 84,
-        predikat: "B",
-        capaian: "Menunjukkan penguasaan kompetensi yang baik pada materi Fisika.",
-      },
-      {
-        kode_mapel: "BIO-XII",
-        nama_mapel: "Biologi",
-        kategori: "Eksakta",
-        pengetahuan: 86,
-        keterampilan: 87.5,
-        nilai_akhir: 86,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Biologi.",
-      },
-    ],
-  },
-  {
-    id: "60000000-0000-0000-0000-000000000003",
-    siswa_id: "59a387a5-3d69-46b8-a6e0-1c3c7a0f1245",
-    nis: "12456787",
-    nisn: "0086752417",
-    nama_siswa: "karina jean",
-    jenis_kelamin: "Laki-laki",
-    kelas_id: "f0000000-0000-0000-0000-000000000001",
-    nama_kelas: "XII IPA 1",
-    tingkat: 12,
-    jurusan: "MIPA",
-    wali_kelas_nama: "Budi Santoso, S.Pd",
-    semester: "Ganjil",
-    tahun_ajaran: "2026/2027",
-    nilai_pengetahuan: 81.0,
-    nilai_keterampilan: 83.0,
-    rata_rata_akhir: 82.0,
-    predikat_akhir: "B",
-    deskripsi_nilai: "Kompetensi dasar tercapai, terdapat satu tugas Biologi yang memerlukan perbaikan rubrik.",
-    catatan_wali: "Tingkatkan kehadiran pada sesi praktikum laboratorium di semester berikutnya.",
-    status_laporan: "Draf",
-    catatan_revisi: "Perlu konfirmasi ulang nilai praktikum Biologi",
-    kehadiran: {
-      hadir: 91,
-      sakit: 2,
-      izin: 1,
-      alfa: 0,
-      persentase: 91,
-    },
-    nilai_mapel: [
-      {
-        kode_mapel: "MTK-XII",
-        nama_mapel: "Matematika Peminatan",
-        kategori: "Eksakta",
-        pengetahuan: 81,
-        keterampilan: 83,
-        nilai_akhir: 82,
-        predikat: "B",
-        capaian: "Memiliki pemahaman dan keterampilan belajar memuaskan pada mata pelajaran Matematika Peminatan.",
-      },
-      {
-        kode_mapel: "FIS-XII",
-        nama_mapel: "Fisika",
-        kategori: "Eksakta",
-        pengetahuan: 81,
-        keterampilan: 83,
-        nilai_akhir: 82,
-        predikat: "B",
-        capaian: "Memiliki pemahaman dan keterampilan belajar memuaskan pada mata pelajaran Fisika.",
-      },
-      {
-        kode_mapel: "BIO-XII",
-        nama_mapel: "Biologi",
-        kategori: "Eksakta",
-        pengetahuan: 81,
-        keterampilan: 83,
-        nilai_akhir: 82,
-        predikat: "B",
-        capaian: "Memiliki pemahaman dan keterampilan belajar memuaskan pada mata pelajaran Biologi.",
-      },
-    ],
-  },
-  {
-    id: "60000000-0000-0000-0000-000000000004",
-    siswa_id: "10000000-0000-0000-0000-000000000003",
-    nis: "24251021",
-    nisn: "0067891236",
-    nama_siswa: "Nabila Putri Salsabila",
-    jenis_kelamin: "Perempuan",
-    kelas_id: "f0000000-0000-0000-0000-000000000002",
-    nama_kelas: "XII IPA 3",
-    tingkat: 12,
-    jurusan: "MIPA",
-    wali_kelas_nama: "Dr. Siti Aminah, M.Pd",
-    semester: "Ganjil",
-    tahun_ajaran: "2026/2027",
-    nilai_pengetahuan: 91.0,
-    nilai_keterampilan: 91.5,
-    rata_rata_akhir: 91.25,
-    predikat_akhir: "A",
-    deskripsi_nilai: "Unggul dalam analisis kuantitatif dan penalaran sains secara komprehensif.",
-    catatan_wali: "Prestasi akademik cemerlang dan memiliki integritas belajar yang sangat baik.",
-    status_laporan: "DisahkanKurikulum",
-    disahkan_pada: "2026-11-04T03:00:00Z",
-    disahkan_oleh: "Drs. Herman Wijaya, M.M",
-    kehadiran: {
-      hadir: 98,
-      sakit: 1,
-      izin: 1,
-      alfa: 0,
-      persentase: 98,
-    },
-    nilai_mapel: [
-      {
-        kode_mapel: "MTK-XII",
-        nama_mapel: "Matematika Peminatan",
-        kategori: "Eksakta",
-        pengetahuan: 92,
-        keterampilan: 93.5,
-        nilai_akhir: 92,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Matematika Peminatan.",
-      },
-      {
-        kode_mapel: "FIS-XII",
-        nama_mapel: "Fisika",
-        kategori: "Eksakta",
-        pengetahuan: 90,
-        keterampilan: 91.5,
-        nilai_akhir: 90,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Fisika.",
-      },
-    ],
-  },
-  {
-    id: "60000000-0000-0000-0000-000000000005",
-    siswa_id: "10000000-0000-0000-0000-000000000004",
-    nis: "24251022",
-    nisn: "0067891237",
-    nama_siswa: "Dimas Raya Pratama",
-    jenis_kelamin: "Laki-laki",
-    kelas_id: "f0000000-0000-0000-0000-000000000002",
-    nama_kelas: "XII IPA 3",
-    tingkat: 12,
-    jurusan: "MIPA",
-    wali_kelas_nama: "Dr. Siti Aminah, M.Pd",
-    semester: "Ganjil",
-    tahun_ajaran: "2026/2027",
-    nilai_pengetahuan: 87.5,
-    nilai_keterampilan: 88.5,
-    rata_rata_akhir: 88.0,
-    predikat_akhir: "A",
-    deskripsi_nilai: "Tuntas pada seluruh capaian pembelajaran dengan keunggulan pada bidang kognitif.",
-    catatan_wali: "Pertahankan etos belajar yang konsisten dan aktif berkontribusi positif.",
-    status_laporan: "DisahkanKurikulum",
-    disahkan_pada: "2026-11-04T03:00:00Z",
-    disahkan_oleh: "Drs. Herman Wijaya, M.M",
-    kehadiran: {
-      hadir: 98,
-      sakit: 1,
-      izin: 1,
-      alfa: 0,
-      persentase: 98,
-    },
-    nilai_mapel: [
-      {
-        kode_mapel: "MTK-XII",
-        nama_mapel: "Matematika Peminatan",
-        kategori: "Eksakta",
-        pengetahuan: 88,
-        keterampilan: 89.5,
-        nilai_akhir: 88,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Matematika Peminatan.",
-      },
-      {
-        kode_mapel: "BIO-XII",
-        nama_mapel: "Biologi",
-        kategori: "Eksakta",
-        pengetahuan: 89,
-        keterampilan: 90.5,
-        nilai_akhir: 89,
-        predikat: "A",
-        capaian: "Sangat unggul dan teliti dalam menganalisis materi Biologi.",
-      },
-    ],
-  },
-];
-
 interface ApiSummaryData {
   total_siswa: number;
   total_disahkan: number;
@@ -359,7 +66,7 @@ interface ApiSummaryData {
 export default function VerifikasiRaportPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
-  const [laporanList, setLaporanList] = useState<LaporanAkademik[]>(INITIAL_REPORT_DATA);
+  const [laporanList, setLaporanList] = useState<LaporanAkademik[]>([]);
   const [apiSummary, setApiSummary] = useState<ApiSummaryData | null>(null);
   const [selectedKelasFilter, setSelectedKelasFilter] = useState<string>("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("");
@@ -485,9 +192,12 @@ export default function VerifikasiRaportPage() {
       if (listRes?.data && listRes.data.length > 0) {
         const mapped = listRes.data.map(mapResponseToLaporan);
         setLaporanList(mapped);
+      } else {
+        setLaporanList([]);
       }
     } catch (err: any) {
-      console.warn("Gagal terhubung ke API backend, menggunakan data lokal:", err?.message);
+      console.warn("Gagal terhubung ke API backend:", err?.message);
+      setLaporanList([]);
     } finally {
       setIsLoading(false);
     }
@@ -504,12 +214,12 @@ export default function VerifikasiRaportPage() {
         const res = await fetchAPI<{ data: Kelas[] }>("/master/kelas");
         if (res.data && res.data.length > 0) {
           setKelasList(res.data);
+        } else {
+          setKelasList([]);
         }
-      } catch {
-        setKelasList([
-          { id: "f0000000-0000-0000-0000-000000000001", nama_kelas: "XII IPA 1", tingkat: 12, jurusan: "MIPA" },
-          { id: "f0000000-0000-0000-0000-000000000002", nama_kelas: "XII IPA 3", tingkat: 12, jurusan: "MIPA" },
-        ]);
+      } catch (err: any) {
+        console.warn("Gagal memuat master data kelas:", err?.message);
+        setKelasList([]);
       }
     }
 
@@ -542,10 +252,7 @@ export default function VerifikasiRaportPage() {
       });
     }
 
-    const classes = kelasList.length > 0 ? kelasList : [
-      { id: "f0000000-0000-0000-0000-000000000001", nama_kelas: "XII IPA 1", tingkat: 12, jurusan: "MIPA" },
-      { id: "f0000000-0000-0000-0000-000000000002", nama_kelas: "XII IPA 3", tingkat: 12, jurusan: "MIPA" },
-    ];
+    const classes = kelasList;
 
     return classes.map((k) => {
       const siswaInKelas = laporanList.filter(
@@ -626,41 +333,21 @@ export default function VerifikasiRaportPage() {
           });
           toast.success(`Rapor ${laporan.nama_siswa} berhasil disahkan dan dikunci resmi!`);
           await loadData();
-        } catch {
-          const timestamp = new Date().toLocaleString("id-ID", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          });
-          const adminName = currentUser?.nama_lengkap || "Drs. Herman Wijaya, M.M";
-
-          setLaporanList((prev) =>
-            prev.map((item) =>
-              item.id === laporan.id
+          if (activeModalLaporan?.id === laporan.id) {
+            setActiveModalLaporan((prev) =>
+              prev
                 ? {
-                    ...item,
+                    ...prev,
                     status_laporan: "DisahkanKurikulum",
-                    disahkan_pada: `${timestamp} WIB`,
-                    disahkan_oleh: `${adminName} (Waka Kurikulum)`,
+                    disahkan_pada: new Date().toISOString(),
+                    disahkan_oleh: currentUser?.nama_lengkap || pengaturan?.waka_kurikulum || "Kurikulum",
                     catatan_revisi: undefined,
                   }
-                : item
-            )
-          );
-          toast.success(`Rapor ${laporan.nama_siswa} berhasil disahkan dan dikunci resmi!`);
-        }
-
-        if (activeModalLaporan?.id === laporan.id) {
-          setActiveModalLaporan((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  status_laporan: "DisahkanKurikulum",
-                  disahkan_pada: new Date().toISOString(),
-                  disahkan_oleh: currentUser?.nama_lengkap || "Drs. Herman Wijaya, M.M",
-                  catatan_revisi: undefined,
-                }
-              : null
-          );
+                : null
+            );
+          }
+        } catch (err: unknown) {
+          toast.error(err instanceof Error ? err.message : "Gagal mengesahkan rapor");
         }
         setConfirmModalState((p) => ({ ...p, isOpen: false }));
       },
@@ -695,28 +382,8 @@ export default function VerifikasiRaportPage() {
           });
           toast.success(`Berhasil mengesahkan ${unapproved.length} rapor siswa rombel ${kelasName}!`);
           await loadData();
-        } catch {
-          const timestamp = new Date().toLocaleString("id-ID", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          });
-          const adminName = currentUser?.nama_lengkap || "Drs. Herman Wijaya, M.M";
-
-          setLaporanList((prev) =>
-            prev.map((item) => {
-              if (item.kelas_id === kelasId || item.nama_kelas === kelasName) {
-                return {
-                  ...item,
-                  status_laporan: "DisahkanKurikulum",
-                  disahkan_pada: `${timestamp} WIB`,
-                  disahkan_oleh: `${adminName} (Waka Kurikulum)`,
-                  catatan_revisi: undefined,
-                };
-              }
-              return item;
-            })
-          );
-          toast.success(`Berhasil mengesahkan ${unapproved.length} rapor siswa rombel ${kelasName}!`);
+        } catch (err: unknown) {
+          toast.error(err instanceof Error ? err.message : `Gagal mengesahkan rapor kelas ${kelasName}`);
         }
         setConfirmModalState((p) => ({ ...p, isOpen: false }));
       },
@@ -748,23 +415,8 @@ export default function VerifikasiRaportPage() {
           });
           toast.success(`Berhasil mengesahkan ${pendingTotal} rapor siswa tingkat sekolah!`);
           await loadData();
-        } catch {
-          const timestamp = new Date().toLocaleString("id-ID", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          });
-          const adminName = currentUser?.nama_lengkap || "Drs. Herman Wijaya, M.M";
-
-          setLaporanList((prev) =>
-            prev.map((item) => ({
-              ...item,
-              status_laporan: "DisahkanKurikulum",
-              disahkan_pada: `${timestamp} WIB`,
-              disahkan_oleh: `${adminName} (Waka Kurikulum)`,
-              catatan_revisi: undefined,
-            }))
-          );
-          toast.success(`Berhasil mengesahkan ${pendingTotal} rapor siswa tingkat sekolah!`);
+        } catch (err: unknown) {
+          toast.error(err instanceof Error ? err.message : "Gagal mengesahkan seluruh rapor sekolah");
         }
         setConfirmModalState((p) => ({ ...p, isOpen: false }));
       },
@@ -794,31 +446,19 @@ export default function VerifikasiRaportPage() {
       });
       toast.warning(`Rapor ${revisiTargetLaporan.nama_siswa} dikembalikan ke Wali Kelas untuk revisi.`);
       await loadData();
-    } catch {
-      setLaporanList((prev) =>
-        prev.map((item) =>
-          item.id === revisiTargetLaporan.id
+      if (activeModalLaporan?.id === revisiTargetLaporan.id) {
+        setActiveModalLaporan((prev) =>
+          prev
             ? {
-                ...item,
+                ...prev,
                 status_laporan: "Draf",
                 catatan_revisi: revisiNoteInput.trim(),
               }
-            : item
-        )
-      );
-      toast.warning(`Rapor ${revisiTargetLaporan.nama_siswa} dikembalikan ke Wali Kelas untuk revisi.`);
-    }
-
-    if (activeModalLaporan?.id === revisiTargetLaporan.id) {
-      setActiveModalLaporan((prev) =>
-        prev
-          ? {
-              ...prev,
-              status_laporan: "Draf",
-              catatan_revisi: revisiNoteInput.trim(),
-            }
-          : null
-      );
+            : null
+        );
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Gagal mengembalikan rapor untuk revisi");
     }
 
     setIsRevisiModalOpen(false);
@@ -971,7 +611,12 @@ export default function VerifikasiRaportPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {rombelSummaries.map((rombel) => {
+          {rombelSummaries.length === 0 ? (
+            <div className="md:col-span-2 py-8 bg-white rounded-2xl border border-slate-200/80 text-center text-slate-400 text-xs">
+              Belum ada data rombel kelas atau leger yang tersedia untuk semester ini.
+            </div>
+          ) : (
+            rombelSummaries.map((rombel) => {
             const isCompleted = rombel.status_rombel === "DisahkanKurikulum";
             const percent = rombel.total_siswa > 0 ? Math.round((rombel.disahkan_count / rombel.total_siswa) * 100) : 0;
 
@@ -1036,7 +681,8 @@ export default function VerifikasiRaportPage() {
                 </div>
               </div>
             );
-          })}
+          })
+        )}
         </div>
       </div>
 

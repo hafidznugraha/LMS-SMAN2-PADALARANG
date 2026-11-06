@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,44 +37,69 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	mapelID := c.Query("mapel_id")
 	guruID := c.Query("guru_id")
 
+	type MateriDetailResponse struct {
+		ID            uuid.UUID `json:"id"`
+		IDMateri      string    `json:"id_materi"`
+		GuruID        uuid.UUID `json:"guru_id"`
+		IDGuru        string    `json:"id_guru"`
+		MapelID       uuid.UUID `json:"mapel_id"`
+		IDMapel       string    `json:"id_mapel"`
+		NamaMapel     string    `json:"nama_mapel"`
+		KelasID       uuid.UUID `json:"kelas_id"`
+		IDKelas       string    `json:"id_kelas"`
+		NamaKelas     string    `json:"nama_kelas"`
+		Judul         string    `json:"judul"`
+		JudulMateri   string    `json:"judul_materi"`
+		Deskripsi     string    `json:"deskripsi"`
+		FileURL       string    `json:"file_url"`
+		TipeFile      string    `json:"tipe_file"`
+		FormatFile    string    `json:"format_file"`
+		UkuranMB      float64   `json:"ukuran_mb"`
+		JumlahMelihat int       `json:"jumlah_melihat"`
+		UnduhanCount  int       `json:"unduhan_count"`
+		TanggalUnggah string    `json:"tanggal_unggah"`
+		CreatedAt     time.Time `json:"created_at"`
+	}
+
 	query := db.Table("materi m").
 		Select(`
 			m.id,
+			m.id as id_materi,
 			m.guru_id,
+			m.guru_id as id_guru,
 			m.mapel_id,
-			COALESCE(mp.nama_mapel, 'Matematika Peminatan') as nama_mapel,
+			m.mapel_id as id_mapel,
+			COALESCE(mp.nama_mapel, 'Mata Pelajaran') as nama_mapel,
 			m.kelas_id,
-			COALESCE(k.nama_kelas, 'XII IPA 1') as nama_kelas,
+			m.kelas_id as id_kelas,
+			COALESCE(k.nama_kelas, 'Semua Kelas') as nama_kelas,
 			m.judul,
+			m.judul as judul_materi,
 			m.deskripsi,
 			m.file_url,
-			m.tipe_file,
-			m.ukuran_mb,
-			m.jumlah_melihat,
+			COALESCE(m.tipe_file, 'PDF') as tipe_file,
+			COALESCE(m.tipe_file, 'PDF') as format_file,
+			COALESCE(m.ukuran_mb, 0) as ukuran_mb,
+			COALESCE(m.jumlah_melihat, 0) as jumlah_melihat,
+			COALESCE(m.jumlah_melihat, 0) as unduhan_count,
+			to_char(m.created_at, 'YYYY-MM-DD HH24:MI') as tanggal_unggah,
 			m.created_at
 		`).
-		Joins("LEFT JOIN kelas k ON k.id = m.kelas_id").
 		Joins("LEFT JOIN mata_pelajaran mp ON mp.id = m.mapel_id").
-		Order("m.created_at DESC")
+		Joins("LEFT JOIN kelas k ON k.id = m.kelas_id")
 
-	if kelasID != "" {
-		if kelasUUID, err := uuid.Parse(kelasID); err == nil {
-			query = query.Where("m.kelas_id = ?", kelasUUID)
-		}
+	if kelasUUID, err := uuid.Parse(kelasID); err == nil {
+		query = query.Where("m.kelas_id = ?", kelasUUID)
 	}
-	if mapelID != "" {
-		if mapelUUID, err := uuid.Parse(mapelID); err == nil {
-			query = query.Where("m.mapel_id = ?", mapelUUID)
-		}
+	if mapelUUID, err := uuid.Parse(mapelID); err == nil {
+		query = query.Where("m.mapel_id = ?", mapelUUID)
 	}
-	if guruID != "" {
-		if guruUUID, err := uuid.Parse(guruID); err == nil {
-			query = query.Where("m.guru_id = ?", guruUUID)
-		}
+	if guruUUID, err := uuid.Parse(guruID); err == nil {
+		query = query.Where("m.guru_id = ?", guruUUID)
 	}
 
-	var materiList []model.MateriDetailResponse
-	if err := query.Scan(&materiList).Error; err != nil {
+	var materiList []MateriDetailResponse
+	if err := query.Order("m.created_at DESC").Scan(&materiList).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal mengambil daftar materi dari Supabase",
@@ -129,7 +155,12 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 
 	guruUUID, err := uuid.Parse(req.GuruID)
 	if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Bu Irma
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback ke Bu Irma
+	}
+
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1
 	}
 
 	mapelUUID, err := uuid.Parse(req.MapelID)
@@ -140,11 +171,6 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 		} else {
 			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001") // MTK Peminatan
 		}
-	}
-
-	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // XII IPA 1
 	}
 
 	tipeFile := strings.TrimSpace(req.TipeFile)
@@ -335,27 +361,27 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
-	// 1. Validasi UUID Guru Bu Irma
+	// 1. Validasi UUID Guru
 	guruUUID, err := uuid.Parse(req.GuruID)
 	if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5")
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback ke Bu Irma jika tidak ada
 	}
 
-	// 2. Validasi UUID Mapel Matematika Peminatan
+	// 2. Kunci Kelas yang dipilih Guru
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1 jika kosong
+	}
+
+	// 3. Validasi UUID Mapel
 	mapelUUID, err := uuid.Parse(req.MapelID)
 	if err != nil {
 		var guru model.Guru
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
 		} else {
-			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001")
+			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001") // MTK Peminatan
 		}
-	}
-
-	// 3. KUNCI KELAS: Simpan persis sesuai kelas yang dipilih Guru
-	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1 jika kosong
 	}
 
 	deadlineStr := strings.TrimSpace(req.Deadline)
@@ -455,7 +481,164 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 	})
 }
 
-// 6. GET /api/v1/guru/tugas/:id/submissions - Lembar pengumpulan tugas (Hanya siswa kelas bersangkutan)
+// 6. PUT /api/v1/guru/tugas/:id - Memperbarui data tugas di Supabase
+func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	targetID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID tugas tidak valid",
+		})
+	}
+
+	var req model.UpdateTugasRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format data tugas tidak valid: " + err.Error(),
+		})
+	}
+
+	db := repository.GetDB()
+	var existing model.Tugas
+	if err := db.Where("id = ?", targetID).First(&existing).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	if strings.TrimSpace(req.Judul) != "" {
+		existing.Judul = strings.TrimSpace(req.Judul)
+	}
+	deskripsi := strings.TrimSpace(req.Deskripsi)
+	if deskripsi == "" {
+		deskripsi = strings.TrimSpace(req.Instruksi)
+	}
+	if deskripsi != "" {
+		existing.Deskripsi = deskripsi
+	}
+	if kelasUUID, err := uuid.Parse(req.KelasID); err == nil && kelasUUID != uuid.Nil {
+		existing.KelasID = kelasUUID
+	}
+	if mapelUUID, err := uuid.Parse(req.MapelID); err == nil && mapelUUID != uuid.Nil {
+		existing.MapelID = mapelUUID
+	}
+
+	deadlineStr := strings.TrimSpace(req.Deadline)
+	if deadlineStr == "" {
+		deadlineStr = strings.TrimSpace(req.TenggatWaktu)
+	}
+	if deadlineStr != "" {
+		layouts := []string{
+			"2006-01-02 15:04:05",
+			"2006-01-02 15:04",
+			"2006-01-02T15:04:05Z07:00",
+			"2006-01-02T15:04:05.000Z",
+			"2006-01-02T15:04:05Z",
+			"2006-01-02",
+		}
+		for _, layout := range layouts {
+			t, errParse := time.Parse(layout, deadlineStr)
+			if errParse == nil {
+				existing.Deadline = t
+				break
+			}
+		}
+	}
+
+	if err := db.Save(&existing).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal memperbarui tugas: " + err.Error(),
+			Error:   err.Error(),
+		})
+	}
+
+	var detail model.TugasDetailResponse
+	queryDetail := `
+		SELECT 
+			t.id,
+			t.id as id_tugas_kuis,
+			t.guru_id,
+			t.guru_id as id_guru,
+			t.mapel_id,
+			t.mapel_id as id_mapel,
+			COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel,
+			COALESCE(m.kode_mapel, '') as kode_mapel,
+			t.kelas_id,
+			t.kelas_id as id_kelas,
+			COALESCE(k.nama_kelas, 'Kelas') as nama_kelas,
+			t.judul,
+			t.deskripsi,
+			t.deskripsi as instruksi,
+			CASE 
+				WHEN LOWER(t.judul) LIKE '%kuis%' THEN 'Kuis'
+				WHEN LOWER(t.judul) LIKE '%proyek%' THEN 'Proyek'
+				ELSE 'Tugas'
+			END as jenis,
+			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
+			t.deadline,
+			'pdf, docx' as format_file,
+			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
+			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
+			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
+			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id AND pt.status = 'dinilai') as jumlah_dinilai,
+			t.created_at
+		FROM tugas t
+		LEFT JOIN mata_pelajaran m ON m.id = t.mapel_id
+		LEFT JOIN kelas k ON k.id = t.kelas_id
+		WHERE t.id = ?
+	`
+	_ = db.Raw(queryDetail, targetID).Scan(&detail)
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Tugas berhasil diperbarui",
+		Data:    detail,
+	})
+}
+
+// 7. DELETE /api/v1/guru/tugas/:id - Menghapus tugas dan pengumpulan terkait
+func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	targetID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID tugas tidak valid",
+		})
+	}
+
+	db := repository.GetDB()
+
+	// Hapus seluruh pengumpulan tugas terlebih dahulu jika ada
+	_ = db.Where("tugas_id = ?", targetID).Delete(&model.PengumpulanTugas{}).Error
+
+	// Hapus tugas
+	res := db.Delete(&model.Tugas{}, "id = ?", targetID)
+	if res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menghapus tugas: " + res.Error.Error(),
+			Error:   res.Error.Error(),
+		})
+	}
+	if res.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Tugas berhasil dihapus",
+	})
+}
+
+// 8. GET /api/v1/guru/tugas/:id/submissions - Lembar pengumpulan tugas (Hanya siswa kelas bersangkutan)
 func (h *GuruHandler) GetTugasSubmissions(c *fiber.Ctx) error {
 	tugasIDStr := c.Params("id")
 	tugasUUID, err := uuid.Parse(tugasIDStr)
@@ -524,7 +707,7 @@ func (h *GuruHandler) GetTugasSubmissions(c *fiber.Ctx) error {
 	})
 }
 
-// 7. GET /api/v1/siswa/tugas - Siswa HANYA BISA MELIHAT tugas dari kelasnya sendiri
+// 9. GET /api/v1/siswa/tugas - Siswa HANYA BISA MELIHAT tugas dari kelasnya sendiri
 func (h *GuruHandler) GetTugasSiswa(c *fiber.Ctx) error {
 	kelasIDStr := c.Query("kelas_id")
 	kelasUUID, err := uuid.Parse(kelasIDStr)
@@ -553,7 +736,7 @@ func (h *GuruHandler) GetTugasSiswa(c *fiber.Ctx) error {
 	})
 }
 
-// 8. PUT /api/v1/guru/submissions/:id/grade - Guru menilai tugas siswa
+// 10. PUT /api/v1/guru/submissions/:id/grade - Guru menilai tugas siswa
 func (h *GuruHandler) GradeSubmission(c *fiber.Ctx) error {
 	subIDStr := c.Params("id")
 	subUUID, err := uuid.Parse(subIDStr)
@@ -705,7 +888,7 @@ func (h *GuruHandler) GradeSubmission(c *fiber.Ctx) error {
 	})
 }
 
-// 9. GET /api/v1/guru/absensi - Rekap presensi siswa kelas
+// 11. GET /api/v1/guru/absensi - Rekap presensi siswa kelas
 func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	kelasIDStr := c.Params("kelas_id")
 	if kelasIDStr == "" {
@@ -720,14 +903,42 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 	type AbsensiRow struct {
-		model.Absensi
-		NamaSiswa string `json:"nama_siswa"`
-		NIS       string `json:"nis"`
+		ID                   uuid.UUID `json:"id"`
+		IDAbsensi            string    `json:"id_absensi"`
+		SiswaID              uuid.UUID `json:"siswa_id"`
+		IDSiswa              string    `json:"id_siswa"`
+		NamaSiswa            string    `json:"nama_siswa"`
+		NIS                  string    `json:"nis"`
+		KelasID              uuid.UUID `json:"kelas_id"`
+		IDKelas              string    `json:"id_kelas"`
+		Tanggal              string    `json:"tanggal"`
+		Waktu                string    `json:"waktu"`
+		StatusKehadiran      string    `json:"status_kehadiran"`
+		Keterangan           string    `json:"keterangan"`
+		DiverifikasiOlehGuru bool      `json:"diverifikasi_oleh_guru"`
 	}
 
 	var rows []AbsensiRow
 	errQuery := db.Raw(`
-		SELECT a.*, u.nama_lengkap as nama_siswa, s.nis
+		SELECT 
+			a.id,
+			a.id as id_absensi,
+			a.siswa_id,
+			a.siswa_id as id_siswa,
+			u.nama_lengkap as nama_siswa,
+			s.nis,
+			a.kelas_id,
+			a.kelas_id as id_kelas,
+			a.tanggal,
+			to_char(a.created_at, 'HH24:MI:SS') as waktu,
+			CASE 
+				WHEN LOWER(a.status) = 'hadir' THEN 'Hadir'
+				WHEN LOWER(a.status) = 'sakit' THEN 'Sakit'
+				WHEN LOWER(a.status) = 'izin' THEN 'Izin'
+				ELSE 'Alfa'
+			END as status_kehadiran,
+			COALESCE(a.keterangan, '') as keterangan,
+			true as diverifikasi_oleh_guru
 		FROM absensi a
 		JOIN siswa s ON s.id = a.siswa_id
 		JOIN users u ON u.id = s.user_id
@@ -743,6 +954,40 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 		})
 	}
 
+	if len(rows) == 0 {
+		var siswaInKelas []struct {
+			ID        uuid.UUID `json:"id"`
+			NamaSiswa string    `json:"nama_siswa"`
+			NIS       string    `json:"nis"`
+		}
+		db.Raw(`
+			SELECT s.id, u.nama_lengkap as nama_siswa, s.nis
+			FROM siswa s
+			JOIN users u ON u.id = s.user_id
+			WHERE s.kelas_id = ?
+			ORDER BY u.nama_lengkap ASC
+		`, kelasUUID).Scan(&siswaInKelas)
+
+		for _, s := range siswaInKelas {
+			newID := uuid.New()
+			rows = append(rows, AbsensiRow{
+				ID:                   newID,
+				IDAbsensi:            newID.String(),
+				SiswaID:              s.ID,
+				IDSiswa:              s.ID.String(),
+				NamaSiswa:            s.NamaSiswa,
+				NIS:                  s.NIS,
+				KelasID:              kelasUUID,
+				IDKelas:              kelasUUID.String(),
+				Tanggal:              tanggal,
+				Waktu:                "07:00:00",
+				StatusKehadiran:      "Hadir",
+				Keterangan:           "-",
+				DiverifikasiOlehGuru: true,
+			})
+		}
+	}
+
 	return c.JSON(model.APIResponse{
 		Success: true,
 		Message: "Data absensi kelas berhasil dimuat",
@@ -750,7 +995,7 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	})
 }
 
-// 10. POST /api/v1/guru/absensi - Menyimpan atau memperbarui kehadiran siswa ke Supabase
+// 12. POST & PUT /api/v1/guru/absensi - Menyimpan atau memperbarui kehadiran siswa ke Supabase
 func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	var req struct {
 		AbsensiID string `json:"absensi_id"`
@@ -851,175 +1096,257 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	})
 }
 
-// 11. GET /api/v1/guru/nilai - Mengambil rekap nilai siswa satu kelas dari Supabase
+// 13. GET /api/v1/guru/nilai - Mengambil rekap nilai siswa satu kelas dari Supabase
+type NilaiSiswaResponse struct {
+	IDNilai     string  `json:"id_nilai"`
+	IDSiswa     string  `json:"id_siswa"`
+	NamaSiswa   string  `json:"nama_siswa"`
+	NIS         string  `json:"nis"`
+	IDGuru      string  `json:"id_guru"`
+	IDMapel     string  `json:"id_mapel"`
+	IDKelas     string  `json:"id_kelas"`
+	NilaiTugas  float64 `json:"nilai_tugas"`
+	NilaiUH     float64 `json:"nilai_uh"`
+	NilaiUTS    float64 `json:"nilai_uts"`
+	NilaiUAS    float64 `json:"nilai_uas"`
+	NilaiAkhir  float64 `json:"nilai_akhir"`
+	SkorHuruf   string  `json:"skor_huruf"`
+	Feedback    string  `json:"feedback"`
+	StatusKunci string  `json:"status_kunci"`
+}
+
 func (h *GuruHandler) GetNilaiList(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
 			Success: false,
-			Message: "Database tidak tersedia",
+			Message: "Layanan database tidak tersedia",
 		})
 	}
 
 	kelasIDStr := c.Query("kelas_id")
+	if kelasIDStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Parameter kelas_id wajib disertakan",
+		})
+	}
 	kelasUUID, err := uuid.Parse(kelasIDStr)
 	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1
-	}
-
-	mapelUUID := uuid.MustParse("20000000-0000-0000-0000-000000000001") // MTK Peminatan
-
-	type SiswaNilaiRow struct {
-		IDNilaiSiswa string  `json:"id_nilai_siswa"`
-		IDSiswa      string  `json:"id_siswa"`
-		NIS          string  `json:"nis"`
-		NamaSiswa    string  `json:"nama_siswa"`
-		IDKelas      string  `json:"id_kelas"`
-		NamaKelas    string  `json:"nama_kelas"`
-		NilaiTugas   float64 `json:"nilai_tugas"`
-		NilaiUH      float64 `json:"nilai_uh"`
-		NilaiUTS     float64 `json:"nilai_uts"`
-		NilaiUAS     float64 `json:"nilai_uas"`
-		NilaiAkhir   float64 `json:"nilai_akhir"`
-		SkorHuruf    string  `json:"skor_huruf"`
-		Feedback     string  `json:"feedback"`
-	}
-
-	var results []SiswaNilaiRow
-
-	query := `
-		SELECT 
-			s.id as id_siswa,
-			s.nis,
-			u.nama_lengkap as nama_siswa,
-			k.id as id_kelas,
-			k.nama_kelas,
-			COALESCE(MAX(CASE WHEN n.jenis_penilaian = 'Tugas' THEN n.skor_angka END), 85.0) as nilai_tugas,
-			COALESCE(MAX(CASE WHEN n.jenis_penilaian = 'UlanganHarian' THEN n.skor_angka END), 80.0) as nilai_uh,
-			COALESCE(MAX(CASE WHEN n.jenis_penilaian = 'UTS' THEN n.skor_angka END), 82.0) as nilai_uts,
-			COALESCE(MAX(CASE WHEN n.jenis_penilaian = 'UAS' THEN n.skor_angka END), 88.0) as nilai_uas,
-			COALESCE(MAX(n.feedback), 'Pemahaman konsep baik') as feedback
-		FROM siswa s
-		JOIN users u ON u.id = s.user_id
-		JOIN kelas k ON k.id = s.kelas_id
-		LEFT JOIN nilai n ON n.siswa_id = s.id AND n.mapel_id = ?
-		WHERE s.kelas_id = ?
-		GROUP BY s.id, s.nis, u.nama_lengkap, k.id, k.nama_kelas
-		ORDER BY u.nama_lengkap ASC
-	`
-
-	if err := db.Raw(query, mapelUUID, kelasUUID).Scan(&results).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
-			Message: "Gagal mengambil data nilai: " + err.Error(),
+			Message: "Format kelas_id tidak valid",
 		})
 	}
 
-	for i := range results {
-		na := (results[i].NilaiTugas * 0.2) + (results[i].NilaiUH * 0.2) + (results[i].NilaiUTS * 0.3) + (results[i].NilaiUAS * 0.3)
-		results[i].NilaiAkhir = float64(int(na*10)) / 10.0
-		switch {
-		case na >= 88:
-			results[i].SkorHuruf = "A"
-		case na >= 78:
-			results[i].SkorHuruf = "B"
-		case na >= 68:
-			results[i].SkorHuruf = "C"
-		default:
-			results[i].SkorHuruf = "D"
+	mapelIDStr := c.Query("mapel_id")
+	guruIDStr := c.Query("guru_id")
+
+	type StudentRow struct {
+		ID        uuid.UUID `json:"id"`
+		NamaSiswa string    `json:"nama_siswa"`
+		NIS       string    `json:"nis"`
+		KelasID   uuid.UUID `json:"kelas_id"`
+	}
+
+	var students []StudentRow
+	if err := db.Table("siswa s").
+		Select("s.id, u.nama_lengkap as nama_siswa, s.nis, s.kelas_id").
+		Joins("JOIN users u ON u.id = s.user_id").
+		Where("s.kelas_id = ?", kelasUUID).
+		Order("u.nama_lengkap ASC").
+		Scan(&students).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal memuat siswa kelas",
+			Error:   err.Error(),
+		})
+	}
+
+	results := make([]NilaiSiswaResponse, 0, len(students))
+	for _, st := range students {
+		var nilaiList []model.Nilai
+		q := db.Where("siswa_id = ?", st.ID)
+		if mUUID, err := uuid.Parse(mapelIDStr); err == nil {
+			q = q.Where("mapel_id = ?", mUUID)
 		}
-		results[i].IDNilaiSiswa = "val-" + results[i].IDSiswa[:8]
+		if gUUID, err := uuid.Parse(guruIDStr); err == nil {
+			q = q.Where("guru_id = ?", gUUID)
+		}
+		_ = q.Find(&nilaiList).Error
+
+		var tugas, uh, uts, uas float64
+		var feedback string
+		var firstID uuid.UUID
+		for _, n := range nilaiList {
+			if firstID == uuid.Nil {
+				firstID = n.ID
+			}
+			switch n.JenisPenilaian {
+			case model.PenilaianTugas:
+				tugas = n.SkorAngka
+			case model.PenilaianUlanganHarian:
+				uh = n.SkorAngka
+			case model.PenilaianUTS:
+				uts = n.SkorAngka
+			case model.PenilaianUAS:
+				uas = n.SkorAngka
+			}
+			if n.Feedback != "" {
+				feedback = n.Feedback
+			}
+		}
+
+		if tugas == 0 {
+			var avgTugas float64
+			db.Raw(`
+				SELECT COALESCE(AVG(pt.nilai), 0)
+				FROM pengumpulan_tugas pt
+				JOIN tugas t ON t.id = pt.tugas_id
+				WHERE pt.siswa_id = ? AND pt.nilai IS NOT NULL
+			`, st.ID).Scan(&avgTugas)
+			if avgTugas > 0 {
+				tugas = math.Round(avgTugas*10) / 10
+			}
+		}
+
+		finalScore := math.Round((0.3*tugas+0.2*uh+0.25*uts+0.25*uas)*10) / 10
+		skorHuruf := "D"
+		if finalScore >= 85 {
+			skorHuruf = "A"
+		} else if finalScore >= 75 {
+			skorHuruf = "B"
+		} else if finalScore >= 60 {
+			skorHuruf = "C"
+		}
+
+		if firstID == uuid.Nil {
+			firstID = uuid.New()
+		}
+
+		results = append(results, NilaiSiswaResponse{
+			IDNilai:     firstID.String(),
+			IDSiswa:     st.ID.String(),
+			NamaSiswa:   st.NamaSiswa,
+			NIS:         st.NIS,
+			IDGuru:      guruIDStr,
+			IDMapel:     mapelIDStr,
+			IDKelas:     st.KelasID.String(),
+			NilaiTugas:  tugas,
+			NilaiUH:     uh,
+			NilaiUTS:    uts,
+			NilaiUAS:    uas,
+			NilaiAkhir:  finalScore,
+			SkorHuruf:   skorHuruf,
+			Feedback:    feedback,
+			StatusKunci: "Draf",
+		})
 	}
 
 	return c.JSON(model.APIResponse{
 		Success: true,
-		Message: "Data nilai siswa berhasil dimuat dari database",
+		Message: "Daftar nilai berhasil dimuat",
 		Data:    results,
 	})
 }
 
-// 12. POST /api/v1/guru/nilai - Menyimpan input nilai siswa ke tabel nilai di Supabase
-func (h *GuruHandler) SaveNilai(c *fiber.Ctx) error {
-	var req struct {
-		SiswaID    string  `json:"siswa_id"`
-		KelasID    string  `json:"kelas_id"`
-		NilaiTugas float64 `json:"nilai_tugas"`
-		NilaiUH    float64 `json:"nilai_uh"`
-		NilaiUTS   float64 `json:"nilai_uts"`
-		NilaiUAS   float64 `json:"nilai_uas"`
-		Feedback   string  `json:"feedback"`
-	}
+// 14. PUT & POST /api/v1/guru/nilai - Menyimpan input nilai siswa ke tabel nilai di Supabase
+type UpdateNilaiRequest struct {
+	SiswaID    string  `json:"siswa_id"`
+	GuruID     string  `json:"guru_id"`
+	MapelID    string  `json:"mapel_id"`
+	NilaiTugas float64 `json:"nilai_tugas"`
+	NilaiUH    float64 `json:"nilai_uh"`
+	NilaiUTS   float64 `json:"nilai_uts"`
+	NilaiUAS   float64 `json:"nilai_uas"`
+	Feedback   string  `json:"feedback"`
+}
 
+func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
+	var req UpdateNilaiRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
-			Message: "Format data nilai tidak valid",
+			Message: "Payload tidak valid",
 		})
 	}
 
-	siswaUUID, errSiswa := uuid.Parse(req.SiswaID)
-	if errSiswa != nil {
+	siswaUUID, errS := uuid.Parse(req.SiswaID)
+	if errS != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
 			Message: "ID Siswa tidak valid",
 		})
 	}
 
-	guruUUID := uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5")   // Bu Irma
-	mapelUUID := uuid.MustParse("20000000-0000-0000-0000-000000000001") // MTK Peminatan
-
 	db := repository.GetDB()
-	now := time.Now()
-
-	komponen := []struct {
-		Jenis model.JenisPenilaian
-		Skor  float64
-	}{
-		{model.PenilaianTugas, req.NilaiTugas},
-		{model.PenilaianUlanganHarian, req.NilaiUH},
-		{model.PenilaianUTS, req.NilaiUTS},
-		{model.PenilaianUAS, req.NilaiUAS},
+	var guruUUID, mapelUUID uuid.UUID
+	var errG, errM error
+	if req.GuruID != "" {
+		guruUUID, errG = uuid.Parse(req.GuruID)
+	}
+	if req.MapelID != "" {
+		mapelUUID, errM = uuid.Parse(req.MapelID)
 	}
 
-	for _, k := range komponen {
-		var existing model.Nilai
-		errFind := db.Where("siswa_id = ? AND mapel_id = ? AND jenis_penilaian = ?", siswaUUID, mapelUUID, k.Jenis).First(&existing).Error
+	if errG != nil || guruUUID == uuid.Nil {
+		var guru model.Guru
+		if err := db.First(&guru).Error; err == nil {
+			guruUUID = guru.ID
+			if guru.MapelID != nil {
+				mapelUUID = *guru.MapelID
+			}
+		}
+	}
 
+	if errM != nil || mapelUUID == uuid.Nil {
+		var mapel model.MataPelajaran
+		if err := db.First(&mapel).Error; err == nil {
+			mapelUUID = mapel.ID
+		}
+	}
+
+	saveOrUpdate := func(jp model.JenisPenilaian, skor float64) {
 		skorHuruf := "D"
-		if k.Skor >= 85 {
+		if skor >= 85 {
 			skorHuruf = "A"
-		} else if k.Skor >= 75 {
+		} else if skor >= 75 {
 			skorHuruf = "B"
-		} else if k.Skor >= 65 {
+		} else if skor >= 60 {
 			skorHuruf = "C"
 		}
 
-		if errFind == nil {
+		var existing model.Nilai
+		if err := db.Where("siswa_id = ? AND mapel_id = ? AND jenis_penilaian = ?", siswaUUID, mapelUUID, jp).First(&existing).Error; err == nil {
 			db.Model(&existing).Updates(map[string]interface{}{
-				"skor_angka": k.Skor,
+				"skor_angka": skor,
 				"skor_huruf": skorHuruf,
 				"feedback":   req.Feedback,
-				"updated_at": now,
+				"updated_at": time.Now(),
 			})
 		} else {
-			newNilai := model.Nilai{
+			db.Create(&model.Nilai{
 				ID:             uuid.New(),
 				SiswaID:        siswaUUID,
 				GuruID:         guruUUID,
 				MapelID:        mapelUUID,
-				JenisPenilaian: k.Jenis,
-				SkorAngka:      k.Skor,
+				JenisPenilaian: jp,
+				SkorAngka:      skor,
 				SkorHuruf:      skorHuruf,
 				Feedback:       req.Feedback,
-				CreatedAt:      now,
-				UpdatedAt:      now,
-			}
-			db.Create(&newNilai)
+				CreatedAt:      time.Now(),
+				UpdatedAt:      time.Now(),
+			})
 		}
 	}
 
+	saveOrUpdate(model.PenilaianTugas, req.NilaiTugas)
+	saveOrUpdate(model.PenilaianUlanganHarian, req.NilaiUH)
+	saveOrUpdate(model.PenilaianUTS, req.NilaiUTS)
+	saveOrUpdate(model.PenilaianUAS, req.NilaiUAS)
+
 	return c.JSON(model.APIResponse{
 		Success: true,
-		Message: "Nilai siswa berhasil disimpan ke Supabase",
+		Message: "Nilai siswa berhasil disimpan",
 	})
 }

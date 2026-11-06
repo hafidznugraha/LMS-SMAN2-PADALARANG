@@ -15,7 +15,9 @@ import {
   BookOpen,
   X,
   FileCheck2,
-  ExternalLink
+  ExternalLink,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
@@ -29,6 +31,8 @@ interface TugasModuleProps {
   activeTugasId?: string | null;
   onClearActiveTugas?: () => void;
   onOpenGrading?: (tugas: TugasKuis) => void;
+  onEditTugas?: (tugas: TugasKuis) => void;
+  onDeleteTugas?: (tugasId: string, judul?: string) => void;
 }
 
 export const TugasModule: React.FC<TugasModuleProps> = ({
@@ -40,6 +44,8 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   activeTugasId,
   onClearActiveTugas,
   onOpenGrading,
+  onEditTugas,
+  onDeleteTugas,
 }) => {
   const [selectedJenis, setSelectedJenis] = useState<'ALL' | JenisPenugasan>('ALL');
   const [selectedKelas, setSelectedKelas] = useState('ALL');
@@ -261,14 +267,39 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <button
-                    onClick={() => setViewRubrikTugas(tugas)}
-                    className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Lihat Rubrik</span>
-                  </button>
+                <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setViewRubrikTugas(tugas)}
+                      className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      title="Lihat Rubrik"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Rubrik</span>
+                    </button>
+
+                    {onEditTugas && (
+                      <button
+                        onClick={() => onEditTugas(tugas)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-colors"
+                        title="Edit Tugas"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+
+                    {onDeleteTugas && (
+                      <button
+                        onClick={() => onDeleteTugas(tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '', tugas.judul)}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-rose-50 border border-rose-200 transition-colors"
+                        title="Hapus Tugas"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus</span>
+                      </button>
+                    )}
+                  </div>
 
                   <button
                     onClick={() => handleOpenGrading(tugas)}

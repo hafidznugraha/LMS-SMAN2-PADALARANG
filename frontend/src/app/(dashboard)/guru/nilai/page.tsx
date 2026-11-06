@@ -1,81 +1,109 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { NilaiModule } from '@/components/nilai/NilaiModule';
-import { KELAS_LIST, INITIAL_NILAI_LIST } from '@/data/mockData';
-import { NilaiSiswa } from '@/types/lms';
+import { getStoredUser } from '@/lib/auth';
+import { getKelasGuru, getNilaiGuru, updateNilaiGuru } from '@/services/guruService';
+import { NilaiSiswa, Kelas } from '@/types/lms';
 
-export default function GuruNilaiPage() {
-  const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>(INITIAL_NILAI_LIST);
-  const [isLoading, setIsLoading] = useState(false);
+export default function NilaiPage() {
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>([]);
+  const [selectedKelasId, setSelectedKelasId] = useState<string>('');
+  const [currentMapelNama, setCurrentMapelNama] = useState<string>('Mata Pelajaran');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // 1. Ambil data nilai asli dari Supabase via Backend Golang
-  const fetchNilaiData = async () => {
+  const fetchNilai = useCallback(async (kelasId: string) => {
+    if (!kelasId) return;
     try {
-      setIsLoading(true);
-      const res = await fetch('http://localhost:8080/api/v1/guru/nilai?kelas_id=f0000000-0000-0000-0000-000000000001');
-      const json = await res.json();
+      const user = getStoredUser();
+      const mapelId = (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
 
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        setNilaiList(json.data);
-      }
+      const data = await getNilaiGuru(kelasId, mapelId, guruId);
+      setNilaiList(data);
     } catch (err) {
-      console.error('Gagal mengambil data nilai:', err);
-    } finally {
-      setIsLoading(false);
+      console.warn(err);
+      toast.error('Gagal memuat buku nilai kelas');
     }
-  };
-
-  useEffect(() => {
-    fetchNilaiData();
   }, []);
 
-  // 2. Fungsi saat Guru mengedit skor dan klik "Simpan Penilaian"
+  useEffect(() => {
+    async function init() {
+      try {
+        setIsLoading(true);
+        const user = getStoredUser();
+        const mapelName =
+          user?.extra?.mapel?.nama_mapel ||
+          (user?.extra?.mapel_nama as string) ||
+          (user?.extra?.bidang_studi as string) ||
+          'Mata Pelajaran';
+        setCurrentMapelNama(mapelName);
+
+        const kelas = await getKelasGuru();
+        setKelasList(kelas);
+        if (kelas.length > 0) {
+          const firstKelasId = kelas[0].id_kelas;
+          setSelectedKelasId(firstKelasId);
+          await fetchNilai(firstKelasId);
+        }
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    init();
+  }, [fetchNilai]);
+
+  const handleKelasChange = async (kId: string) => {
+    setSelectedKelasId(kId);
+    await fetchNilai(kId);
+  };
+
   const handleUpdateNilai = async (updated: NilaiSiswa) => {
-    // Update tampilan di layar
     setNilaiList((prev) =>
-      prev.map((item) => (item.id_siswa === updated.id_siswa ? updated : item))
+      prev.map((n) => (n.id_nilai === updated.id_nilai || n.id_siswa === updated.id_siswa ? updated : n))
     );
 
-    // Kirim data ke database Supabase
     try {
-      const res = await fetch('http://localhost:8080/api/v1/guru/nilai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siswa_id: updated.id_siswa,
-          kelas_id: 'f0000000-0000-0000-0000-000000000001',
-          nilai_tugas: updated.nilai_tugas,
-          nilai_uh: updated.nilai_uh,
-          nilai_uts: updated.nilai_uts,
-          nilai_uas: updated.nilai_uas,
-          feedback: updated.feedback || 'Pemahaman konsep baik',
-        }),
+      const user = getStoredUser();
+      const res = await updateNilaiGuru({
+        siswa_id: updated.id_siswa,
+        guru_id: (user?.extra?.guru_id as string) || (user?.id as string) || '',
+        mapel_id: (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '',
+        nilai_tugas: updated.nilai_tugas,
+        nilai_uh: updated.nilai_uh,
+        nilai_uts: updated.nilai_uts,
+        nilai_uas: updated.nilai_uas,
+        feedback: updated.feedback,
       });
 
-      const json = await res.json();
-      console.log('Respon simpan nilai Supabase:', json);
-      if (json.success) {
-        alert('Sukses! Nilai siswa berhasil disimpan ke tabel nilai di Supabase.');
+      if (res?.success) {
+        toast.success(`Nilai ${updated.nama_siswa} berhasil disimpan`);
       }
     } catch (err) {
-      console.error('Gagal menyimpan nilai ke backend:', err);
+      console.warn(err);
+      toast.error('Gagal menyimpan nilai ke server');
     }
   };
 
+  if (isLoading && kelasList.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500 text-sm">
+        Memuat buku nilai akademik...
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {isLoading ? (
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center text-slate-500 text-sm">
-          Menghubungkan ke database Supabase & memuat daftar nilai...
-        </div>
-      ) : (
-        <NilaiModule
-          nilaiList={nilaiList}
-          kelasList={KELAS_LIST || []}
-          onUpdateNilai={handleUpdateNilai}
-        />
-      )}
-    </div>
+    <NilaiModule
+      nilaiList={nilaiList}
+      kelasList={kelasList}
+      namaMapel={currentMapelNama}
+      onKelasChange={handleKelasChange}
+      onUpdateNilai={handleUpdateNilai}
+    />
   );
-} 
+}

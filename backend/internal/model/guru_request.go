@@ -65,6 +65,8 @@ type CreateTugasRequest struct {
 }
 
 type CreateTugasGuruRequest = CreateTugasRequest
+type UpdateTugasRequest = CreateTugasRequest
+type UpdateTugasGuruRequest = CreateTugasRequest
 
 type TugasDetailResponse struct {
 	ID                 uuid.UUID `json:"id"`

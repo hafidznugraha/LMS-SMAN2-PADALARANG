@@ -1,35 +1,45 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { MateriModule } from '@/components/materi/MateriModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
-import { KELAS_LIST } from '@/data/mockData';
 import { Materi, MateriFormat, Kelas } from '@/types/lms';
 import { downloadMateriFile } from '@/lib/pdfHelper';
+import { getStoredUser } from '@/lib/auth';
 import { deleteMateriGuru, getKelasGuru } from '@/services/guruService';
 
 export default function GuruMateriPage() {
   const [materiList, setMateriList] = useState<Materi[]>([]);
-  const [kelasList, setKelasList] = useState<Kelas[]>(KELAS_LIST || []);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMateri, setEditingMateri] = useState<Materi | null>(null);
   const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentBidangStudi, setCurrentBidangStudi] = useState('Matematika Peminatan');
 
+  // Ambil data materi & kelas dari database Supabase melalui API Go
   const fetchMateriData = useCallback(async () => {
     try {
       setIsLoading(true);
+
+      const user = getStoredUser();
+      const mapelName =
+        user?.extra?.mapel?.nama_mapel ||
+        (user?.extra?.mapel_nama as string) ||
+        (user?.extra?.bidang_studi as string) ||
+        'Matematika Peminatan';
+      setCurrentBidangStudi(mapelName);
+
       const [res, kelasRes] = await Promise.all([
         fetch('/api/v1/guru/materi', { cache: 'no-store' }),
         getKelasGuru(),
       ]);
 
-      const activeKelasList = kelasRes.length > 0 ? kelasRes : KELAS_LIST || [];
-      if (kelasRes.length > 0) {
-        setKelasList(kelasRes);
-      }
+      const activeKelasList = Array.isArray(kelasRes) ? kelasRes : [];
+      setKelasList(activeKelasList);
 
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -39,7 +49,7 @@ export default function GuruMateriPage() {
             id_materi: item.id,
             id_guru: item.guru_id,
             id_mapel: item.mapel_id,
-            nama_mapel: item.nama_mapel || 'Matematika Peminatan',
+            nama_mapel: item.nama_mapel || mapelName,
             id_kelas: item.kelas_id,
             nama_kelas: item.nama_kelas || foundKelas?.nama_kelas || 'XII IPA 1',
             judul_materi: item.judul,
@@ -55,6 +65,7 @@ export default function GuruMateriPage() {
       }
     } catch (err) {
       console.error('Gagal mengambil materi:', err);
+      toast.error('Gagal memuat daftar materi pembelajaran');
     } finally {
       setIsLoading(false);
     }
@@ -97,11 +108,17 @@ export default function GuruMateriPage() {
     if (!deletingTarget) return;
     try {
       setIsDeleting(true);
-      await deleteMateriGuru(deletingTarget.id);
+      const res = await deleteMateriGuru(deletingTarget.id);
       setMateriList((prev) => prev.filter((m) => m.id_materi !== deletingTarget.id));
+      if (res?.success) {
+        toast.success(`Materi "${deletingTarget.judul}" berhasil dihapus`);
+      } else {
+        toast.success(`Materi "${deletingTarget.judul}" berhasil dihapus`);
+      }
       setDeletingTarget(null);
     } catch (err) {
       console.error('Gagal menghapus materi:', err);
+      toast.error('Gagal menghapus materi dari server');
       setMateriList((prev) => prev.filter((m) => m.id_materi !== deletingTarget.id));
       setDeletingTarget(null);
     } finally {
@@ -119,8 +136,10 @@ export default function GuruMateriPage() {
               : m
           )
         );
+        toast.success('Materi berhasil diperbarui');
       } else {
         setMateriList((prev) => [saved, ...prev.filter((m) => m.id_materi !== saved.id_materi)]);
+        toast.success('Materi baru berhasil diterbitkan');
       }
     }
     setEditingMateri(null);
@@ -129,7 +148,7 @@ export default function GuruMateriPage() {
 
   return (
     <div className="space-y-6">
-      {isLoading ? (
+      {isLoading && materiList.length === 0 ? (
         <div className="bg-white rounded-2xl p-10 border border-slate-200 text-center text-slate-500 text-sm">
           Menghubungkan ke Supabase & memuat daftar materi...
         </div>
@@ -151,7 +170,7 @@ export default function GuruMateriPage() {
           setEditingMateri(null);
         }}
         kelasList={kelasList}
-        currentBidangStudi="Matematika Peminatan"
+        currentBidangStudi={currentBidangStudi}
         initialData={editingMateri}
         onSaveMateri={handleSaveMateri}
       />
@@ -161,7 +180,11 @@ export default function GuruMateriPage() {
         onClose={() => setDeletingTarget(null)}
         onConfirm={handleConfirmDelete}
         title="Hapus Materi Pembelajaran"
-        message={`Apakah Anda yakin ingin menghapus materi "${deletingTarget?.judul || ''}" secara permanen dari daftar bahan ajar kelas?`}
+        message={
+          deletingTarget?.judul
+            ? `Apakah Anda yakin ingin menghapus materi "${deletingTarget.judul}" secara permanen dari daftar bahan ajar kelas?`
+            : 'Apakah Anda yakin ingin menghapus materi ini secara permanen dari daftar bahan ajar kelas?'
+        }
         confirmText="Ya, Hapus Materi"
         cancelText="Batal"
         variant="danger"

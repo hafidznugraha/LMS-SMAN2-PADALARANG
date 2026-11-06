@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Upload, CheckCircle2, Loader2, Edit3 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 import { uploadMateriGuru, updateMateriGuru } from '../../services/guruService';
 
@@ -62,7 +63,10 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!judul.trim()) return;
+    if (!judul.trim()) {
+      toast.error('Judul materi pembelajaran wajib diisi');
+      return;
+    }
 
     setIsSubmitting(true);
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
@@ -107,6 +111,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           unduhan_count: serverData?.jumlah_melihat ?? initialData.unduhan_count ?? 0,
           tanggal_unggah: serverData?.created_at ? serverData.created_at.split('T')[0] : (initialData.tanggal_unggah || new Date().toISOString().split('T')[0]),
         };
+        toast.success('Materi pembelajaran berhasil diperbarui');
       } else {
         const res = await uploadMateriGuru({
           judul: judul.trim(),
@@ -135,6 +140,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           unduhan_count: serverData?.jumlah_melihat ?? 0,
           tanggal_unggah: serverData?.created_at ? serverData.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         };
+        toast.success('Materi pembelajaran berhasil diunggah ke Supabase');
       }
 
       onSaveMateri(savedMateri);
@@ -157,6 +163,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
         tanggal_unggah: initialData?.tanggal_unggah || new Date().toISOString().split('T')[0],
       };
       onSaveMateri(fallbackMateri);
+      toast.error('Terjadi kesalahan koneksi, menyimpan ke memori lokal');
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -177,7 +184,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
             <p className="text-xs text-slate-500">
               {isEditMode
                 ? 'Perbarui judul, target kelas, deskripsi, atau ganti berkas lampiran materi'
-                : 'Tersambung ke Supabase Cloud • Guru Pengampu SMAN 2 Padalarang'}
+                : `Mata Pelajaran: ${currentBidangStudi} • Tersambung ke Supabase Storage`}
             </p>
           </div>
           <button

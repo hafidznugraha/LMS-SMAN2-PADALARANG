@@ -1,96 +1,135 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { TugasModule } from '@/components/tugas/TugasModule';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
-import { INITIAL_TUGAS_LIST, INITIAL_SUBMISSIONS, KELAS_LIST } from '@/data/mockData';
-import { TugasKuis } from '@/types/lms';
+import { getStoredUser } from '@/lib/auth';
+import {
+  getTugasGuru,
+  getKelasGuru,
+  getTugasSubmissions,
+  gradeSubmissionGuru,
+} from '@/services/guruService';
+import { TugasKuis, PengumpulanTugas, Kelas } from '@/types/lms';
 
 export default function KuisPage() {
-  // Hanya menampilkan data yang berjenis 'Kuis'
-  const [kuisList, setKuisList] = useState<TugasKuis[]>(() => {
-    const onlyKuis = INITIAL_TUGAS_LIST.filter((t) => t.jenis === 'Kuis');
-    // Jika data kuis baru ada 1, kita tambahkan 2 kuis aktif lagi agar pas dengan angka "3 Kuis Aktif" di dashboard!
-    if (onlyKuis.length === 1) {
-      return [
-        ...onlyKuis,
-        {
-          id_tugas_kuis: 'kuis-02',
-          id_guru: 'guru-irma-01',
-          id_mapel: 'mapel-mat-pem',
-          nama_mapel: 'Matematika Peminatan',
-          id_kelas: 'f0000000-0000-0000-0000-000000000001',
-          nama_kelas: 'XII IPA 1',
-          judul: 'Kuis Singkat: Aturan Cramer & SPLTV Tiga Variabel',
-          instruksi: '10 butir soal interaktif evaluasi bab matriks ordo 3x3.',
-          jenis: 'Kuis',
-          tenggat_waktu: '2026-11-06 15:00',
-          format_file: 'online form',
-          rubrik_penilaian: 'Setiap soal benar bernilai 10 poin (Total 100).',
-          total_siswa: 32,
-          jumlah_mengumpulkan: 29,
-          jumlah_dinilai: 29,
-        },
-        {
-          id_tugas_kuis: 'kuis-03',
-          id_guru: 'guru-irma-01',
-          id_mapel: 'mapel-mat-pem',
-          nama_mapel: 'Matematika Peminatan',
-          id_kelas: 'f0000000-0000-0000-0000-000000000002',
-          nama_kelas: 'XII IPA 3',
-          judul: 'Uji Pemahaman: Limit Fungsi Aljabar Mendekati Tak Hingga',
-          instruksi: 'Pengerjaan kuis berbatas waktu 30 menit sesi KBM.',
-          jenis: 'Kuis',
-          tenggat_waktu: '2026-11-04 18:00',
-          format_file: 'online form',
-          rubrik_penilaian: 'Otomatis tersinkronisasi ke buku nilai harian.',
-          total_siswa: 30,
-          jumlah_mengumpulkan: 25,
-          jumlah_dinilai: 25,
-        },
-      ];
-    }
-    return onlyKuis;
-  });
-
-  const [submissionsList, setSubmissionsList] = useState(INITIAL_SUBMISSIONS);
+  const [kuisList, setKuisList] = useState<TugasKuis[]>([]);
+  const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentBidangStudi, setCurrentBidangStudi] = useState('Mata Pelajaran');
 
-  // Buat kuis baru
-  const handleSaveKuis = (newK: Omit<TugasKuis, 'id_tugas_kuis' | 'total_siswa' | 'jumlah_mengumpulkan' | 'jumlah_dinilai'>) => {
-    const created: TugasKuis = {
-      ...newK,
-      id_tugas_kuis: `kuis-${Date.now()}`,
-      jenis: 'Kuis',
-      total_siswa: 32,
-      jumlah_mengumpulkan: 0,
-      jumlah_dinilai: 0,
-    };
-    setKuisList([created, ...kuisList]);
-    alert(`Kuis "${created.judul}" berhasil diterbitkan!`);
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const user = getStoredUser();
+      const mapelName =
+        user?.extra?.mapel?.nama_mapel ||
+        (user?.extra?.mapel_nama as string) ||
+        (user?.extra?.bidang_studi as string) ||
+        'Mata Pelajaran';
+      setCurrentBidangStudi(mapelName);
+
+      const [tugasData, kelasData] = await Promise.all([
+        getTugasGuru({ jenis: 'Kuis' }),
+        getKelasGuru(),
+      ]);
+
+      setKuisList(tugasData);
+      setKelasList(kelasData);
+    } catch (err) {
+      console.warn(err);
+      toast.error('Gagal memuat data kuis');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleOpenGrading = async (kuis: TugasKuis) => {
+    const kuisId = kuis.id_tugas_kuis || (kuis as unknown as { id?: string }).id;
+    if (!kuisId) return;
+
+    try {
+      const subs = await getTugasSubmissions(kuisId);
+      setSubmissionsList(subs);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleSaveNilai = (idSub: string, nilai: number, feedback: string) => {
-    setSubmissionsList(
-      submissionsList.map((s) => (s.id_pengumpulan === idSub ? { ...s, nilai, feedback } : s))
+  const handleSaveKuis = async (newK: TugasKuis) => {
+    setKuisList((prev) => [newK, ...prev]);
+    const refreshed = await getTugasGuru({ jenis: 'Kuis' });
+    if (refreshed.length > 0) {
+      setKuisList(refreshed);
+    }
+  };
+
+  const handleSaveNilai = async (
+    idSub: string,
+    nilai: number,
+    feedback: string,
+    sub?: PengumpulanTugas
+  ) => {
+    try {
+      setSubmissionsList((prev) =>
+        prev.map((s) => {
+          const sId = s.id_pengumpulan || (s as unknown as { id?: string }).id;
+          if (sId === idSub) {
+            return {
+              ...s,
+              nilai,
+              feedback,
+              status_kumpul: s.status_kumpul === 'Belum Mengumpulkan' ? 'Tepat Waktu' : s.status_kumpul,
+            };
+          }
+          return s;
+        })
+      );
+
+      await gradeSubmissionGuru(idSub, {
+        nilai,
+        feedback_guru: feedback,
+        tugas_id: sub?.id_tugas_kuis || (sub as unknown as { tugas_id?: string })?.tugas_id,
+        siswa_id: sub?.id_siswa || (sub as unknown as { siswa_id?: string })?.siswa_id,
+      });
+      toast.success('Nilai kuis siswa berhasil disimpan');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menyimpan nilai');
+    }
+  };
+
+  if (isLoading && kuisList.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500 text-sm">
+        Memuat data kuis daring...
+      </div>
     );
-  };
+  }
 
   return (
     <div>
       <TugasModule
         tugasList={kuisList}
         submissionsList={submissionsList}
-        kelasList={KELAS_LIST}
+        kelasList={kelasList}
         onOpenCreateTugas={() => setIsModalOpen(true)}
         onSaveNilaiSubmission={handleSaveNilai}
+        onOpenGrading={handleOpenGrading}
       />
 
       <CreateTugasModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        kelasList={KELAS_LIST}
-        currentBidangStudi="Matematika Peminatan"
+        kelasList={kelasList}
+        currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveKuis}
       />
     </div>

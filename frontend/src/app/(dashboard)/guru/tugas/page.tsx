@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { TugasModule } from '@/components/tugas/TugasModule';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
 import { getStoredUser } from '@/lib/auth';
@@ -10,6 +11,7 @@ import {
   getKelasGuru,
   getTugasSubmissions,
   gradeSubmissionGuru,
+  deleteTugasGuru,
 } from '@/services/guruService';
 import { TugasKuis, PengumpulanTugas, Kelas } from '@/types/lms';
 
@@ -18,6 +20,7 @@ export default function TugasPage() {
   const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTugasForEdit, setSelectedTugasForEdit] = useState<TugasKuis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentBidangStudi, setCurrentBidangStudi] = useState('Informatika');
 
@@ -62,8 +65,69 @@ export default function TugasPage() {
     }
   };
 
-  const handleSaveTugas = async (newT: TugasKuis) => {
-    setTugasList((prev) => [newT, ...prev]);
+  const handleOpenCreateTugas = () => {
+    setSelectedTugasForEdit(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditTugas = (tugas: TugasKuis) => {
+    setSelectedTugasForEdit(tugas);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteTugas = async (tugasId: string, judul?: string) => {
+    if (!tugasId) {
+      toast.error('ID tugas tidak valid');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus tugas "${judul || 'ini'}"?\nSemua riwayat pengumpulan siswa terkait tugas ini akan ikut terhapus.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await deleteTugasGuru(tugasId);
+      if (res?.success) {
+        toast.success(`Tugas "${judul || ''}" berhasil dihapus dari Supabase`);
+        setTugasList((prev) =>
+          prev.filter(
+            (t) =>
+              t.id_tugas_kuis !== tugasId &&
+              (t as unknown as { id?: string }).id !== tugasId
+          )
+        );
+        const refreshed = await getTugasGuru();
+        if (refreshed.length > 0) {
+          setTugasList(refreshed);
+        }
+      } else {
+        toast.error(res?.message || 'Gagal menghapus tugas');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Terjadi kesalahan saat menghapus tugas dari server');
+    }
+  };
+
+  const handleSaveTugas = async (savedTugas: TugasKuis) => {
+    const id = savedTugas.id_tugas_kuis || (savedTugas as unknown as { id?: string }).id;
+    setTugasList((prev) => {
+      const exists = prev.some(
+        (t) =>
+          t.id_tugas_kuis === id ||
+          (t as unknown as { id?: string }).id === id
+      );
+      if (exists) {
+        return prev.map((t) =>
+          t.id_tugas_kuis === id || (t as unknown as { id?: string }).id === id
+            ? savedTugas
+            : t
+        );
+      }
+      return [savedTugas, ...prev];
+    });
+
     const refreshed = await getTugasGuru();
     if (refreshed.length > 0) {
       setTugasList(refreshed);
@@ -123,17 +187,23 @@ export default function TugasPage() {
         tugasList={tugasList}
         submissionsList={submissionsList}
         kelasList={kelasList}
-        onOpenCreateTugas={() => setIsModalOpen(true)}
+        onOpenCreateTugas={handleOpenCreateTugas}
+        onEditTugas={handleEditTugas}
+        onDeleteTugas={handleDeleteTugas}
         onSaveNilaiSubmission={handleSaveNilai}
         onOpenGrading={handleOpenGrading}
       />
 
       <CreateTugasModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedTugasForEdit(null);
+        }}
         kelasList={kelasList}
         currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveTugas}
+        initialData={selectedTugasForEdit}
       />
     </div>
   );
