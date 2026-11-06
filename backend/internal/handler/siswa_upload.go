@@ -12,7 +12,7 @@ const maxSubmissionBytes = 10 * 1024 * 1024 // 10 MB
 var unsafeNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // sanitizeFilename membuat nama file aman untuk path penyimpanan.
-func sanitizeFilename(name string) string {
+func sanitizeSubmissionFilename(name string) string {
 	name = filepath.Base(strings.ReplaceAll(name, `\`, "/"))
 	ext := strings.ToLower(filepath.Ext(name))
 	base := strings.TrimSuffix(name, filepath.Ext(name))

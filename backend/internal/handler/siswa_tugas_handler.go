@@ -188,7 +188,7 @@ func readSubmissionFile(c *fiber.Ctx, required bool) (*uploadedFile, string, str
 	if !ok {
 		return nil, "FILE_TYPE_INVALID", "Isi file tidak sesuai dengan ekstensinya"
 	}
-	return &uploadedFile{Data: data, Name: sanitizeFilename(fh.Filename), ContentType: ct}, "", ""
+	return &uploadedFile{Data: data, Name: sanitizeSubmissionFilename(fh.Filename), ContentType: ct}, "", ""
 }
 
 func respondUploadError(c *fiber.Ctx, code, msg string) error {
