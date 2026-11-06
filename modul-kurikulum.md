@@ -1,6 +1,6 @@
 # Dokumentasi Status Pengerjaan Modul Kurikulum (Admin Akademik)
 **LMS SMAN 2 Padalarang**  
-*Versi Dokumen: 2.0.0 • Pembaruan Terakhir: November 2026*  
+*Versi Dokumen: 2.0.0 • Pembaruan Terakhir: 6 November 2026*  
 *Dokumen Rujukan: [PRD.md](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/PRD.md) • [DESIGN.md](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/DESIGN.md)*
 
 ---
