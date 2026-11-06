@@ -19,6 +19,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		AppName:        "LMS SMAN 2 Padalarang API v1.0.0",
 		ServerHeader:   "Fiber",
 		ReadBufferSize: 32768,
+		BodyLimit:      100 * 1024 * 1024, // 100 MB untuk unggahan materi PDF/DOCX/PPTX/MP4
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			var e *fiber.Error
@@ -56,16 +57,22 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	// Handler Inisialisasi
 	masterHandler := handler.NewMasterHandler()
 	jadwalHandler := handler.NewJadwalHandler()
-	guruHandler := handler.NewGuruHandler()
+	guruHandler := handler.NewGuruHandler(cfg)
 	laporanHandler := handler.NewLaporanHandler()
 	pengaturanHandler := handler.NewPengaturanHandler()
 	absensiHandler := handler.NewAbsensiHandler()
 
 	api := app.Group("/api/v1")
 
+	app.Static("/uploads", "./uploads")
+
 	api.Get("/health", handler.HealthCheckHandler)
 
 	api.Get("/siswa/tugas", guruHandler.GetTugasSiswa)
+	api.Get("/siswa/materi", guruHandler.GetMateriList)
+	api.Get("/siswa/materi/:id/download", guruHandler.DownloadMateri)
+	api.Get("/materi", guruHandler.GetMateriList)
+	api.Get("/materi/:id/download", guruHandler.DownloadMateri)
 
 	// Auth Rute
 	auth := api.Group("/auth")
@@ -79,7 +86,9 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Get("/kelas", masterHandler.GetKelasList)
 	guru.Get("/materi", guruHandler.GetMateriList)
 	guru.Post("/materi", guruHandler.CreateMateri)
+	guru.Put("/materi/:id", guruHandler.UpdateMateri)
 	guru.Delete("/materi/:id", guruHandler.DeleteMateri)
+	guru.Get("/materi/:id/download", guruHandler.DownloadMateri)
 	guru.Get("/tugas", guruHandler.GetTugasList)
 	guru.Post("/tugas", guruHandler.CreateTugas)
 	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)

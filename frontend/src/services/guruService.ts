@@ -21,7 +21,7 @@ export async function getKelasGuru(): Promise<Kelas[]> {
         id_kelas: k.id,
         nama_kelas: k.nama_kelas,
         tingkat: k.tingkat === 10 ? 'X' : k.tingkat === 11 ? 'XI' : 'XII',
-        tahun_ajaran: '2025/2026',
+        tahun_ajaran: '2026/2027',
         jumlah_siswa: 32,
       }));
     }
@@ -145,7 +145,7 @@ export async function uploadMateriGuru(payload: {
 }) {
   const user = getStoredUser();
   const guruId = payload.guru_id || user?.extra?.guru_id || DEFAULT_GURU_ID;
-  const mapelId = payload.mapel_id || user?.extra?.mapel_id || DEFAULT_MAPEL_ID;
+  const mapelId = payload.mapel_id || user?.extra?.mapel_id || user?.extra?.mapel?.id || DEFAULT_MAPEL_ID;
   const kelasId = payload.kelas_id || DEFAULT_KELAS_ID;
 
   if (payload.file) {
@@ -158,6 +158,9 @@ export async function uploadMateriGuru(payload: {
     formData.append('kelas_id', kelasId);
     formData.append('guru_id', guruId);
     formData.append('mapel_id', mapelId);
+    if (payload.ukuran_mb) {
+      formData.append('ukuran_mb', String(payload.ukuran_mb));
+    }
     if (payload.file_url) {
       formData.append('file_url', payload.file_url);
     }
@@ -183,6 +186,59 @@ export async function uploadMateriGuru(payload: {
   return await fetchAPI<ApiResponse<unknown>>('/guru/materi', {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+}
+
+export async function updateMateriGuru(
+  materiId: string,
+  payload: {
+    judul: string;
+    deskripsi: string;
+    tipe?: string;
+    tipe_file?: string;
+    ukuran_mb?: number;
+    file_url?: string;
+    kelas_id?: string;
+    mapel_id?: string;
+    file?: File | null;
+  }
+) {
+  if (payload.file) {
+    const formData = new FormData();
+    formData.append('file', payload.file);
+    formData.append('judul', payload.judul);
+    formData.append('deskripsi', payload.deskripsi);
+    if (payload.tipe) formData.append('tipe', payload.tipe);
+    if (payload.tipe_file) formData.append('tipe_file', payload.tipe_file);
+    if (payload.kelas_id) formData.append('kelas_id', payload.kelas_id);
+    if (payload.mapel_id) formData.append('mapel_id', payload.mapel_id);
+    if (payload.ukuran_mb) formData.append('ukuran_mb', String(payload.ukuran_mb));
+    if (payload.file_url) formData.append('file_url', payload.file_url);
+
+    return await fetchAPI<ApiResponse<unknown>>(`/guru/materi/${encodeURIComponent(materiId)}`, {
+      method: 'PUT',
+      body: formData,
+    });
+  }
+
+  return await fetchAPI<ApiResponse<unknown>>(`/guru/materi/${encodeURIComponent(materiId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      judul: payload.judul,
+      deskripsi: payload.deskripsi,
+      tipe: payload.tipe || (payload.tipe_file || 'PDF').toLowerCase(),
+      tipe_file: payload.tipe_file || 'PDF',
+      ukuran_mb: payload.ukuran_mb,
+      file_url: payload.file_url,
+      kelas_id: payload.kelas_id,
+      mapel_id: payload.mapel_id,
+    }),
+  });
+}
+
+export async function deleteMateriGuru(materiId: string) {
+  return await fetchAPI<ApiResponse<unknown>>(`/guru/materi/${encodeURIComponent(materiId)}`, {
+    method: 'DELETE',
   });
 }
 

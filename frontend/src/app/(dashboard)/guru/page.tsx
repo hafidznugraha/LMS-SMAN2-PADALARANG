@@ -28,6 +28,9 @@ import { NilaiModule } from '@/components/nilai/NilaiModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
 import { BranchCollabInfoModal } from '@/components/modals/BranchCollabInfoModal';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { downloadMateriFile } from '@/lib/pdfHelper';
+import { deleteMateriGuru } from '@/services/guruService';
 
 import {
   KELAS_LIST,
@@ -37,7 +40,7 @@ import {
   INITIAL_ABSENSI_TODAY,
   INITIAL_NILAI_LIST,
 } from '@/data/mockData';
-import { Materi, TugasKuis, PengumpulanTugas, Absensi, StatusKehadiran, NilaiSiswa } from '@/types/lms';
+import { Materi, MateriFormat, TugasKuis, PengumpulanTugas, Absensi, StatusKehadiran, NilaiSiswa } from '@/types/lms';
 
 export default function GuruDashboardPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -54,16 +57,47 @@ export default function GuruDashboardPage() {
 
   // Modal State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [editingMateri, setEditingMateri] = useState<Materi | null>(null);
+  const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
+  const [isDeletingMateri, setIsDeletingMateri] = useState(false);
   const [isCreateTugasOpen, setIsCreateTugasOpen] = useState(false);
   const [isBranchInfoOpen, setIsBranchInfoOpen] = useState(false);
   const [selectedTugasId, setSelectedTugasId] = useState<string | null>(null);
   const [selectedKelasId, setSelectedKelasId] = useState<string>('f0000000-0000-0000-0000-000000000001');
+
+  const loadMateriFromBackend = async () => {
+    try {
+      const res = await fetch('/api/v1/guru/materi', { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        const mapped: Materi[] = json.data.map((item: any) => ({
+          id_materi: item.id,
+          id_guru: item.guru_id,
+          id_mapel: item.mapel_id,
+          nama_mapel: item.nama_mapel || 'Matematika Peminatan',
+          id_kelas: item.kelas_id,
+          nama_kelas: item.nama_kelas || 'XII IPA 1',
+          judul_materi: item.judul,
+          deskripsi: item.deskripsi || '',
+          format_file: (item.tipe_file || 'PDF').toUpperCase() as MateriFormat,
+          file_url: item.file_url || '',
+          file_size: `${item.ukuran_mb || 3.5} MB`,
+          unduhan_count: item.jumlah_melihat || 0,
+          tanggal_unggah: item.created_at ? item.created_at.split('T')[0] : '2026-11-05',
+        }));
+        setMateriList(mapped);
+      }
+    } catch {
+      // Tetap gunakan initial state bila backend belum berjalan
+    }
+  };
 
   useEffect(() => {
     const user = getStoredUser();
     if (user) {
       setCurrentUser(user);
     }
+    loadMateriFromBackend();
   }, []);
 
   const teacherName = currentUser?.nama_lengkap || 'Irma Satikarama, S.Pd.';
@@ -75,16 +109,47 @@ export default function GuruDashboardPage() {
   const kelasBinaan = currentUser?.extra?.kelas_binaan?.[0];
   const namaKelasBinaan = kelasBinaan?.nama_kelas || 'XII IPA 1';
 
-  // Handler Simpan Materi
-  const handleSaveMateri = (newM: Omit<Materi, 'id_materi' | 'tanggal_unggah' | 'unduhan_count'>) => {
-    const created: Materi = {
-      ...newM,
-      id_materi: `mat-${Date.now()}`,
-      tanggal_unggah: '2026-11-04 10:00',
-      unduhan_count: 0,
-    };
-    setMateriList([created, ...materiList]);
+  // Handler Simpan / Edit Materi
+  const handleSaveMateri = async (saved: Materi) => {
+    if (editingMateri) {
+      setMateriList((prev) =>
+        prev.map((m) =>
+          m.id_materi === editingMateri.id_materi || m.id_materi === saved.id_materi
+            ? saved
+            : m
+        )
+      );
+      setEditingMateri(null);
+    } else {
+      setMateriList((prev) => [saved, ...prev.filter((m) => m.id_materi !== saved.id_materi)]);
+    }
+    await loadMateriFromBackend();
     setActiveView('materi');
+  };
+
+  const handleDownloadMateri = async (materi: Materi) => {
+    setMateriList((prev) =>
+      prev.map((m) =>
+        m.id_materi === materi.id_materi
+          ? { ...m, unduhan_count: (m.unduhan_count || 0) + 1 }
+          : m
+      )
+    );
+    await downloadMateriFile(materi);
+  };
+
+  const handleConfirmDeleteMateri = async () => {
+    if (!deletingTarget) return;
+    try {
+      setIsDeletingMateri(true);
+      await deleteMateriGuru(deletingTarget.id);
+    } catch {
+      // Abaikan bila lokal
+    } finally {
+      setMateriList((prev) => prev.filter((m) => m.id_materi !== deletingTarget.id));
+      setDeletingTarget(null);
+      setIsDeletingMateri(false);
+    }
   };
 
   // Handler Simpan Tugas
@@ -437,10 +502,19 @@ export default function GuruDashboardPage() {
         <MateriModule
           materiList={materiList}
           kelasList={KELAS_LIST}
-          onUploadMateri={() => setIsUploadOpen(true)}
-          onEditMateri={(m) => alert(`Edit materi: ${m.judul_materi}`)}
-          onDeleteMateri={(id) => setMateriList(materiList.filter((m) => m.id_materi !== id))}
-          onDownloadMateri={(m) => alert(`Mengunduh berkas ${m.judul_materi}...`)}
+          onUploadMateri={() => {
+            setEditingMateri(null);
+            setIsUploadOpen(true);
+          }}
+          onEditMateri={(m) => {
+            setEditingMateri(m);
+            setIsUploadOpen(true);
+          }}
+          onDeleteMateri={(id, judul) => {
+            const found = materiList.find((m) => m.id_materi === id);
+            setDeletingTarget({ id, judul: judul || found?.judul_materi || 'Materi ini' });
+          }}
+          onDownloadMateri={handleDownloadMateri}
         />
       )}
 
@@ -480,10 +554,26 @@ export default function GuruDashboardPage() {
       {/* 6. POPUP MODAL UPLOAD, BUAT TUGAS & INFO BRANCH */}
       <UploadMateriModal
         isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        onClose={() => {
+          setIsUploadOpen(false);
+          setEditingMateri(null);
+        }}
         kelasList={KELAS_LIST}
         currentBidangStudi="Matematika Peminatan"
+        initialData={editingMateri}
         onSaveMateri={handleSaveMateri}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deletingTarget)}
+        onClose={() => setDeletingTarget(null)}
+        onConfirm={handleConfirmDeleteMateri}
+        title="Hapus Materi Pembelajaran"
+        message={`Apakah Anda yakin ingin menghapus materi "${deletingTarget?.judul || ''}" secara permanen?`}
+        confirmText="Ya, Hapus Materi"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeletingMateri}
       />
 
       <CreateTugasModal

@@ -1,20 +1,25 @@
 package handler
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	"github.com/hafidznugraha/lms-sman2-padalarang/backend/config"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/repository"
 )
 
-type GuruHandler struct{}
+type GuruHandler struct {
+	cfg *config.Config
+}
 
-func NewGuruHandler() *GuruHandler {
-	return &GuruHandler{}
+func NewGuruHandler(cfg *config.Config) *GuruHandler {
+	return &GuruHandler{cfg: cfg}
 }
 
 // 1. GET /api/v1/guru/materi - Mengambil daftar seluruh materi dari Supabase
@@ -31,25 +36,44 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	mapelID := c.Query("mapel_id")
 	guruID := c.Query("guru_id")
 
-	query := db.Order("created_at DESC")
+	query := db.Table("materi m").
+		Select(`
+			m.id,
+			m.guru_id,
+			m.mapel_id,
+			COALESCE(mp.nama_mapel, 'Matematika Peminatan') as nama_mapel,
+			m.kelas_id,
+			COALESCE(k.nama_kelas, 'XII IPA 1') as nama_kelas,
+			m.judul,
+			m.deskripsi,
+			m.file_url,
+			m.tipe_file,
+			m.ukuran_mb,
+			m.jumlah_melihat,
+			m.created_at
+		`).
+		Joins("LEFT JOIN kelas k ON k.id = m.kelas_id").
+		Joins("LEFT JOIN mata_pelajaran mp ON mp.id = m.mapel_id").
+		Order("m.created_at DESC")
+
 	if kelasID != "" {
 		if kelasUUID, err := uuid.Parse(kelasID); err == nil {
-			query = query.Where("kelas_id = ?", kelasUUID)
+			query = query.Where("m.kelas_id = ?", kelasUUID)
 		}
 	}
 	if mapelID != "" {
 		if mapelUUID, err := uuid.Parse(mapelID); err == nil {
-			query = query.Where("mapel_id = ?", mapelUUID)
+			query = query.Where("m.mapel_id = ?", mapelUUID)
 		}
 	}
 	if guruID != "" {
 		if guruUUID, err := uuid.Parse(guruID); err == nil {
-			query = query.Where("guru_id = ?", guruUUID)
+			query = query.Where("m.guru_id = ?", guruUUID)
 		}
 	}
 
-	var materiList []model.Materi
-	if err := query.Find(&materiList).Error; err != nil {
+	var materiList []model.MateriDetailResponse
+	if err := query.Scan(&materiList).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal mengambil daftar materi dari Supabase",
@@ -67,12 +91,31 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 // 2. POST /api/v1/guru/materi - Menyimpan materi baru ke tabel materi di Supabase
 func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	var req model.CreateMateriRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
-			Success: false,
-			Message: "Format data materi tidak valid: " + err.Error(),
-			Error:   err.Error(),
-		})
+	_ = c.BodyParser(&req)
+
+	if v := strings.TrimSpace(c.FormValue("judul")); v != "" && req.Judul == "" {
+		req.Judul = v
+	}
+	if v := c.FormValue("deskripsi"); v != "" && req.Deskripsi == "" {
+		req.Deskripsi = v
+	}
+	if v := strings.TrimSpace(c.FormValue("kelas_id")); v != "" && req.KelasID == "" {
+		req.KelasID = v
+	}
+	if v := strings.TrimSpace(c.FormValue("guru_id")); v != "" && req.GuruID == "" {
+		req.GuruID = v
+	}
+	if v := strings.TrimSpace(c.FormValue("mapel_id")); v != "" && req.MapelID == "" {
+		req.MapelID = v
+	}
+	if v := strings.TrimSpace(c.FormValue("tipe_file")); v != "" && req.TipeFile == "" {
+		req.TipeFile = v
+	}
+	if v := strings.TrimSpace(c.FormValue("tipe")); v != "" && req.Tipe == "" {
+		req.Tipe = v
+	}
+	if v := strings.TrimSpace(c.FormValue("file_url")); v != "" && req.FileURL == "" {
+		req.FileURL = v
 	}
 
 	if strings.TrimSpace(req.Judul) == "" {
@@ -111,6 +154,7 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	if tipeFile == "" {
 		tipeFile = "PDF"
 	}
+	tipeFile = strings.ToUpper(tipeFile)
 
 	ukuran := req.UkuranMB
 	if ukuran <= 0 {
@@ -122,8 +166,19 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 		fileURL = "https://storage.sman2padalarang.sch.id/materi/berkas_materi_ajar.pdf"
 	}
 
+	materiID := uuid.New()
+
+	// Simpan berkas fisik ke disk lokal dan upload ke Supabase Storage
+	if savedURL, mb, detectedTipe, ok := processMateriUpload(c, h.cfg, materiID, tipeFile); ok {
+		fileURL = savedURL
+		ukuran = mb
+		if detectedTipe != "" {
+			tipeFile = detectedTipe
+		}
+	}
+
 	newMateri := model.Materi{
-		ID:            uuid.New(),
+		ID:            materiID,
 		GuruID:        guruUUID,
 		MapelID:       mapelUUID,
 		KelasID:       kelasUUID,
@@ -163,6 +218,25 @@ func (h *GuruHandler) DeleteMateri(c *fiber.Ctx) error {
 	}
 
 	db := repository.GetDB()
+
+	var materi model.Materi
+	if err := db.Where("id = ?", targetID).First(&materi).Error; err == nil {
+		// Hapus berkas lokal jika ada
+		if matches, errGlob := filepath.Glob(filepath.Join("uploads", "materi", targetID.String()+".*")); errGlob == nil {
+			for _, m := range matches {
+				_ = os.Remove(m)
+			}
+		}
+
+		// Hapus berkas dari Supabase Storage jika URL mengarah ke Supabase
+		if strings.Contains(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/") {
+			parts := strings.Split(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/")
+			if len(parts) == 2 && parts[1] != "" {
+				deleteFileFromSupabaseStorage(h.cfg, parts[1])
+			}
+		}
+	}
+
 	res := db.Delete(&model.Materi{}, "id = ?", targetID)
 	if res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{

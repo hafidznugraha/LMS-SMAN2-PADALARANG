@@ -7,15 +7,43 @@ import (
 )
 
 type CreateMateriRequest struct {
-	GuruID    string  `json:"guru_id"`
-	MapelID   string  `json:"mapel_id"`
-	KelasID   string  `json:"kelas_id"`
-	Judul     string  `json:"judul"`
-	Deskripsi string  `json:"deskripsi"`
-	Tipe      string  `json:"tipe"`
-	TipeFile  string  `json:"tipe_file"`
-	UkuranMB  float64 `json:"ukuran_mb"`
-	FileURL   string  `json:"file_url"`
+	GuruID    string  `json:"guru_id" form:"guru_id"`
+	MapelID   string  `json:"mapel_id" form:"mapel_id"`
+	KelasID   string  `json:"kelas_id" form:"kelas_id"`
+	Judul     string  `json:"judul" form:"judul"`
+	Deskripsi string  `json:"deskripsi" form:"deskripsi"`
+	Tipe      string  `json:"tipe" form:"tipe"`
+	TipeFile  string  `json:"tipe_file" form:"tipe_file"`
+	UkuranMB  float64 `json:"ukuran_mb" form:"ukuran_mb"`
+	FileURL   string  `json:"file_url" form:"file_url"`
+}
+
+type UpdateMateriRequest struct {
+	GuruID    string  `json:"guru_id" form:"guru_id"`
+	MapelID   string  `json:"mapel_id" form:"mapel_id"`
+	KelasID   string  `json:"kelas_id" form:"kelas_id"`
+	Judul     string  `json:"judul" form:"judul"`
+	Deskripsi string  `json:"deskripsi" form:"deskripsi"`
+	Tipe      string  `json:"tipe" form:"tipe"`
+	TipeFile  string  `json:"tipe_file" form:"tipe_file"`
+	UkuranMB  float64 `json:"ukuran_mb" form:"ukuran_mb"`
+	FileURL   string  `json:"file_url" form:"file_url"`
+}
+
+type MateriDetailResponse struct {
+	ID            uuid.UUID `json:"id"`
+	GuruID        uuid.UUID `json:"guru_id"`
+	MapelID       uuid.UUID `json:"mapel_id"`
+	NamaMapel     string    `json:"nama_mapel"`
+	KelasID       uuid.UUID `json:"kelas_id"`
+	NamaKelas     string    `json:"nama_kelas"`
+	Judul         string    `json:"judul"`
+	Deskripsi     string    `json:"deskripsi"`
+	FileURL       string    `json:"file_url"`
+	TipeFile      string    `json:"tipe_file"`
+	UkuranMB      float64   `json:"ukuran_mb"`
+	JumlahMelihat int       `json:"jumlah_melihat"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type CreateMateriGuruRequest = CreateMateriRequest

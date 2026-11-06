@@ -1,37 +1,39 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  BookOpen, 
-  Upload, 
-  Search, 
-  Filter, 
-  FileText, 
-  Video, 
-  FileSpreadsheet, 
-  ExternalLink, 
-  Download, 
-  Trash2, 
-  Edit3, 
-  Eye, 
+import {
+  BookOpen,
+  Upload,
+  Search,
+  Filter,
+  FileText,
+  Video,
+  FileSpreadsheet,
+  ExternalLink,
+  Download,
+  Trash2,
+  Edit3,
+  Eye,
   X,
-  FileCode
+  FileCode,
 } from 'lucide-react';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 
 interface MateriModuleProps {
   materiList?: Materi[];
   kelasList?: Kelas[];
-  onUploadMateri: () => void;
+  readOnly?: boolean;
+  onUploadMateri?: () => void;
   onEditMateri?: (materi: Materi) => void;
-  onDeleteMateri?: (id: string) => void;
+  onDeleteMateri?: (id: string, judul?: string) => void;
   onDownloadMateri?: (materi: Materi) => void;
 }
 
 export const MateriModule: React.FC<MateriModuleProps> = ({
   materiList = [],
   kelasList = [],
-  onUploadMateri,
+  readOnly = false,
+  onUploadMateri = () => {},
   onEditMateri = () => {},
   onDeleteMateri = () => {},
   onDownloadMateri = () => {},
@@ -41,7 +43,6 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
   const [selectedFormat, setSelectedFormat] = useState('ALL');
   const [previewMateri, setPreviewMateri] = useState<Materi | null>(null);
 
-  // Filter materi berdasarkan pencarian, kelas, dan format
   const filteredMateri = (materiList || []).filter((m) => {
     const matchesSearch =
       (m?.judul_materi || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -75,20 +76,25 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Modul Materi Pembelajaran
+            {readOnly ? 'Materi Pembelajaran' : 'Modul Materi Pembelajaran'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Kelola dan distribusikan bahan ajar digital (PDF, PPT, DOCX, Video MP4) untuk siswa per rombel
+            {readOnly
+              ? 'Pelajari dan unduh bahan ajar digital (PDF, PPT, DOCX, Video MP4) dari guru mata pelajaran'
+              : 'Kelola dan distribusikan bahan ajar digital (PDF, PPT, DOCX, Video MP4) untuk siswa per rombel'}
           </p>
         </div>
 
-        <button
-          onClick={onUploadMateri}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#142d72] hover:bg-[#1a388f] text-white text-sm font-semibold transition-all shadow-sm cursor-pointer self-start sm:self-auto"
-        >
-          <Upload className="w-4 h-4" />
-          <span>Upload Materi Baru</span>
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={onUploadMateri}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#142d72] hover:bg-[#1a388f] text-white text-sm font-semibold transition-all shadow-sm cursor-pointer self-start sm:self-auto"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Materi Baru</span>
+          </button>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
@@ -133,6 +139,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                 <option value="MP4">Video MP4</option>
                 <option value="PPTX">Slide PPTX</option>
                 <option value="DOCX">Word DOCX</option>
+                <option value="LINK">Tautan LINK</option>
               </select>
             </div>
           </div>
@@ -145,14 +152,19 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
           <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
           <h4 className="text-base font-bold text-slate-800">Tidak ada materi ditemukan</h4>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Tidak ada materi yang sesuai dengan pencarian atau filter kelas ini. Anda dapat mengunggah berkas baru.
+            {readOnly
+              ? 'Tidak ada materi yang sesuai dengan pencarian atau filter kelas ini.'
+              : 'Tidak ada materi yang sesuai dengan pencarian atau filter kelas ini. Anda dapat mengunggah berkas baru.'}
           </p>
-          <button
-            onClick={onUploadMateri}
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            Upload Bahan Ajar Sekarang
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={onUploadMateri}
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              Upload Bahan Ajar Sekarang
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
@@ -200,6 +212,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
 
                 <div className="flex items-center gap-1.5">
                   <button
+                    type="button"
                     onClick={() => setPreviewMateri(materi)}
                     className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
                     title="Pratinjau Materi"
@@ -207,26 +220,33 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => onDownloadMateri(materi)}
                     className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-emerald-600 transition-colors cursor-pointer"
                     title="Unduh Berkas"
                   >
                     <Download className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => onEditMateri(materi)}
-                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer"
-                    title="Edit Metadata"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onDeleteMateri(materi.id_materi)}
-                    className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                    title="Hapus (Soft Delete)"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!readOnly && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onEditMateri(materi)}
+                        className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer"
+                        title="Edit Materi"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteMateri(materi.id_materi, materi.judul_materi)}
+                        className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Hapus Materi"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -248,11 +268,12 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                     {previewMateri.judul_materi}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Kelas {previewMateri.nama_kelas} • {previewMateri.nama_mapel} • Guru: Bu Irma Satikarama
+                    Kelas {previewMateri.nama_kelas} • {previewMateri.nama_mapel}
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setPreviewMateri(null)}
                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
@@ -260,7 +281,6 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
               </button>
             </div>
 
-            {/* Viewer Layar Dokumen / Slide Presentasi */}
             <div className="bg-slate-900 rounded-2xl p-6 text-white min-h-[220px] flex flex-col justify-between border border-slate-800">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 text-xs text-slate-400">
                 <span className="font-mono bg-blue-900/40 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-700/50">
@@ -287,7 +307,6 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
               </div>
             </div>
 
-            {/* Deskripsi Materi */}
             <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-700 space-y-1">
               <p className="font-bold text-slate-900">Deskripsi & Arahan Belajar Siswa:</p>
               <p className="leading-relaxed">
@@ -295,9 +314,9 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
               </p>
             </div>
 
-            {/* Tombol Aksi Unduh dan Tutup */}
             <div className="flex justify-end gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => {
                   onDownloadMateri(previewMateri);
                 }}
@@ -307,6 +326,7 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
                 <span>Unduh Berkas Sekarang ({previewMateri.file_size || '3.5 MB'})</span>
               </button>
               <button
+                type="button"
                 onClick={() => setPreviewMateri(null)}
                 className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
               >
@@ -318,4 +338,4 @@ export const MateriModule: React.FC<MateriModuleProps> = ({
       )}
     </div>
   );
-}; 
+};

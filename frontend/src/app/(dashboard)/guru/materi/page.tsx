@@ -1,40 +1,56 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MateriModule } from '@/components/materi/MateriModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { KELAS_LIST } from '@/data/mockData';
-import { Materi, MateriFormat } from '@/types/lms';
-import { generateClientMateriPDF } from '@/lib/pdfHelper';
+import { Materi, MateriFormat, Kelas } from '@/types/lms';
+import { downloadMateriFile } from '@/lib/pdfHelper';
+import { deleteMateriGuru, getKelasGuru } from '@/services/guruService';
 
 export default function GuruMateriPage() {
   const [materiList, setMateriList] = useState<Materi[]>([]);
+  const [kelasList, setKelasList] = useState<Kelas[]>(KELAS_LIST || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMateri, setEditingMateri] = useState<Materi | null>(null);
+  const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Ambil data materi dari Supabase via Backend
-  const fetchMateriData = async () => {
+  const fetchMateriData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/v1/guru/materi');
-      const json = await res.json();
+      const [res, kelasRes] = await Promise.all([
+        fetch('/api/v1/guru/materi', { cache: 'no-store' }),
+        getKelasGuru(),
+      ]);
 
+      const activeKelasList = kelasRes.length > 0 ? kelasRes : KELAS_LIST || [];
+      if (kelasRes.length > 0) {
+        setKelasList(kelasRes);
+      }
+
+      const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        const mapped: Materi[] = json.data.map((item: any) => ({
-          id_materi: item.id,
-          id_guru: item.guru_id,
-          id_mapel: item.mapel_id,
-          nama_mapel: 'Matematika Peminatan',
-          id_kelas: item.kelas_id,
-          nama_kelas: 'XII IPA 1',
-          judul_materi: item.judul,
-          deskripsi: item.deskripsi || '',
-          format_file: (item.tipe_file || 'PDF').toUpperCase() as MateriFormat,
-          file_url: item.file_url || '',
-          file_size: `${item.ukuran_mb || 3.5} MB`,
-          unduhan_count: item.jumlah_melihat || 0,
-          tanggal_unggah: item.created_at ? item.created_at.split('T')[0] : '2026-11-05',
-        }));
+        const mapped: Materi[] = json.data.map((item: any) => {
+          const foundKelas = activeKelasList.find((k) => k.id_kelas === item.kelas_id);
+          return {
+            id_materi: item.id,
+            id_guru: item.guru_id,
+            id_mapel: item.mapel_id,
+            nama_mapel: item.nama_mapel || 'Matematika Peminatan',
+            id_kelas: item.kelas_id,
+            nama_kelas: item.nama_kelas || foundKelas?.nama_kelas || 'XII IPA 1',
+            judul_materi: item.judul,
+            deskripsi: item.deskripsi || '',
+            format_file: (item.tipe_file || 'PDF').toUpperCase() as MateriFormat,
+            file_url: item.file_url || '',
+            file_size: `${item.ukuran_mb || 3.5} MB`,
+            unduhan_count: item.jumlah_melihat || 0,
+            tanggal_unggah: item.created_at ? item.created_at.split('T')[0] : '2026-11-05',
+          };
+        });
         setMateriList(mapped);
       }
     } catch (err) {
@@ -42,15 +58,13 @@ export default function GuruMateriPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMateriData();
-  }, []);
+  }, [fetchMateriData]);
 
-  // 2. FUNGSI DOWNLOAD NYATA KE KOMPUTER SISWA & GURU (PDF RESMI)
   const handleDownloadMateri = async (materi: Materi) => {
-    // A. Optimistic counter increment
     setMateriList((prev) =>
       prev.map((m) =>
         m.id_materi === materi.id_materi
@@ -58,55 +72,58 @@ export default function GuruMateriPage() {
           : m
       )
     );
-
-    const ext = (materi.format_file || 'PDF').toLowerCase();
-    const cleanTitle = materi.judul_materi
-      .trim()
-      .replace(/[\\/:*?"<>|]+/g, '_')
-      .replace(/\s+/g, '_');
-    const filename = `${cleanTitle}.${ext}`;
-
-    try {
-      // Panggil backend Go Fiber download endpoint
-      const res = await fetch(`/api/v1/guru/materi/${encodeURIComponent(materi.id_materi)}/download`);
-      if (res.ok) {
-        const blob = await res.blob();
-        const mimeType = ext === 'pdf' ? 'application/pdf' : blob.type || 'application/octet-stream';
-        const pdfBlob = new Blob([blob], { type: mimeType });
-        const url = URL.createObjectURL(pdfBlob);
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        return;
-      }
-    } catch (err) {
-      console.warn('Backend download endpoint error, generating client PDF fallback:', err);
-    }
-
-    // B. Fallback menghasilkan file binary PDF 1.4 resmi dan valid (Bukan plain text!)
-    const pdfBytes = generateClientMateriPDF({
-      judul_materi: materi.judul_materi,
-      nama_kelas: materi.nama_kelas,
-      nama_mapel: materi.nama_mapel,
-      deskripsi: materi.deskripsi,
-    });
-    const fallbackBlob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-    const fallbackUrl = URL.createObjectURL(fallbackBlob);
-    const link = document.createElement('a');
-    link.href = fallbackUrl;
-    link.download = filename.endsWith('.pdf') ? filename : `${cleanTitle}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(fallbackUrl);
+    await downloadMateriFile(materi);
   };
 
-  const handleSaveMateri = () => {
+  const handleOpenUpload = () => {
+    setEditingMateri(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (materi: Materi) => {
+    setEditingMateri(materi);
+    setIsModalOpen(true);
+  };
+
+  const handleRequestDelete = (id: string, judul?: string) => {
+    const found = materiList.find((m) => m.id_materi === id);
+    setDeletingTarget({
+      id,
+      judul: judul || found?.judul_materi || 'Materi ini',
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTarget) return;
+    try {
+      setIsDeleting(true);
+      await deleteMateriGuru(deletingTarget.id);
+      setMateriList((prev) => prev.filter((m) => m.id_materi !== deletingTarget.id));
+      setDeletingTarget(null);
+    } catch (err) {
+      console.error('Gagal menghapus materi:', err);
+      setMateriList((prev) => prev.filter((m) => m.id_materi !== deletingTarget.id));
+      setDeletingTarget(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSaveMateri = (saved?: Materi) => {
+    if (saved) {
+      if (editingMateri) {
+        setMateriList((prev) =>
+          prev.map((m) =>
+            m.id_materi === editingMateri.id_materi || m.id_materi === saved.id_materi
+              ? saved
+              : m
+          )
+        );
+      } else {
+        setMateriList((prev) => [saved, ...prev.filter((m) => m.id_materi !== saved.id_materi)]);
+      }
+    }
+    setEditingMateri(null);
     fetchMateriData();
   };
 
@@ -119,20 +136,36 @@ export default function GuruMateriPage() {
       ) : (
         <MateriModule
           materiList={materiList}
-          kelasList={KELAS_LIST || []}
-          onUploadMateri={() => setIsModalOpen(true)}
-          onEditMateri={() => {}}
-          onDeleteMateri={() => {}}
+          kelasList={kelasList}
+          onUploadMateri={handleOpenUpload}
+          onEditMateri={handleOpenEdit}
+          onDeleteMateri={handleRequestDelete}
           onDownloadMateri={handleDownloadMateri}
         />
       )}
 
       <UploadMateriModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        kelasList={KELAS_LIST || []}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingMateri(null);
+        }}
+        kelasList={kelasList}
         currentBidangStudi="Matematika Peminatan"
+        initialData={editingMateri}
         onSaveMateri={handleSaveMateri}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deletingTarget)}
+        onClose={() => setDeletingTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Materi Pembelajaran"
+        message={`Apakah Anda yakin ingin menghapus materi "${deletingTarget?.judul || ''}" secara permanen dari daftar bahan ajar kelas?`}
+        confirmText="Ya, Hapus Materi"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
       />
     </div>
   );
