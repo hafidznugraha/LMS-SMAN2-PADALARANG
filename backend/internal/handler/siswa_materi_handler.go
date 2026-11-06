@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -149,6 +150,13 @@ func (h *SiswaHandler) DownloadMateri(c *fiber.Ctx) error {
 		})
 	}
 
+	fileURL := strings.TrimSpace(materi.FileURL)
+	if strings.Contains(fileURL, "storage.sman2padalarang.sch.id") ||
+		strings.Contains(fileURL, "storage.supabase.co/lms/") ||
+		!strings.HasPrefix(fileURL, "http") {
+		fileURL = fmt.Sprintf("/api/v1/materi/%s/download", materi.ID.String())
+	}
+
 	// Hitung tampilan; kegagalan di sini tidak boleh menghalangi unduhan.
 	_ = db.Model(&model.Materi{}).Where("id = ?", materi.ID).
 		UpdateColumn("jumlah_melihat", gorm.Expr("COALESCE(jumlah_melihat, 0) + 1")).Error
@@ -157,7 +165,7 @@ func (h *SiswaHandler) DownloadMateri(c *fiber.Ctx) error {
 		Success: true,
 		Message: "Tautan materi siap",
 		Data: model.SiswaMateriDownloadResponse{
-			FileURL:  materi.FileURL,
+			FileURL:  fileURL,
 			Judul:    materi.Judul,
 			TipeFile: materi.TipeFile,
 		},

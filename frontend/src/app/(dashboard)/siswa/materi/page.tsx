@@ -45,8 +45,14 @@ export default function SiswaMateriPage() {
       const res = await fetchAPI<APIResponse<SiswaMateriDownload>>(
         `/siswa/materi/${id}/download`,
       );
-      const url = res.data?.file_url;
+      let url = res.data?.file_url;
       if (!url) throw new Error("Tautan materi tidak tersedia");
+
+      // Jika URL adalah dummy domain storage.sman2padalarang.sch.id atau path lokal, arahkan ke proxy unduh backend
+      if (url.includes("storage.sman2padalarang.sch.id") || url.includes("storage.supabase.co/lms/") || !url.startsWith("http")) {
+        url = url.startsWith("/") ? url : `/api/v1/materi/${id}/download`;
+      }
+
       if (tab) {
         tab.opener = null;
         tab.location.href = url;
