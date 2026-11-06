@@ -61,6 +61,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	laporanHandler := handler.NewLaporanHandler()
 	pengaturanHandler := handler.NewPengaturanHandler()
 	absensiHandler := handler.NewAbsensiHandler()
+	siswaHandler := handler.NewSiswaHandler(cfg)
 
 	api := app.Group("/api/v1")
 
@@ -170,9 +171,19 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	})
 
 	siswa := protected.Group("/siswa", middleware.RequireRole(model.RoleSiswa))
-	siswa.Get("/tugas", func(c *fiber.Ctx) error {
-		return c.JSON(model.APIResponse{Success: true, Message: "Data tugas siswa"})
-	})
+	siswa.Get("/me", siswaHandler.GetMe)
+	siswa.Get("/dashboard", siswaHandler.GetDashboard)
+	siswa.Get("/materi", siswaHandler.GetMateriList)
+	siswa.Get("/materi/:id/download", siswaHandler.DownloadMateri)
+	siswa.Get("/tugas", siswaHandler.GetTugasList)
+	siswa.Post("/tugas/:id/submit", siswaHandler.SubmitTugas)
+	siswa.Put("/submissions/:id", siswaHandler.UpdatePengumpulan)
+	siswa.Get("/absensi", siswaHandler.GetAbsensi)
+	siswa.Post("/absensi/self", siswaHandler.AbsenMandiri)
+	siswa.Get("/nilai", siswaHandler.GetNilai)
+	siswa.Get("/rapor", siswaHandler.GetRaporList)
+	siswa.Get("/rapor/:id", siswaHandler.GetRaporDetail)
+	siswa.Put("/password", siswaHandler.UbahPassword)
 
 	return app
 }

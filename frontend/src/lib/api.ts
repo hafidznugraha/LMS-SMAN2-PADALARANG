@@ -68,13 +68,11 @@ export async function fetchAPI<T>(endpoint: string, options: RequestOptions = {}
 
   const authToken = token || getStoredToken();
 
+  const isFormData = typeof FormData !== "undefined" && rest.body instanceof FormData;
   const requestHeaders: Record<string, string> = {
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(headers as Record<string, string>),
   };
-
-  if (!(rest.body instanceof FormData)) {
-    requestHeaders["Content-Type"] = requestHeaders["Content-Type"] || "application/json";
-  }
 
   if (authToken) {
     requestHeaders["Authorization"] = `Bearer ${authToken}`;
