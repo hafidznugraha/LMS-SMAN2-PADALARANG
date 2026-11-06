@@ -432,12 +432,28 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
                         <td className="py-3.5 px-3">
                           {sub.file_name ? (
-                            <div className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium">
-                              <FileText className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate max-w-[120px]" title={sub.file_name}>
-                                {sub.file_name}
-                              </span>
-                            </div>
+                            sub.file_tugas ? (
+                              <a
+                                href={sub.file_tugas}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium hover:underline group"
+                                title={`Buka berkas: ${sub.file_name}`}
+                              >
+                                <FileText className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform" />
+                                <span className="truncate max-w-[120px]">
+                                  {sub.file_name}
+                                </span>
+                                <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 shrink-0" />
+                              </a>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-slate-700 font-medium">
+                                <FileText className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate max-w-[120px]" title={sub.file_name}>
+                                  {sub.file_name}
+                                </span>
+                              </div>
+                            )
                           ) : (
                             <span className="text-slate-400 italic">Tidak ada berkas</span>
                           )}
@@ -517,11 +533,24 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
             {gradingSubmission.file_name && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs space-y-1">
-                <p className="font-bold text-blue-950 flex items-center gap-1.5">
-                  <FileCheck2 className="w-4 h-4 text-blue-600" />
-                  Berkas Jawaban Siswa:
+                <p className="font-bold text-blue-950 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <FileCheck2 className="w-4 h-4 text-blue-600" />
+                    Berkas Jawaban Siswa:
+                  </span>
+                  {gradingSubmission.file_tugas && (
+                    <a
+                      href={gradingSubmission.file_tugas}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-semibold underline"
+                    >
+                      Buka / Unduh Berkas
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </p>
-                <p className="font-mono text-blue-800">{gradingSubmission.file_name}</p>
+                <p className="font-mono text-blue-800 break-all">{gradingSubmission.file_name}</p>
                 {gradingSubmission.catatan_siswa && (
                   <p className="text-slate-600 italic pt-1">
                     "{gradingSubmission.catatan_siswa}"

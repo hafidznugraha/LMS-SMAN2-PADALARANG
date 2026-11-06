@@ -18,19 +18,22 @@ import (
 
 const submissionBucket = "pengumpulan-tugas"
 
-var allowedSubmissionExt = map[string]bool{
-	".pdf": true, ".docx": true, ".zip": true, ".jpg": true, ".jpeg": true, ".png": true,
+var disallowedSubmissionExt = map[string]bool{
+	".exe": true, ".bat": true, ".cmd": true, ".sh": true, ".vbs": true, ".msi": true,
 }
 
 // newSubmissionStore memilih Supabase Storage bila kuncinya diisi,
 // selain itu menyimpan ke disk lokal (untuk pengembangan).
 func newSubmissionStore(cfg *config.Config) storage.Store {
-	key := strings.TrimSpace(cfg.SupabaseSecretKey)
+	key := strings.TrimSpace(cfg.SupabasePublishable)
+	if key == "" {
+		key = strings.TrimSpace(cfg.SupabaseSecretKey)
+	}
 	if key != "" && !strings.HasSuffix(key, "...") && cfg.SupabaseURL != "" {
 		log.Println("[INFO] Penyimpanan pengumpulan tugas: Supabase Storage (bucket " + submissionBucket + ")")
 		return storage.NewSupabase(cfg.SupabaseURL, key, submissionBucket)
 	}
-	log.Println("[WARN] SUPABASE_SECRET_KEY kosong: pengumpulan tugas disimpan ke disk lokal (uploads/" + submissionBucket + ")")
+	log.Println("[WARN] Supabase key kosong: pengumpulan tugas disimpan ke disk lokal (uploads/" + submissionBucket + ")")
 	return storage.NewLocal("uploads/" + submissionBucket)
 }
 
@@ -156,11 +159,11 @@ func readSubmissionFile(c *fiber.Ctx, required bool) (*uploadedFile, string, str
 		return nil, "", ""
 	}
 	if fh.Size > maxSubmissionBytes {
-		return nil, "FILE_TOO_LARGE", "Ukuran file maksimal 10 MB"
+		return nil, "FILE_TOO_LARGE", "Ukuran file maksimal 50 MB"
 	}
 	ext := strings.ToLower(filepath.Ext(fh.Filename))
-	if !allowedSubmissionExt[ext] {
-		return nil, "FILE_TYPE_INVALID", "Format file harus PDF, DOCX, ZIP, JPG, atau PNG"
+	if disallowedSubmissionExt[ext] {
+		return nil, "FILE_TYPE_INVALID", "Format file executable tidak diizinkan demi keamanan"
 	}
 
 	f, err := fh.Open()
@@ -276,11 +279,19 @@ func (h *SiswaHandler) SubmitTugas(c *fiber.Ctx) error {
 	objectPath := fmt.Sprintf("%s/%s/%d_%s", tugas.ID, siswa.ID, now.Unix(), file.Name)
 	ref, err := h.store.Save(c.UserContext(), objectPath, file.Data, file.ContentType)
 	if err != nil {
-		log.Printf("[ERROR] simpan file pengumpulan: %v", err)
-		return c.Status(fiber.StatusBadGateway).JSON(model.APIResponse{
-			Success: false,
-			Message: "Gagal menyimpan file ke penyimpanan. Coba lagi.",
-		})
+		log.Printf("[WARN] simpan ke Supabase Storage gagal (%v), fallback menyimpan ke disk lokal...", err)
+		fallbackStore := storage.NewLocal("uploads/" + submissionBucket)
+		ref, err = fallbackStore.Save(c.UserContext(), objectPath, file.Data, file.ContentType)
+		if err != nil {
+			log.Printf("[ERROR] simpan file pengumpulan ke disk lokal juga gagal: %v", err)
+			return c.Status(fiber.StatusBadGateway).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal menyimpan file ke penyimpanan. Coba lagi.",
+			})
+		}
+		if !strings.HasPrefix(ref, "/") {
+			ref = "/" + ref
+		}
 	}
 
 	sub := model.PengumpulanTugas{
@@ -370,11 +381,19 @@ func (h *SiswaHandler) UpdatePengumpulan(c *fiber.Ctx) error {
 		objectPath := fmt.Sprintf("%s/%s/%d_%s", tugas.ID, siswa.ID, now.Unix(), file.Name)
 		newRef, err = h.store.Save(c.UserContext(), objectPath, file.Data, file.ContentType)
 		if err != nil {
-			log.Printf("[ERROR] simpan file pengumpulan: %v", err)
-			return c.Status(fiber.StatusBadGateway).JSON(model.APIResponse{
-				Success: false,
-				Message: "Gagal menyimpan file ke penyimpanan. Coba lagi.",
-			})
+			log.Printf("[WARN] simpan pembaruan ke Supabase Storage gagal (%v), fallback ke disk lokal...", err)
+			fallbackStore := storage.NewLocal("uploads/" + submissionBucket)
+			newRef, err = fallbackStore.Save(c.UserContext(), objectPath, file.Data, file.ContentType)
+			if err != nil {
+				log.Printf("[ERROR] simpan file pembaruan ke disk lokal juga gagal: %v", err)
+				return c.Status(fiber.StatusBadGateway).JSON(model.APIResponse{
+					Success: false,
+					Message: "Gagal menyimpan file ke penyimpanan. Coba lagi.",
+				})
+			}
+			if !strings.HasPrefix(newRef, "/") {
+				newRef = "/" + newRef
+			}
 		}
 		updates["file_url"] = newRef
 	}

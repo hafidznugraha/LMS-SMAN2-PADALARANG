@@ -8,8 +8,8 @@ import { useSubmitTugas } from "@/hooks/useSiswaTugas";
 import { cn, formatTanggal } from "@/lib/utils";
 import type { SiswaTugas } from "@/types/api";
 
-const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED = [".pdf", ".docx", ".zip", ".jpg", ".jpeg", ".png"];
+const MAX_BYTES = 50 * 1024 * 1024;
+const DISALLOWED_EXT = [".exe", ".bat", ".cmd", ".sh", ".vbs", ".msi"];
 
 function formatBytes(b: number) {
   return b >= 1024 * 1024
@@ -20,8 +20,8 @@ function formatBytes(b: number) {
 function validateFile(f: File): string {
   const dot = f.name.lastIndexOf(".");
   const ext = dot >= 0 ? f.name.slice(dot).toLowerCase() : "";
-  if (!ALLOWED.includes(ext)) return "Format file harus PDF, DOCX, ZIP, JPG, atau PNG";
-  if (f.size > MAX_BYTES) return "Ukuran file maksimal 10 MB";
+  if (DISALLOWED_EXT.includes(ext)) return "Format file executable tidak diizinkan demi keamanan";
+  if (f.size > MAX_BYTES) return "Ukuran file maksimal 50 MB";
   if (f.size === 0) return "File kosong";
   return "";
 }
@@ -147,7 +147,7 @@ export function SubmitTugasDialog({ tugas, onClose }: Props) {
                     {edit ? "Pilih file pengganti (opsional)" : "Tarik file ke sini atau klik untuk memilih"}
                   </span>
                   <span className="text-xs text-slate-500">
-                    PDF, DOCX, ZIP, JPG, PNG • maksimal 10 MB
+                    Semua format didukung (PDF, Word, Excel, PPTX, ZIP, Gambar, dll.) • maksimal 50 MB
                   </span>
                 </>
               )}
@@ -156,7 +156,6 @@ export function SubmitTugasDialog({ tugas, onClose }: Props) {
               ref={inputRef}
               id="file-jawaban"
               type="file"
-              accept={ALLOWED.join(",")}
               className="sr-only"
               onChange={(e) => pilihFile(e.target.files?.[0])}
             />

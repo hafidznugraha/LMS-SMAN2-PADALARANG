@@ -60,8 +60,11 @@ func (s *Supabase) Save(ctx context.Context, objectPath string, data []byte, con
 	}
 	req.Header.Set("Authorization", "Bearer "+s.key)
 	req.Header.Set("apikey", s.key)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("x-upsert", "false")
+	req.Header.Set("x-upsert", "true")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -73,7 +76,8 @@ func (s *Supabase) Save(ctx context.Context, objectPath string, data []byte, con
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return "", fmt.Errorf("supabase storage menolak unggahan (%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
-	return target, nil
+	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", s.baseURL, s.bucket, escapePath(objectPath))
+	return publicURL, nil
 }
 
 func (s *Supabase) Remove(ctx context.Context, ref string) error {

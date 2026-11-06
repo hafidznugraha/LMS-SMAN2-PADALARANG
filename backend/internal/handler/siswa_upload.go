@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"bytes"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-const maxSubmissionBytes = 10 * 1024 * 1024 // 10 MB
+const maxSubmissionBytes = 50 * 1024 * 1024 // 50 MB
 
 var unsafeNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
@@ -27,23 +27,47 @@ func sanitizeSubmissionFilename(name string) string {
 	return base + ext
 }
 
-// detectContentType memeriksa ekstensi yang diizinkan dan mencocokkannya
-// dengan magic bytes isi file. Mengembalikan content-type bila cocok.
+// detectContentType memeriksa ekstensi dan mencocokkannya atau mendeteksi MIME type isi file.
 func detectContentType(ext string, head []byte) (string, bool) {
 	switch strings.ToLower(ext) {
 	case ".pdf":
-		return "application/pdf", bytes.HasPrefix(head, []byte("%PDF-"))
+		return "application/pdf", true
 	case ".docx":
-		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-			bytes.HasPrefix(head, []byte("PK\x03\x04"))
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", true
+	case ".doc":
+		return "application/msword", true
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation", true
+	case ".ppt":
+		return "application/vnd.ms-powerpoint", true
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", true
+	case ".xls":
+		return "application/vnd.ms-excel", true
 	case ".zip":
-		return "application/zip", bytes.HasPrefix(head, []byte("PK\x03\x04"))
+		return "application/zip", true
+	case ".rar":
+		return "application/vnd.rar", true
+	case ".7z":
+		return "application/x-7z-compressed", true
 	case ".jpg", ".jpeg":
-		return "image/jpeg", bytes.HasPrefix(head, []byte{0xFF, 0xD8, 0xFF})
+		return "image/jpeg", true
 	case ".png":
-		return "image/png", bytes.HasPrefix(head, []byte("\x89PNG\r\n\x1a\n"))
+		return "image/png", true
+	case ".gif":
+		return "image/gif", true
+	case ".txt":
+		return "text/plain; charset=utf-8", true
+	case ".csv":
+		return "text/csv", true
 	}
-	return "", false
+	if len(head) > 0 {
+		ct := http.DetectContentType(head)
+		if ct != "" {
+			return ct, true
+		}
+	}
+	return "application/octet-stream", true
 }
 
 var timestampPrefix = regexp.MustCompile(`^\d{9,}_`)
