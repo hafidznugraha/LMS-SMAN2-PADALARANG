@@ -60,6 +60,7 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
       { href: "/siswa/tugas", label: "Tugas", icon: ClipboardList },
       { href: "/siswa/kuis", label: "Kuis", icon: HelpCircle },
       { href: "/siswa/absensi", label: "Absensi", icon: UserCheck },
+      { href: "/siswa/nilai", label: "Nilai & Rapor", icon: Award },
       { href: "/siswa/profil", label: "Profil", icon: User },
     ],
     guru: [
