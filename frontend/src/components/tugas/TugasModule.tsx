@@ -317,7 +317,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
       {/* Rubric View Modal */}
       {viewRubrikTugas && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
@@ -357,7 +357,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
       {/* Grading Drawer / Sheet (Lembar Penilaian Guru - UI-11 pada PRD) */}
       {selectedTugasForGrading && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
@@ -464,7 +464,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                             onClick={() => handleStartGradeStudent(sub)}
                             className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition-colors cursor-pointer"
                           >
-                            {sub.nilai !== null ? 'Koreksi Nilai' : 'Beri Nilai'}
+                            {typeof sub.nilai === 'number' && sub.nilai !== null ? 'Koreksi Nilai' : 'Beri Nilai'}
                           </button>
                         </td>
                       </tr>
@@ -492,7 +492,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
       {/* Input Score & Feedback Modal */}
       {gradingSubmission && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-60">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
           <form
             onSubmit={handleSaveGrade}
             className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4"
