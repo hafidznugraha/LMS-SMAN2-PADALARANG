@@ -19,7 +19,7 @@ export const AltchaWidget = forwardRef<AltchaHandle, AltchaProps>(
     const widgetRef = useRef<HTMLElement | null>(null);
     const [payload, setPayload] = useState<string | null>(null);
 
-    const apiUrl = challengeUrl || `${getApiBaseUrl()}/auth/altcha-challenge`;
+    const apiUrl = challengeUrl || "/api/v1/auth/altcha-challenge";
 
     useEffect(() => {
       import("altcha");
