@@ -21,8 +21,8 @@ interface LaporanAkademik {
   nisn: string;
   rombel: string;
   kelas_id: string;
-  nilai_pengetahuan: number | null;
-  nilai_keterampilan: number | null;
+  pengetahuan: number | null;
+  keterampilan: number | null;
   rata_rata: number | null;
   catatan_wali: string;
   status_laporan: string;
@@ -200,11 +200,11 @@ useEffect(() => {
                             </td>
 
                             <td className="p-4 text-center font-semibold text-slate-700">
-                             {item.nilai_pengetahuan ?? "-"}
+                             {item.pengetahuan ?? "-"}
                             </td>
 
                             <td className="p-4 text-center font-semibold text-slate-700">
-                             {item.nilai_keterampilan ?? "-"}
+                             {item.keterampilan ?? "-"}
                             </td>
 
                             <td className="p-4 text-center">
