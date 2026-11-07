@@ -19,6 +19,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		AppName:        "LMS SMAN 2 Padalarang API v1.0.0",
 		ServerHeader:   "Fiber",
 		ReadBufferSize: 32768,
+		BodyLimit:      100 * 1024 * 1024, // 100 MB untuk unggahan materi PDF/DOCX/PPTX/MP4
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			var e *fiber.Error
@@ -56,14 +57,20 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	// Handler Inisialisasi
 	masterHandler := handler.NewMasterHandler()
 	jadwalHandler := handler.NewJadwalHandler()
-	guruHandler := handler.NewGuruHandler()
+	guruHandler := handler.NewGuruHandler(cfg)
 	laporanHandler := handler.NewLaporanHandler()
 	pengaturanHandler := handler.NewPengaturanHandler()
 	absensiHandler := handler.NewAbsensiHandler()
+	siswaHandler := handler.NewSiswaHandler(cfg)
 
 	api := app.Group("/api/v1")
 
+	app.Static("/uploads", "./uploads")
+
 	api.Get("/health", handler.HealthCheckHandler)
+
+	api.Get("/materi", guruHandler.GetMateriList)
+	api.Get("/materi/:id/download", guruHandler.DownloadMateri)
 
 	// Auth Rute
 	auth := api.Group("/auth")
@@ -77,14 +84,23 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Get("/kelas", masterHandler.GetKelasList)
 	guru.Get("/materi", guruHandler.GetMateriList)
 	guru.Post("/materi", guruHandler.CreateMateri)
+	guru.Put("/materi/:id", guruHandler.UpdateMateri)
 	guru.Delete("/materi/:id", guruHandler.DeleteMateri)
+	guru.Get("/materi/:id/download", guruHandler.DownloadMateri)
 	guru.Get("/tugas", guruHandler.GetTugasList)
 	guru.Post("/tugas", guruHandler.CreateTugas)
+	guru.Put("/tugas/:id", guruHandler.UpdateTugas)
+	guru.Delete("/tugas/:id", guruHandler.DeleteTugas)
 	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
 	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
 	guru.Post("/submissions/:id/grade", guruHandler.GradeSubmission)
+
+	// 3. Rekap & Koreksi Presensi/Absensi Siswa
 	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
-	guru.Put("/absensi/:id", guruHandler.UpdateAbsensi)
+	guru.Post("/absensi", guruHandler.SaveOrUpdateAbsensi)
+	guru.Put("/absensi/:id", guruHandler.SaveOrUpdateAbsensi)
+
+	// 4. Modul Penilaian Siswa
 	guru.Get("/nilai", guruHandler.GetNilaiList)
 	guru.Put("/nilai", guruHandler.UpdateNilai)
 	guru.Post("/nilai", guruHandler.UpdateNilai)
@@ -152,9 +168,19 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	})
 
 	siswa := protected.Group("/siswa", middleware.RequireRole(model.RoleSiswa))
-	siswa.Get("/tugas", func(c *fiber.Ctx) error {
-		return c.JSON(model.APIResponse{Success: true, Message: "Data tugas siswa"})
-	})
+	siswa.Get("/me", siswaHandler.GetMe)
+	siswa.Get("/dashboard", siswaHandler.GetDashboard)
+	siswa.Get("/materi", siswaHandler.GetMateriList)
+	siswa.Get("/materi/:id/download", siswaHandler.DownloadMateri)
+	siswa.Get("/tugas", siswaHandler.GetTugasList)
+	siswa.Post("/tugas/:id/submit", siswaHandler.SubmitTugas)
+	siswa.Put("/submissions/:id", siswaHandler.UpdatePengumpulan)
+	siswa.Get("/absensi", siswaHandler.GetAbsensi)
+	siswa.Post("/absensi/self", siswaHandler.AbsenMandiri)
+	siswa.Get("/nilai", siswaHandler.GetNilai)
+	siswa.Get("/rapor", siswaHandler.GetRaporList)
+	siswa.Get("/rapor/:id", siswaHandler.GetRaporDetail)
+	siswa.Put("/password", siswaHandler.UbahPassword)
 
 	return app
 }

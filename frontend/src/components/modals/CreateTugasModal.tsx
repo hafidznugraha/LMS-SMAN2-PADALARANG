@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Plus, Loader2, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, JenisPenugasan, Kelas } from '../../types/lms';
-import { createTugasGuru } from '../../services/guruService';
+import { createTugasGuru, updateTugasGuru } from '../../services/guruService';
 import { getStoredUser } from '@/lib/auth';
 
 interface CreateTugasModalProps {
@@ -12,7 +12,8 @@ interface CreateTugasModalProps {
   onClose: () => void;
   kelasList: Kelas[];
   currentBidangStudi: string;
-  onSaveTugas: (newTugas: TugasKuis) => void;
+  onSaveTugas: (savedTugas: TugasKuis) => void;
+  initialData?: TugasKuis | null;
 }
 
 export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
@@ -21,7 +22,9 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   kelasList,
   currentBidangStudi,
   onSaveTugas,
+  initialData,
 }) => {
+  const isEditMode = !!initialData;
   const [judul, setJudul] = useState('');
   const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
   const [jenis, setJenis] = useState<JenisPenugasan>('Tugas');
@@ -38,10 +41,44 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!idKelas && kelasList.length > 0) {
-      setIdKelas(kelasList[0].id_kelas);
+    if (initialData) {
+      setJudul(initialData.judul || '');
+      setIdKelas(
+        initialData.id_kelas ||
+        (initialData as unknown as { kelas_id?: string }).kelas_id ||
+        kelasList[0]?.id_kelas ||
+        ''
+      );
+      setJenis(initialData.jenis || 'Tugas');
+      setTenggatWaktu(
+        initialData.tenggat_waktu ||
+        (initialData as unknown as { deadline?: string }).deadline ||
+        ''
+      );
+      setFormatFile(initialData.format_file || 'pdf, docx');
+      setInstruksi(
+        initialData.instruksi ||
+        (initialData as unknown as { deskripsi?: string }).deskripsi ||
+        ''
+      );
+      setRubrik(
+        initialData.rubrik_penilaian ||
+        '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
+      );
+    } else {
+      setJudul('');
+      setIdKelas(kelasList[0]?.id_kelas || '');
+      setJenis('Tugas');
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      setTenggatWaktu(`${d.toISOString().slice(0, 10)} 23:59:00`);
+      setFormatFile('pdf, docx');
+      setInstruksi('');
+      setRubrik(
+        '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
+      );
     }
-  }, [kelasList, idKelas]);
+  }, [initialData, kelasList, isOpen]);
 
   if (!isOpen) return null;
 
@@ -55,30 +92,53 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
     setIsSubmitting(true);
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
     const user = getStoredUser();
+    const tugasId =
+      initialData?.id_tugas_kuis ||
+      (initialData as unknown as { id?: string })?.id;
 
     try {
-      const res = await createTugasGuru({
-        judul: judul.trim(),
-        deskripsi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
-        instruksi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
-        jenis,
-        deadline: tenggatWaktu,
-        tenggat_waktu: tenggatWaktu,
-        format_file: formatFile,
-        rubrik_penilaian: rubrik,
-        kelas_id: kelasObj?.id_kelas,
-        guru_id: user?.extra?.guru_id,
-        mapel_id: user?.extra?.mapel_id || (user?.extra?.mapel as { id?: string })?.id,
-      });
+      if (isEditMode && tugasId) {
+        const res = await updateTugasGuru(tugasId, {
+          judul: judul.trim(),
+          deskripsi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+          instruksi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+          jenis,
+          deadline: tenggatWaktu,
+          tenggat_waktu: tenggatWaktu,
+          format_file: formatFile,
+          rubrik_penilaian: rubrik,
+          kelas_id: kelasObj?.id_kelas,
+        });
 
-      if (res?.success && res.data) {
-        onSaveTugas(res.data);
-        toast.success('Tugas baru berhasil diterbitkan dan disimpan ke database');
-        onClose();
-        setJudul('');
-        setInstruksi('');
+        if (res?.success && res.data) {
+          onSaveTugas(res.data);
+          toast.success('Tugas berhasil diperbarui di Supabase');
+          onClose();
+        } else {
+          toast.error(res?.message || 'Gagal memperbarui tugas');
+        }
       } else {
-        toast.error(res?.message || 'Gagal menerbitkan tugas');
+        const res = await createTugasGuru({
+          judul: judul.trim(),
+          deskripsi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+          instruksi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+          jenis,
+          deadline: tenggatWaktu,
+          tenggat_waktu: tenggatWaktu,
+          format_file: formatFile,
+          rubrik_penilaian: rubrik,
+          kelas_id: kelasObj?.id_kelas,
+          guru_id: user?.extra?.guru_id,
+          mapel_id: user?.extra?.mapel_id || (user?.extra?.mapel as { id?: string })?.id,
+        });
+
+        if (res?.success && res.data) {
+          onSaveTugas(res.data);
+          toast.success('Tugas baru berhasil diterbitkan dan disimpan ke database');
+          onClose();
+        } else {
+          toast.error(res?.message || 'Gagal menerbitkan tugas');
+        }
       }
     } catch (err: unknown) {
       console.error(err);
@@ -96,8 +156,15 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
       >
         <div className="flex items-start justify-between border-b border-slate-100 pb-3">
           <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Penerbitan Tugas / Kuis Baru
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <Edit3 className="w-4 h-4 text-blue-600" />
+                  <span>Edit Tugas / Kuis</span>
+                </>
+              ) : (
+                <span>Penerbitan Tugas / Kuis Baru</span>
+              )}
             </h3>
             <p className="text-xs text-slate-500">
               Mata Pelajaran: {currentBidangStudi}
@@ -234,6 +301,11 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span>Menyimpan ke Supabase...</span>
+              </>
+            ) : isEditMode ? (
+              <>
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Simpan Perubahan</span>
               </>
             ) : (
               <>

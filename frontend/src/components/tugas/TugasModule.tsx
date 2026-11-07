@@ -15,7 +15,9 @@ import {
   BookOpen,
   X,
   FileCheck2,
-  ExternalLink
+  ExternalLink,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
@@ -29,6 +31,8 @@ interface TugasModuleProps {
   activeTugasId?: string | null;
   onClearActiveTugas?: () => void;
   onOpenGrading?: (tugas: TugasKuis) => void;
+  onEditTugas?: (tugas: TugasKuis) => void;
+  onDeleteTugas?: (tugasId: string, judul?: string) => void;
 }
 
 export const TugasModule: React.FC<TugasModuleProps> = ({
@@ -40,6 +44,8 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   activeTugasId,
   onClearActiveTugas,
   onOpenGrading,
+  onEditTugas,
+  onDeleteTugas,
 }) => {
   const [selectedJenis, setSelectedJenis] = useState<'ALL' | JenisPenugasan>('ALL');
   const [selectedKelas, setSelectedKelas] = useState('ALL');
@@ -261,14 +267,39 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <button
-                    onClick={() => setViewRubrikTugas(tugas)}
-                    className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Lihat Rubrik</span>
-                  </button>
+                <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setViewRubrikTugas(tugas)}
+                      className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      title="Lihat Rubrik"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Rubrik</span>
+                    </button>
+
+                    {onEditTugas && (
+                      <button
+                        onClick={() => onEditTugas(tugas)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-colors"
+                        title="Edit Tugas"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+
+                    {onDeleteTugas && (
+                      <button
+                        onClick={() => onDeleteTugas(tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '', tugas.judul)}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-rose-50 border border-rose-200 transition-colors"
+                        title="Hapus Tugas"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus</span>
+                      </button>
+                    )}
+                  </div>
 
                   <button
                     onClick={() => handleOpenGrading(tugas)}
@@ -286,7 +317,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
       {/* Rubric View Modal */}
       {viewRubrikTugas && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
@@ -326,7 +357,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
       {/* Grading Drawer / Sheet (Lembar Penilaian Guru - UI-11 pada PRD) */}
       {selectedTugasForGrading && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
@@ -401,12 +432,28 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
                         <td className="py-3.5 px-3">
                           {sub.file_name ? (
-                            <div className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium">
-                              <FileText className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate max-w-[120px]" title={sub.file_name}>
-                                {sub.file_name}
-                              </span>
-                            </div>
+                            sub.file_tugas ? (
+                              <a
+                                href={sub.file_tugas}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium hover:underline group"
+                                title={`Buka berkas: ${sub.file_name}`}
+                              >
+                                <FileText className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform" />
+                                <span className="truncate max-w-[120px]">
+                                  {sub.file_name}
+                                </span>
+                                <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 shrink-0" />
+                              </a>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-slate-700 font-medium">
+                                <FileText className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate max-w-[120px]" title={sub.file_name}>
+                                  {sub.file_name}
+                                </span>
+                              </div>
+                            )
                           ) : (
                             <span className="text-slate-400 italic">Tidak ada berkas</span>
                           )}
@@ -433,7 +480,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                             onClick={() => handleStartGradeStudent(sub)}
                             className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition-colors cursor-pointer"
                           >
-                            {sub.nilai !== null ? 'Koreksi Nilai' : 'Beri Nilai'}
+                            {typeof sub.nilai === 'number' && sub.nilai !== null ? 'Koreksi Nilai' : 'Beri Nilai'}
                           </button>
                         </td>
                       </tr>
@@ -461,7 +508,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
       {/* Input Score & Feedback Modal */}
       {gradingSubmission && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-60">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
           <form
             onSubmit={handleSaveGrade}
             className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4"
@@ -486,11 +533,24 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
 
             {gradingSubmission.file_name && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs space-y-1">
-                <p className="font-bold text-blue-950 flex items-center gap-1.5">
-                  <FileCheck2 className="w-4 h-4 text-blue-600" />
-                  Berkas Jawaban Siswa:
+                <p className="font-bold text-blue-950 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <FileCheck2 className="w-4 h-4 text-blue-600" />
+                    Berkas Jawaban Siswa:
+                  </span>
+                  {gradingSubmission.file_tugas && (
+                    <a
+                      href={gradingSubmission.file_tugas}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-semibold underline"
+                    >
+                      Buka / Unduh Berkas
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </p>
-                <p className="font-mono text-blue-800">{gradingSubmission.file_name}</p>
+                <p className="font-mono text-blue-800 break-all">{gradingSubmission.file_name}</p>
                 {gradingSubmission.catatan_siswa && (
                   <p className="text-slate-600 italic pt-1">
                     "{gradingSubmission.catatan_siswa}"

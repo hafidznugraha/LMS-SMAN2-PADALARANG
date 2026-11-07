@@ -22,8 +22,28 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	if err := godotenv.Load(); err != nil {
-		log.Println("[INFO] File .env tidak ditemukan, menggunakan environment variable sistem")
+	// Coba muat file .env dan hilangkan karakter BOM (Byte Order Mark) jika ada
+	envFiles := []string{".env", "backend/.env", "../.env"}
+	loaded := false
+	for _, file := range envFiles {
+		if data, err := os.ReadFile(file); err == nil {
+			if len(data) >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
+				data = data[3:]
+			}
+			if envMap, err := godotenv.Unmarshal(string(data)); err == nil {
+				for k, v := range envMap {
+					if os.Getenv(k) == "" {
+						_ = os.Setenv(k, v)
+					}
+				}
+				loaded = true
+				break
+			}
+		}
+	}
+
+	if !loaded {
+		_ = godotenv.Load()
 	}
 
 	cfg := &Config{
@@ -38,6 +58,10 @@ func LoadConfig() *Config {
 		AllowedOrigins:      getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
 		Environment:         getEnv("APP_ENV", "development"),
 		EnableAltcha:        getEnv("ENABLE_ALTCHA", "false") == "true",
+	}
+
+	if cfg.DatabaseURL == "" {
+		log.Println("[WARN] DATABASE_URL kosong! Pastikan file .env terbaca dengan benar.")
 	}
 
 	return cfg

@@ -6,7 +6,6 @@ import {
   Users,
   ClipboardCheck,
   HelpCircle,
-  UserCheck,
   Upload,
   PlusCircle,
   Calendar,
@@ -28,6 +27,8 @@ import { NilaiModule } from '@/components/nilai/NilaiModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
 import { BranchCollabInfoModal } from '@/components/modals/BranchCollabInfoModal';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { downloadMateriFile } from '@/lib/pdfHelper';
 
 import {
   getKelasGuru,
@@ -66,7 +67,11 @@ export default function GuruDashboardPage() {
   const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>([]);
   const [jadwalList, setJadwalList] = useState<JadwalPelajaran[]>([]);
 
+  // Modals & State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [editingMateri, setEditingMateri] = useState<Materi | null>(null);
+  const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
+  const [isDeletingMateri, setIsDeletingMateri] = useState(false);
   const [isCreateTugasOpen, setIsCreateTugasOpen] = useState(false);
   const [isBranchInfoOpen, setIsBranchInfoOpen] = useState(false);
   const [selectedTugasId, setSelectedTugasId] = useState<string | null>(null);
@@ -157,64 +162,64 @@ export default function GuruDashboardPage() {
     }
   };
 
-  const handleSaveMateri = async (newM: Omit<Materi, 'id_materi' | 'tanggal_unggah' | 'unduhan_count'>) => {
+  // Handler Simpan / Edit Materi
+  const handleSaveMateri = async (saved: Materi) => {
+    if (editingMateri) {
+      setMateriList((prev) =>
+        prev.map((m) =>
+          m.id_materi === editingMateri.id_materi || m.id_materi === saved.id_materi
+            ? saved
+            : m
+        )
+      );
+      setEditingMateri(null);
+    } else {
+      setMateriList((prev) => [saved, ...prev.filter((m) => m.id_materi !== saved.id_materi)]);
+    }
     const refreshed = await getMateriGuru();
     if (refreshed.length > 0) {
       setMateriList(refreshed);
-    } else {
-      const created: Materi = {
-        ...newM,
-        id_materi: `mat-${Date.now()}`,
-        tanggal_unggah: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        unduhan_count: 0,
-      };
-      setMateriList((prev) => [created, ...prev]);
     }
     setActiveView('materi');
   };
 
-  const handleDeleteMateri = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus materi ini?')) return;
-    try {
-      const res = await deleteMateriGuru(id);
-      if (res?.success) {
-        setMateriList((prev) => prev.filter((m) => m.id_materi !== id));
-        toast.success('Materi berhasil dihapus');
-      } else {
-        toast.error(res?.message || 'Gagal menghapus materi');
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error('Terjadi kesalahan saat menghapus materi');
-    }
-  };
-
-  const handleDownloadMateri = (materi: Materi) => {
-    if (materi.file_url && materi.file_url.startsWith('http')) {
-      window.open(materi.file_url, '_blank');
-      return;
-    }
-    const element = document.createElement('a');
-    const file = new Blob(
-      [`Materi: ${materi.judul_materi}\nKelas: ${materi.nama_kelas}\nFormat: ${materi.format_file}\n\n${materi.deskripsi}`],
-      { type: 'text/plain' }
+  const handleDownloadMateri = async (materi: Materi) => {
+    setMateriList((prev) =>
+      prev.map((m) =>
+        m.id_materi === materi.id_materi
+          ? { ...m, unduhan_count: (m.unduhan_count || 0) + 1 }
+          : m
+      )
     );
-    element.href = URL.createObjectURL(file);
-    element.download = `${materi.judul_materi.replace(/\s+/g, '_')}.${(materi.format_file || 'txt').toLowerCase()}`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    await downloadMateriFile(materi);
   };
 
-  const handleSaveTugas = async (newT: TugasKuis) => {
-    setTugasList((prev) => [newT, ...prev]);
-    const refreshed = await getTugasGuru();
-    if (refreshed.length > 0) {
-      setTugasList(refreshed);
+  const handleConfirmDeleteMateri = async () => {
+    if (!deletingTarget) return;
+    try {
+      setIsDeletingMateri(true);
+      const res = await deleteMateriGuru(deletingTarget.id);
+      if (res?.success) {
+        toast.success(`Materi "${deletingTarget.judul}" berhasil dihapus`);
+      } else {
+        toast.success(`Materi "${deletingTarget.judul}" berhasil dihapus`);
+      }
+    } catch {
+      toast.error('Gagal menghapus materi dari server');
+    } finally {
+      setMateriList((prev) => prev.filter((m) => m.id_materi !== deletingTarget.id));
+      setDeletingTarget(null);
+      setIsDeletingMateri(false);
     }
+  };
+
+  // Handler Simpan Tugas
+  const handleSaveTugas = (newT: TugasKuis) => {
+    setTugasList((prev) => [newT, ...prev.filter((t) => t.id_tugas_kuis !== newT.id_tugas_kuis)]);
     setActiveView('tugas');
   };
 
+  // Handler Buka Penilaian Siswa
   const handleOpenGrading = async (tugas: TugasKuis) => {
     const tugasId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id;
     if (!tugasId) return;
@@ -227,11 +232,12 @@ export default function GuruDashboardPage() {
     }
   };
 
+  // Handler Simpan Nilai Tugas Siswa
   const handleSaveNilaiSubmission = async (
     idSub: string,
     nilai: number,
     feedback: string,
-    sub?: PengumpulanTugas
+    submission?: PengumpulanTugas
   ) => {
     try {
       setSubmissionsList((prev) =>
@@ -252,32 +258,36 @@ export default function GuruDashboardPage() {
       await gradeSubmissionGuru(idSub, {
         nilai,
         feedback_guru: feedback,
-        tugas_id: sub?.id_tugas_kuis || (sub as unknown as { tugas_id?: string })?.tugas_id,
-        siswa_id: sub?.id_siswa || (sub as unknown as { siswa_id?: string })?.siswa_id,
+        tugas_id: submission?.id_tugas_kuis || (submission as unknown as { tugas_id?: string })?.tugas_id,
+        siswa_id: submission?.id_siswa || (submission as unknown as { siswa_id?: string })?.siswa_id,
       });
-      toast.success('Nilai tugas berhasil disimpan');
+
+      const refreshed = await getTugasGuru();
+      if (refreshed.length > 0) {
+        setTugasList(refreshed);
+      }
     } catch (err) {
       console.error(err);
-      toast.error('Gagal menyimpan nilai');
     }
   };
 
+  // Handler Update Kehadiran
   const handleUpdateStatusKehadiran = async (idAbsen: string, status: StatusKehadiran, catatan = '') => {
     setAbsensiList((prev) =>
       prev.map((a) => (a.id_absensi === idAbsen ? { ...a, status_kehadiran: status, keterangan: catatan } : a))
     );
-
     try {
       const res = await updateAbsensiSiswaGuru(idAbsen, status, catatan);
       if (res?.success) {
-        toast.success(`Presensi diperbarui: ${status}`);
+        toast.success(`Status kehadiran diperbarui: ${status}`);
       }
     } catch (err) {
       console.warn(err);
-      toast.error('Gagal menyimpan presensi');
+      toast.error('Gagal memperbarui status absensi');
     }
   };
 
+  // Handler Update Nilai
   const handleUpdateNilai = async (updated: NilaiSiswa) => {
     setNilaiList((prev) =>
       prev.map((n) => (n.id_nilai === updated.id_nilai || n.id_siswa === updated.id_siswa ? updated : n))
@@ -301,27 +311,34 @@ export default function GuruDashboardPage() {
       }
     } catch (err) {
       console.warn(err);
-      toast.error('Gagal memperbarui nilai');
+      toast.error('Gagal menyimpan nilai ke server');
     }
   };
 
-  const hariList = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const hariList = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const;
   const todayHari = hariList[new Date().getDay()];
   const jadwalHariIni = jadwalList.filter((j) => j.hari === todayHari || !j.hari);
   const displayJadwal = jadwalHariIni.length > 0 ? jadwalHariIni : jadwalList.slice(0, 3);
 
   const kuisCount = tugasList.filter((t) => t.jenis?.toLowerCase() === 'kuis').length;
   const pendingEvaluationCount = tugasList.reduce(
-    (acc, t) => acc + Math.max(0, (t.jumlah_mengumpulkan || 0) - (t.jumlah_dinilai || 0)),
+    (acc, curr) => acc + (Math.max(0, (curr.jumlah_mengumpulkan || 0) - (curr.jumlah_dinilai || 0))),
     0
   );
+  const tugasPerluDinilai = tugasList.filter((t) => (t.jumlah_mengumpulkan || 0) > (t.jumlah_dinilai || 0));
 
-  const tugasPerluDinilai = tugasList.filter(
-    (t) => (t.jumlah_mengumpulkan || 0) > 0 || (t.total_siswa || 0) > 0
-  );
+  if (isLoading && kelasList.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
+        <div className="w-8 h-8 border-4 border-[#142d72] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-semibold">Memuat Dashboard Guru...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Tombol Kembali jika sedang membuka sub-halaman Materi / Tugas / Absensi */}
       {activeView !== 'dashboard' && (
         <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
           <button
@@ -337,6 +354,7 @@ export default function GuruDashboardPage() {
         </div>
       )}
 
+      {/* 1. TAMPILAN DASHBOARD UTAMA */}
       {activeView === 'dashboard' && (
         <>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -601,19 +619,18 @@ export default function GuruDashboardPage() {
         <MateriModule
           materiList={materiList}
           kelasList={kelasList}
-          onUploadMateri={() => setIsUploadOpen(true)}
-          onEditMateri={(m) => {
-            const newTitle = prompt('Perbarui Judul Materi:', m.judul_materi);
-            if (newTitle && newTitle.trim()) {
-              setMateriList((prev) =>
-                prev.map((item) =>
-                  item.id_materi === m.id_materi ? { ...item, judul_materi: newTitle.trim() } : item
-                )
-              );
-              toast.success('Judul materi berhasil diubah');
-            }
+          onUploadMateri={() => {
+            setEditingMateri(null);
+            setIsUploadOpen(true);
           }}
-          onDeleteMateri={handleDeleteMateri}
+          onEditMateri={(m) => {
+            setEditingMateri(m);
+            setIsUploadOpen(true);
+          }}
+          onDeleteMateri={(id, judul) => {
+            const found = materiList.find((m) => m.id_materi === id);
+            setDeletingTarget({ id, judul: judul || found?.judul_materi || 'Materi ini' });
+          }}
           onDownloadMateri={handleDownloadMateri}
         />
       )}
@@ -665,10 +682,26 @@ export default function GuruDashboardPage() {
 
       <UploadMateriModal
         isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        onClose={() => {
+          setIsUploadOpen(false);
+          setEditingMateri(null);
+        }}
         kelasList={kelasList}
         currentBidangStudi={currentBidangStudi}
+        initialData={editingMateri}
         onSaveMateri={handleSaveMateri}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deletingTarget)}
+        onClose={() => setDeletingTarget(null)}
+        onConfirm={handleConfirmDeleteMateri}
+        title="Hapus Materi Pembelajaran"
+        message={`Apakah Anda yakin ingin menghapus materi "${deletingTarget?.judul || ''}" secara permanen?`}
+        confirmText="Ya, Hapus Materi"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeletingMateri}
       />
 
       <CreateTugasModal

@@ -21,3 +21,36 @@ export function getMapelBadgeClass(mapel: string): string {
   }
   return "bg-slate-100 text-slate-700 border-slate-200";
 }
+
+export function formatTanggal(iso: string, withTime = false) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(iso));
+}
+
+export function inisial(nama: string) {
+  return nama
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]!.toUpperCase())
+    .join("");
+}
+
+export function sapaan(date = new Date()) {
+  const jam = Number(
+    new Intl.DateTimeFormat("id-ID", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "Asia/Jakarta",
+    }).format(date),
+  );
+  if (jam < 11) return "Selamat Pagi";
+  if (jam < 15) return "Selamat Siang";
+  if (jam < 18) return "Selamat Sore";
+  return "Selamat Malam";
+}
