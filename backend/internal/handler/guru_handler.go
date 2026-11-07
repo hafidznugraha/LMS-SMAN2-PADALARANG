@@ -371,7 +371,6 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 			t.deskripsi,
 			t.deskripsi as instruksi,
 			CASE 
-				WHEN LOWER(t.judul) LIKE '%kuis%' THEN 'Kuis'
 				WHEN LOWER(t.judul) LIKE '%proyek%' THEN 'Proyek'
 				ELSE 'Tugas'
 			END as jenis,
@@ -526,7 +525,6 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 			t.deskripsi,
 			t.deskripsi as instruksi,
 			CASE 
-				WHEN LOWER(t.judul) LIKE '%kuis%' THEN 'Kuis'
 				WHEN LOWER(t.judul) LIKE '%proyek%' THEN 'Proyek'
 				ELSE 'Tugas'
 			END as jenis,
@@ -654,7 +652,6 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 			t.deskripsi,
 			t.deskripsi as instruksi,
 			CASE 
-				WHEN LOWER(t.judul) LIKE '%kuis%' THEN 'Kuis'
 				WHEN LOWER(t.judul) LIKE '%proyek%' THEN 'Proyek'
 				ELSE 'Tugas'
 			END as jenis,

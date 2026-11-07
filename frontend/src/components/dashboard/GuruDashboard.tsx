@@ -4,7 +4,7 @@ import {
   Plus, 
   Users, 
   FileCheck2, 
-  HelpCircle, 
+  ClipboardList, 
   UserCheck, 
   Calendar, 
   Clock, 
@@ -22,7 +22,7 @@ interface GuruDashboardProps {
   jadwalHariIni: JadwalPelajaran[];
   tugasPerluDinilai: TugasKuis[];
   totalKelas: number;
-  kuisAktifCount: number;
+  totalTugasCount?: number;
   onOpenUploadMateri: () => void;
   onOpenCreateTugas: () => void;
   onOpenAbsensiKelas: (kelasId: string) => void;
@@ -36,7 +36,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   jadwalHariIni,
   tugasPerluDinilai,
   totalKelas,
-  kuisAktifCount,
+  totalTugasCount,
   onOpenUploadMateri,
   onOpenCreateTugas,
   onOpenAbsensiKelas,
@@ -107,7 +107,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
               Modul Praktikum: Halaman & Fitur Guru Mata Pelajaran
             </h4>
             <p className="text-xs text-blue-800 mt-0.5 leading-relaxed">
-              Halaman ini didedikasikan untuk <strong>Guru Pengampu (Mapel)</strong> sesuai pembagian tugas praktikum. Guru dapat mengunggah bahan ajar, menerbitkan tugas/kuis, menilai tugas siswa, serta memvalidasi presensi harian per sesi. Modul wali kelas dikerjakan pada branch terpisah.
+              Halaman ini didedikasikan untuk <strong>Guru Pengampu (Mapel)</strong> sesuai pembagian tugas praktikum. Guru dapat mengunggah bahan ajar, menerbitkan penugasan, menilai tugas siswa, serta memvalidasi presensi harian per sesi. Modul wali kelas dikerjakan pada branch terpisah.
             </p>
           </div>
         </div>
@@ -167,25 +167,25 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Kuis Aktif (Cyan) */}
+        {/* Card 3: Total Penugasan (Cyan) */}
         <div 
-          onClick={() => onNavigateTab('kuis')}
+          onClick={() => onNavigateTab('tugas')}
           className="bg-[#0284c7] text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden cursor-pointer"
         >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-sky-100 uppercase tracking-wider">
-                Kuis Aktif
+                Total Penugasan
               </p>
               <h3 className="text-4xl font-extrabold tracking-tight mt-1 font-mono tabular-nums">
-                {kuisAktifCount}
+                {totalTugasCount ?? 0}
               </h3>
               <p className="text-xs text-sky-100/90 mt-1 font-medium">
-                Sesi penilaian berlangsung
+                Penugasan terbit aktif
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
-              <HelpCircle className="w-6 h-6 text-white" />
+              <ClipboardList className="w-6 h-6 text-white" />
             </div>
           </div>
         </div>

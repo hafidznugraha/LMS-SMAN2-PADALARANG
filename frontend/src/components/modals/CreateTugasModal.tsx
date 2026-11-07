@@ -160,10 +160,10 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
               {isEditMode ? (
                 <>
                   <Edit3 className="w-4 h-4 text-blue-600" />
-                  <span>Edit Tugas / Kuis</span>
+                  <span>Edit Tugas</span>
                 </>
               ) : (
-                <span>Penerbitan Tugas / Kuis Baru</span>
+                <span>Penerbitan Tugas Baru</span>
               )}
             </h3>
             <p className="text-xs text-slate-500">
@@ -181,7 +181,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
 
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
-            Judul Tugas / Kuis *
+            Judul Tugas *
           </label>
           <input
             type="text"
@@ -221,7 +221,6 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
             >
               <option value="Tugas">Tugas Terstruktur</option>
-              <option value="Kuis">Kuis Daring</option>
               <option value="Proyek">Proyek Praktikum</option>
             </select>
           </div>

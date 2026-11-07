@@ -131,7 +131,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Modul Tugas, Kuis & Penilaian
+            Modul Penugasan & Penilaian
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Terbitkan penugasan berbatas waktu (deadline), periksa lembar jawaban, dan input nilai evaluasi
@@ -163,7 +163,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {/* Filter Jenis Tabs */}
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-              {(['ALL', 'Tugas', 'Kuis', 'Proyek'] as const).map((jenis) => (
+              {(['ALL', 'Tugas', 'Proyek'] as const).map((jenis) => (
                 <button
                   key={jenis}
                   onClick={() => setSelectedJenis(jenis)}
@@ -208,7 +208,7 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
             <p className="text-xs text-slate-500 max-w-sm">
               {searchQuery || selectedJenis !== 'ALL' || selectedKelas !== 'ALL'
                 ? 'Tidak ada tugas yang sesuai dengan kriteria filter pencarian Anda.'
-                : 'Terbitkan tugas terstruktur, kuis daring, atau proyek praktikum baru untuk siswa Anda.'}
+                : 'Terbitkan tugas terstruktur atau proyek praktikum baru untuk siswa Anda.'}
             </p>
           </div>
           <button

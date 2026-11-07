@@ -49,7 +49,7 @@ export const BranchCollabInfoModal: React.FC<BranchCollabInfoModalProps> = ({
             </p>
             <ul className="list-disc list-inside space-y-1 pl-1 text-slate-700">
               <li>
-                <strong>Guru Pengampu (Mapel)</strong>: Bertanggung jawab pada kegiatan operasional mata pelajaran yang diajarnya (Distribusi Materi, Pembuatan Tugas/Kuis, Lembar Penilaian Siswa, dan Validasi Presensi Jam Pelajaran).
+                <strong>Guru Pengampu (Mapel)</strong>: Bertanggung jawab pada kegiatan operasional mata pelajaran yang diajarnya (Distribusi Materi, Pembuatan Tugas, Lembar Penilaian Siswa, dan Validasi Presensi Jam Pelajaran).
               </li>
               <li>
                 <strong>Wali Kelas</strong>: Merupakan guru yang <em>diberikan tugas tambahan</em> membina satu rombel kelas tertentu (memantau rekap absensi semester kelas binaan, meninjau kompilasi nilai leger seluruh mapel, dan mengisi catatan pembinaan rapor).
@@ -82,7 +82,7 @@ export const BranchCollabInfoModal: React.FC<BranchCollabInfoModalProps> = ({
                 </li>
                 <li className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                  <span><strong>Modul Tugas & Kuis (FR-TG-01, 04):</strong> Deadline, rubrik & penilaian siswa</span>
+                  <span><strong>Modul Penugasan (FR-TG-01, 04):</strong> Deadline, rubrik & penilaian siswa</span>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />

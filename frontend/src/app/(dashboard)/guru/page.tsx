@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Users,
   ClipboardCheck,
-  HelpCircle,
+  ClipboardList,
   Upload,
   PlusCircle,
   Calendar,
@@ -322,7 +322,6 @@ export default function GuruDashboardPage() {
   const jadwalHariIni = jadwalList.filter((j) => j.hari === todayHari || !j.hari);
   const displayJadwal = jadwalHariIni.length > 0 ? jadwalHariIni : jadwalList.slice(0, 3);
 
-  const kuisCount = tugasList.filter((t) => t.jenis?.toLowerCase() === 'kuis').length;
   const pendingEvaluationCount = tugasList.reduce(
     (acc, curr) => acc + (Math.max(0, (curr.jumlah_mengumpulkan || 0) - (curr.jumlah_dinilai || 0))),
     0
@@ -463,10 +462,10 @@ export default function GuruDashboardPage() {
             </div>
             <div onClick={() => setActiveView('tugas')} className="cursor-pointer">
               <MetricCard
-                title="Kuis Aktif"
-                value={`${kuisCount}`}
-                subtitle="Asesmen daring aktif"
-                icon={HelpCircle}
+                title="Total Penugasan"
+                value={`${tugasList.length}`}
+                subtitle="Penugasan terbit aktif"
+                icon={ClipboardList}
                 variant="cyan"
               />
             </div>

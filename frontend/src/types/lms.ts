@@ -68,7 +68,7 @@ export interface Materi {
   deleted_at?: string | null;
 }
 
-export type JenisPenugasan = 'Tugas' | 'Kuis' | 'Proyek';
+export type JenisPenugasan = 'Tugas' | 'Proyek';
 
 export interface TugasKuis {
   id_tugas_kuis: string;
