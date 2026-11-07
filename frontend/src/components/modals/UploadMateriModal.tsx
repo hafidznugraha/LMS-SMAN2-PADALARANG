@@ -5,6 +5,7 @@ import { X, Upload, CheckCircle2, Loader2, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 import { uploadMateriGuru, updateMateriGuru } from '../../services/guruService';
+import { getStoredUser } from '@/lib/auth';
 
 interface UploadMateriModalProps {
   isOpen: boolean;
@@ -113,6 +114,10 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
         };
         toast.success('Materi pembelajaran berhasil diperbarui');
       } else {
+        const user = getStoredUser();
+        const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+        const mapelId = (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
+
         const res = await uploadMateriGuru({
           judul: judul.trim(),
           deskripsi: deskripsi,
@@ -121,14 +126,16 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           ukuran_mb: parsedSize,
           file_url: computedFileUrl,
           kelas_id: kelasObj?.id_kelas || idKelas,
+          guru_id: guruId,
+          mapel_id: mapelId,
           file: selectedFile,
         });
 
         const serverData = (res as any)?.data;
         savedMateri = {
           id_materi: serverData?.id || `mat-${Date.now()}`,
-          id_guru: serverData?.guru_id || '298257fb-b4aa-4710-afaa-bbfd63abd5c5',
-          id_mapel: serverData?.mapel_id || '1ca770d9-0e57-471b-95c2-aedc472da0b9',
+          id_guru: serverData?.guru_id || guruId,
+          id_mapel: serverData?.mapel_id || mapelId,
           nama_mapel: currentBidangStudi,
           id_kelas: serverData?.kelas_id || kelasObj?.id_kelas || idKelas,
           nama_kelas: kelasObj?.nama_kelas || 'XII IPA 1',
@@ -147,10 +154,13 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Error saat menyimpan materi ke Supabase:', err);
+      const user = getStoredUser();
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+      const mapelId = (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
       const fallbackMateri: Materi = {
         id_materi: initialData?.id_materi || `mat-${Date.now()}`,
-        id_guru: initialData?.id_guru || '298257fb-b4aa-4710-afaa-bbfd63abd5c5',
-        id_mapel: initialData?.id_mapel || '1ca770d9-0e57-471b-95c2-aedc472da0b9',
+        id_guru: initialData?.id_guru || guruId,
+        id_mapel: initialData?.id_mapel || mapelId,
         nama_mapel: initialData?.nama_mapel || currentBidangStudi,
         id_kelas: kelasObj?.id_kelas || idKelas || '',
         nama_kelas: kelasObj?.nama_kelas || initialData?.nama_kelas || 'XII IPA 1',

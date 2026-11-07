@@ -25,6 +25,7 @@ export default function KuisPage() {
     try {
       setIsLoading(true);
       const user = getStoredUser();
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
       const mapelName =
         user?.extra?.mapel?.nama_mapel ||
         (user?.extra?.mapel_nama as string) ||
@@ -33,7 +34,7 @@ export default function KuisPage() {
       setCurrentBidangStudi(mapelName);
 
       const [tugasData, kelasData] = await Promise.all([
-        getTugasGuru({ jenis: 'Kuis' }),
+        getTugasGuru({ guru_id: guruId, jenis: 'Kuis' }),
         getKelasGuru(),
       ]);
 

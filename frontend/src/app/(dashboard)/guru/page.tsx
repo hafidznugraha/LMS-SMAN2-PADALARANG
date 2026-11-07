@@ -106,8 +106,8 @@ export default function GuruDashboardPage() {
 
       const [kelasData, materiData, allTugas, jadwalData] = await Promise.all([
         getKelasGuru(),
-        getMateriGuru(),
-        getTugasGuru(),
+        getMateriGuru(undefined, guruId),
+        getTugasGuru({ guru_id: guruId }),
         getJadwalGuru({ guru_id: guruId }),
       ]);
 
@@ -176,7 +176,8 @@ export default function GuruDashboardPage() {
     } else {
       setMateriList((prev) => [saved, ...prev.filter((m) => m.id_materi !== saved.id_materi)]);
     }
-    const refreshed = await getMateriGuru();
+    const currentGuruId = (currentUser?.extra?.guru_id as string) || (currentUser?.id as string) || '';
+    const refreshed = await getMateriGuru(undefined, currentGuruId);
     if (refreshed.length > 0) {
       setMateriList(refreshed);
     }
@@ -262,7 +263,8 @@ export default function GuruDashboardPage() {
         siswa_id: submission?.id_siswa || (submission as unknown as { siswa_id?: string })?.siswa_id,
       });
 
-      const refreshed = await getTugasGuru();
+      const currentGuruId = (currentUser?.extra?.guru_id as string) || (currentUser?.id as string) || '';
+      const refreshed = await getTugasGuru({ guru_id: currentGuruId });
       if (refreshed.length > 0) {
         setTugasList(refreshed);
       }

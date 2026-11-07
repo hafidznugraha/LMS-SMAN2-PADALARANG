@@ -28,15 +28,16 @@ export default function TugasPage() {
     try {
       setIsLoading(true);
       const user = getStoredUser();
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
       const mapelName =
         user?.extra?.mapel?.nama_mapel ||
         (user?.extra?.mapel_nama as string) ||
         (user?.extra?.bidang_studi as string) ||
-        'Informatika';
+        'Mata Pelajaran';
       setCurrentBidangStudi(mapelName);
 
       const [tugasData, kelasData] = await Promise.all([
-        getTugasGuru(),
+        getTugasGuru({ guru_id: guruId }),
         getKelasGuru(),
       ]);
 
@@ -97,7 +98,9 @@ export default function TugasPage() {
               (t as unknown as { id?: string }).id !== tugasId
           )
         );
-        const refreshed = await getTugasGuru();
+        const user = getStoredUser();
+        const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+        const refreshed = await getTugasGuru({ guru_id: guruId });
         if (refreshed.length > 0) {
           setTugasList(refreshed);
         }
@@ -128,7 +131,9 @@ export default function TugasPage() {
       return [savedTugas, ...prev];
     });
 
-    const refreshed = await getTugasGuru();
+    const user = getStoredUser();
+    const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+    const refreshed = await getTugasGuru({ guru_id: guruId });
     if (refreshed.length > 0) {
       setTugasList(refreshed);
     }
@@ -163,7 +168,9 @@ export default function TugasPage() {
         siswa_id: sub?.id_siswa || (sub as unknown as { siswa_id?: string })?.siswa_id,
       });
 
-      const refreshed = await getTugasGuru();
+      const user = getStoredUser();
+    const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+    const refreshed = await getTugasGuru({ guru_id: guruId });
       if (refreshed.length > 0) {
         setTugasList(refreshed);
       }

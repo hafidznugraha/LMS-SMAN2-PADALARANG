@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/config"
@@ -23,6 +24,60 @@ func NewGuruHandler(cfg *config.Config) *GuruHandler {
 	return &GuruHandler{cfg: cfg}
 }
 
+// getCallerGuruID resolves the guru_id from query param, form value, or Authorization JWT token.
+// If caller is authenticated as a guru, it returns that guru's UUID and true.
+// If caller is kurikulum/admin without guru_id query, it returns false (meaning no restriction).
+func (h *GuruHandler) getCallerGuruID(c *fiber.Ctx) (uuid.UUID, bool) {
+	// 1. Explicit query parameter check
+	gStr := strings.TrimSpace(c.Query("guru_id"))
+	if gStr != "" && gStr != "ALL" {
+		if gUUID, err := uuid.Parse(gStr); err == nil {
+			return gUUID, true
+		}
+	}
+
+	// 2. Explicit form value check (for multipart uploads)
+	if fStr := strings.TrimSpace(c.FormValue("guru_id")); fStr != "" && fStr != "ALL" {
+		if gUUID, err := uuid.Parse(fStr); err == nil {
+			return gUUID, true
+		}
+	}
+
+	// 3. Extract from Authorization token if available
+	authHeader := c.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		cfg := h.cfg
+		if cfg == nil {
+			cfg = config.LoadConfig()
+		}
+		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fiber.ErrUnauthorized
+			}
+			return []byte(cfg.JWTSecret), nil
+		})
+		if err == nil && token != nil && token.Valid {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				// Kurikulum/Admin role has full visibility unless specific query provided
+				if roleStr, ok := claims["role"].(string); ok && roleStr == string(model.RoleKurikulum) {
+					return uuid.Nil, false
+				}
+				if userIDStr, ok := claims["user_id"].(string); ok {
+					if userUUID, err := uuid.Parse(userIDStr); err == nil {
+						var g model.Guru
+						if err := repository.GetDB().Where("user_id = ?", userUUID).First(&g).Error; err == nil {
+							return g.ID, true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return uuid.Nil, false
+}
+
 // 1. GET /api/v1/guru/materi - Mengambil daftar seluruh materi dari Supabase
 func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	db := repository.GetDB()
@@ -35,7 +90,6 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 
 	kelasID := c.Query("kelas_id")
 	mapelID := c.Query("mapel_id")
-	guruID := c.Query("guru_id")
 
 	type MateriDetailResponse struct {
 		ID            uuid.UUID `json:"id"`
@@ -94,8 +148,8 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	if mapelUUID, err := uuid.Parse(mapelID); err == nil {
 		query = query.Where("m.mapel_id = ?", mapelUUID)
 	}
-	if guruUUID, err := uuid.Parse(guruID); err == nil {
-		query = query.Where("m.guru_id = ?", guruUUID)
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		query = query.Where("m.guru_id = ?", callerGuruUUID)
 	}
 
 	var materiList []MateriDetailResponse
@@ -154,8 +208,10 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	db := repository.GetDB()
 
 	guruUUID, err := uuid.Parse(req.GuruID)
-	if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback ke Bu Irma
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		guruUUID = callerGuruUUID
+	} else if err != nil {
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback jika unauthenticated
 	}
 
 	kelasUUID, err := uuid.Parse(req.KelasID)
@@ -164,7 +220,7 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	}
 
 	mapelUUID, err := uuid.Parse(req.MapelID)
-	if err != nil {
+	if err != nil || mapelUUID == uuid.Nil {
 		var guru model.Guru
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
@@ -246,20 +302,34 @@ func (h *GuruHandler) DeleteMateri(c *fiber.Ctx) error {
 	db := repository.GetDB()
 
 	var materi model.Materi
-	if err := db.Where("id = ?", targetID).First(&materi).Error; err == nil {
-		// Hapus berkas lokal jika ada
-		if matches, errGlob := filepath.Glob(filepath.Join("uploads", "materi", targetID.String()+".*")); errGlob == nil {
-			for _, m := range matches {
-				_ = os.Remove(m)
-			}
-		}
+	if err := db.Where("id = ?", targetID).First(&materi).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Materi tidak ditemukan",
+		})
+	}
 
-		// Hapus berkas dari Supabase Storage jika URL mengarah ke Supabase
-		if strings.Contains(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/") {
-			parts := strings.Split(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/")
-			if len(parts) == 2 && parts[1] != "" {
-				deleteFileFromSupabaseStorage(h.cfg, parts[1])
-			}
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		if materi.GuruID != callerGuruUUID {
+			return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+				Success: false,
+				Message: "Anda tidak memiliki izin untuk menghapus materi milik guru lain",
+			})
+		}
+	}
+
+	// Hapus berkas lokal jika ada
+	if matches, errGlob := filepath.Glob(filepath.Join("uploads", "materi", targetID.String()+".*")); errGlob == nil {
+		for _, m := range matches {
+			_ = os.Remove(m)
+		}
+	}
+
+	// Hapus berkas dari Supabase Storage jika URL mengarah ke Supabase
+	if strings.Contains(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/") {
+		parts := strings.Split(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/")
+		if len(parts) == 2 && parts[1] != "" {
+			deleteFileFromSupabaseStorage(h.cfg, parts[1])
 		}
 	}
 
@@ -282,7 +352,6 @@ func (h *GuruHandler) DeleteMateri(c *fiber.Ctx) error {
 func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	kelasID := c.Query("kelas_id")
-	guruID := c.Query("guru_id")
 
 	var list []model.TugasDetailResponse
 	query := db.Table("tugas t").
@@ -323,8 +392,8 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 		query = query.Where("t.kelas_id = ?", kelasUUID)
 	}
 
-	if guruUUID, err := uuid.Parse(guruID); err == nil {
-		query = query.Where("t.guru_id = ?", guruUUID)
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		query = query.Where("t.guru_id = ?", callerGuruUUID)
 	}
 
 	if err := query.Order("t.created_at DESC").Scan(&list).Error; err != nil {
@@ -363,8 +432,10 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 
 	// 1. Validasi UUID Guru
 	guruUUID, err := uuid.Parse(req.GuruID)
-	if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback ke Bu Irma jika tidak ada
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		guruUUID = callerGuruUUID
+	} else if err != nil {
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback jika unauthenticated
 	}
 
 	// 2. Kunci Kelas yang dipilih Guru
@@ -375,7 +446,7 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 
 	// 3. Validasi UUID Mapel
 	mapelUUID, err := uuid.Parse(req.MapelID)
-	if err != nil {
+	if err != nil || mapelUUID == uuid.Nil {
 		var guru model.Guru
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
@@ -509,6 +580,15 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 		})
 	}
 
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		if existing.GuruID != callerGuruUUID {
+			return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+				Success: false,
+				Message: "Anda tidak memiliki izin untuk mengedit tugas milik guru lain",
+			})
+		}
+	}
+
 	if strings.TrimSpace(req.Judul) != "" {
 		existing.Judul = strings.TrimSpace(req.Judul)
 	}
@@ -612,6 +692,23 @@ func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
 	}
 
 	db := repository.GetDB()
+
+	var existing model.Tugas
+	if err := db.Where("id = ?", targetID).First(&existing).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		if existing.GuruID != callerGuruUUID {
+			return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+				Success: false,
+				Message: "Anda tidak memiliki izin untuk menghapus tugas milik guru lain",
+			})
+		}
+	}
 
 	// Hapus seluruh pengumpulan tugas terlebih dahulu jika ada
 	_ = db.Where("tugas_id = ?", targetID).Delete(&model.PengumpulanTugas{}).Error
@@ -1163,6 +1260,8 @@ func (h *GuruHandler) GetNilaiList(c *fiber.Ctx) error {
 		})
 	}
 
+	callerGuruUUID, hasCaller := h.getCallerGuruID(c)
+
 	results := make([]NilaiSiswaResponse, 0, len(students))
 	for _, st := range students {
 		var nilaiList []model.Nilai
@@ -1170,7 +1269,9 @@ func (h *GuruHandler) GetNilaiList(c *fiber.Ctx) error {
 		if mUUID, err := uuid.Parse(mapelIDStr); err == nil {
 			q = q.Where("mapel_id = ?", mUUID)
 		}
-		if gUUID, err := uuid.Parse(guruIDStr); err == nil {
+		if hasCaller {
+			q = q.Where("guru_id = ?", callerGuruUUID)
+		} else if gUUID, err := uuid.Parse(guruIDStr); err == nil {
 			q = q.Where("guru_id = ?", gUUID)
 		}
 		_ = q.Find(&nilaiList).Error
@@ -1282,20 +1383,27 @@ func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	var guruUUID, mapelUUID uuid.UUID
 	var errG, errM error
-	if req.GuruID != "" {
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		guruUUID = callerGuruUUID
+	} else if req.GuruID != "" {
 		guruUUID, errG = uuid.Parse(req.GuruID)
 	}
 	if req.MapelID != "" {
 		mapelUUID, errM = uuid.Parse(req.MapelID)
 	}
 
-	if errG != nil || guruUUID == uuid.Nil {
+	if (errG != nil || guruUUID == uuid.Nil) && guruUUID == uuid.Nil {
 		var guru model.Guru
 		if err := db.First(&guru).Error; err == nil {
 			guruUUID = guru.ID
-			if guru.MapelID != nil {
+			if guru.MapelID != nil && mapelUUID == uuid.Nil {
 				mapelUUID = *guru.MapelID
 			}
+		}
+	} else if mapelUUID == uuid.Nil {
+		var guru model.Guru
+		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
+			mapelUUID = *guru.MapelID
 		}
 	}
 

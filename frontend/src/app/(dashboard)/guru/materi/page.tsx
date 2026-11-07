@@ -8,7 +8,7 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Materi, MateriFormat, Kelas } from '@/types/lms';
 import { downloadMateriFile } from '@/lib/pdfHelper';
 import { getStoredUser } from '@/lib/auth';
-import { deleteMateriGuru, getKelasGuru } from '@/services/guruService';
+import { deleteMateriGuru, getKelasGuru, getMateriGuru } from '@/services/guruService';
 
 export default function GuruMateriPage() {
   const [materiList, setMateriList] = useState<Materi[]>([]);
@@ -26,43 +26,41 @@ export default function GuruMateriPage() {
       setIsLoading(true);
 
       const user = getStoredUser();
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
       const mapelName =
         user?.extra?.mapel?.nama_mapel ||
         (user?.extra?.mapel_nama as string) ||
         (user?.extra?.bidang_studi as string) ||
-        'Matematika Peminatan';
+        'Mata Pelajaran';
       setCurrentBidangStudi(mapelName);
 
-      const [res, kelasRes] = await Promise.all([
-        fetch('/api/v1/guru/materi', { cache: 'no-store' }),
+      const [materiData, kelasRes] = await Promise.all([
+        getMateriGuru(undefined, guruId),
         getKelasGuru(),
       ]);
 
       const activeKelasList = Array.isArray(kelasRes) ? kelasRes : [];
       setKelasList(activeKelasList);
 
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        const mapped: Materi[] = json.data.map((item: any) => {
-          const foundKelas = activeKelasList.find((k) => k.id_kelas === item.kelas_id);
-          return {
-            id_materi: item.id,
-            id_guru: item.guru_id,
-            id_mapel: item.mapel_id,
-            nama_mapel: item.nama_mapel || mapelName,
-            id_kelas: item.kelas_id,
-            nama_kelas: item.nama_kelas || foundKelas?.nama_kelas || 'XII IPA 1',
-            judul_materi: item.judul,
-            deskripsi: item.deskripsi || '',
-            format_file: (item.tipe_file || 'PDF').toUpperCase() as MateriFormat,
-            file_url: item.file_url || '',
-            file_size: `${item.ukuran_mb || 3.5} MB`,
-            unduhan_count: item.jumlah_melihat || 0,
-            tanggal_unggah: item.created_at ? item.created_at.split('T')[0] : '2026-11-05',
-          };
-        });
-        setMateriList(mapped);
-      }
+      const mapped: Materi[] = materiData.map((item: any) => {
+        const foundKelas = activeKelasList.find((k) => k.id_kelas === (item.kelas_id || item.id_kelas));
+        return {
+          id_materi: item.id_materi || item.id,
+          id_guru: item.id_guru || item.guru_id,
+          id_mapel: item.id_mapel || item.mapel_id,
+          nama_mapel: item.nama_mapel || mapelName,
+          id_kelas: item.id_kelas || item.kelas_id,
+          nama_kelas: item.nama_kelas || foundKelas?.nama_kelas || 'Kelas',
+          judul_materi: item.judul_materi || item.judul,
+          deskripsi: item.deskripsi || '',
+          format_file: (item.format_file || item.tipe_file || 'PDF').toUpperCase() as MateriFormat,
+          file_url: item.file_url || '',
+          file_size: item.file_size || `${item.ukuran_mb || 3.5} MB`,
+          unduhan_count: item.unduhan_count ?? item.jumlah_melihat ?? 0,
+          tanggal_unggah: item.tanggal_unggah || (item.created_at ? item.created_at.split('T')[0] : '2026-11-05'),
+        };
+      });
+      setMateriList(mapped);
     } catch (err) {
       console.error('Gagal mengambil materi:', err);
       toast.error('Gagal memuat daftar materi pembelajaran');

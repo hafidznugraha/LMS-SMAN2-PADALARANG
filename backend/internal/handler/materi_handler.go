@@ -186,6 +186,15 @@ func (h *GuruHandler) UpdateMateri(c *fiber.Ctx) error {
 		})
 	}
 
+	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		if existing.GuruID != callerGuruUUID {
+			return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+				Success: false,
+				Message: "Anda tidak memiliki izin untuk mengedit materi milik guru lain",
+			})
+		}
+	}
+
 	var req model.UpdateMateriRequest
 	_ = c.BodyParser(&req)
 

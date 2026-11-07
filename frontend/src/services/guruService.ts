@@ -42,9 +42,15 @@ export async function getKelasGuru(): Promise<Kelas[]> {
 
 export async function getTugasGuru(params?: { kelas_id?: string; guru_id?: string; jenis?: string }): Promise<TugasKuis[]> {
   try {
+    const user = getStoredUser();
+    const effectiveGuruId =
+      params?.guru_id !== undefined
+        ? params.guru_id
+        : ((user?.extra?.guru_id as string) || (user?.id as string) || '');
+
     const searchParams = new URLSearchParams();
     if (params?.kelas_id) searchParams.append('kelas_id', params.kelas_id);
-    if (params?.guru_id) searchParams.append('guru_id', params.guru_id);
+    if (effectiveGuruId && effectiveGuruId !== 'ALL') searchParams.append('guru_id', effectiveGuruId);
     const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
     const res = await fetchAPI<ApiResponse<TugasKuis[]>>(`/guru/tugas${qs}`);
@@ -76,8 +82,8 @@ export async function createTugasGuru(payload: {
   mapel_id?: string;
 }): Promise<ApiResponse<TugasKuis>> {
   const user = getStoredUser();
-  const guruId = payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || DEFAULT_GURU_ID;
-  const mapelId = payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel?.id as string) || DEFAULT_MAPEL_ID;
+  const guruId = payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || '';
+  const mapelId = payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel?.id as string) || '';
 
   const body = {
     guru_id: guruId,
@@ -170,9 +176,15 @@ export async function gradeSubmissionGuru(
 
 export async function getMateriGuru(kelasId?: string, guruId?: string): Promise<Materi[]> {
   try {
+    const user = getStoredUser();
+    const effectiveGuruId =
+      guruId !== undefined
+        ? guruId
+        : ((user?.extra?.guru_id as string) || (user?.id as string) || '');
+
     const params = new URLSearchParams();
     if (kelasId && kelasId !== 'ALL') params.append('kelas_id', kelasId);
-    if (guruId && guruId !== 'ALL') params.append('guru_id', guruId);
+    if (effectiveGuruId && effectiveGuruId !== 'ALL') params.append('guru_id', effectiveGuruId);
     const qs = params.toString() ? `?${params.toString()}` : '';
 
     const res = await fetchAPI<ApiResponse<Materi[]>>(`/guru/materi${qs}`);
@@ -196,8 +208,8 @@ export async function uploadMateriGuru(payload: {
   file?: File | null;
 }): Promise<ApiResponse<unknown>> {
   const user = getStoredUser();
-  const guruId = payload.guru_id || user?.extra?.guru_id || (user?.id as string) || DEFAULT_GURU_ID;
-  const mapelId = payload.mapel_id || user?.extra?.mapel_id || user?.extra?.mapel?.id || DEFAULT_MAPEL_ID;
+  const guruId = payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || '';
+  const mapelId = payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
   const kelasId = payload.kelas_id || DEFAULT_KELAS_ID;
 
   if (payload.file) {
@@ -346,8 +358,8 @@ export async function updateNilaiGuru(payload: {
   feedback?: string;
 }): Promise<ApiResponse<unknown>> {
   const user = getStoredUser();
-  const guruId = payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || DEFAULT_GURU_ID;
-  const mapelId = payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel?.id as string) || DEFAULT_MAPEL_ID;
+  const guruId = payload.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || '';
+  const mapelId = payload.mapel_id || (user?.extra?.mapel_id as string) || (user?.extra?.mapel?.id as string) || '';
 
   return await fetchAPI<ApiResponse<unknown>>('/guru/nilai', {
     method: 'PUT',
@@ -362,7 +374,7 @@ export async function updateNilaiGuru(payload: {
 export async function getJadwalGuru(params?: { guru_id?: string; kelas_id?: string; hari?: string }): Promise<JadwalPelajaran[]> {
   try {
     const user = getStoredUser();
-    const guruId = params?.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || DEFAULT_GURU_ID;
+    const guruId = params?.guru_id || (user?.extra?.guru_id as string) || (user?.id as string) || '';
     const searchParams = new URLSearchParams();
     if (guruId) searchParams.append('guru_id', guruId);
     if (params?.kelas_id) searchParams.append('kelas_id', params.kelas_id);
