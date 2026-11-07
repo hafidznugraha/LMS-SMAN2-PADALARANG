@@ -1034,7 +1034,7 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 				WHEN LOWER(a.status) = 'izin' THEN 'Izin'
 				ELSE 'Alfa'
 			END as status_kehadiran,
-			COALESCE(a.keterangan, '') as keterangan,
+			COALESCE(a.catatan, '') as keterangan,
 			true as diverifikasi_oleh_guru
 		FROM absensi a
 		JOIN siswa s ON s.id = a.siswa_id
@@ -1122,6 +1122,10 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	tglParsed, _ := time.Parse("2006-01-02", tanggalStr)
 
 	db := repository.GetDB()
+
+	if req.AbsensiID == "" {
+		req.AbsensiID = c.Params("id")
+	}
 
 	if req.AbsensiID != "" {
 		if absenUUID, err := uuid.Parse(req.AbsensiID); err == nil {

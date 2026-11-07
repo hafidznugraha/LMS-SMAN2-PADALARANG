@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getStoredUser, AuthUser } from "@/lib/auth";
+import { fetchAPI } from "@/lib/api";
 
 interface LaporanAkademik {
   id_laporan: string;
@@ -48,26 +49,20 @@ export default function RaportLegerPage() {
   const fetchLaporanData = async (kelasId: string) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("lms_access_token");
-      
-      const res = await fetch(`http://localhost:8088/api/v1/laporan/kelas/${kelasId}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-const json = await res.json();
+      const json = await fetchAPI<{ success: boolean; data: LaporanAkademik[]; message?: string }>(
+        `/laporan/kelas/${kelasId}`
+      );
 
-if (res.ok && json.success && Array.isArray(json.data)) {
-  setLaporanList(json.data);
-  setMessage(null);
-} else {
-  setLaporanList([]);
-  setMessage({
-    type: "error",
-    text: json.message || "Gagal memuat laporan akademik",
-  });
-}
+      if (json && json.success && Array.isArray(json.data)) {
+        setLaporanList(json.data);
+        setMessage(null);
+      } else {
+        setLaporanList([]);
+        setMessage({
+          type: "error",
+          text: json?.message || "Gagal memuat laporan akademik",
+        });
+      }
     } catch (err) {
       console.error(err);
       setMessage({ type: "error", text: "Terjadi kesalahan koneksi ke server backend" });
@@ -98,22 +93,19 @@ useEffect(() => {
     try {
       setSavingId(idLaporan);
       setMessage(null);
-      const token = localStorage.getItem("lms_access_token");
 
-      const res = await fetch(`http://localhost:8088/api/v1/laporan/${idLaporan}/catatan-wali`, {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ catatan_wali: catatanBaru }),
-      });
+      const json = await fetchAPI<{ success: boolean; message?: string }>(
+        `/laporan/${idLaporan}/catatan-wali`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ catatan_wali: catatanBaru }),
+        }
+      );
 
-      const json = await res.json();
-      if (json.success) {
+      if (json && json.success) {
         setMessage({ type: "success", text: "Catatan perkembangan karakter berhasil disimpan!" });
       } else {
-        setMessage({ type: "error", text: json.message || "Gagal menyimpan catatan" });
+        setMessage({ type: "error", text: json?.message || "Gagal menyimpan catatan" });
       }
     } catch (err) {
       console.error(err);
