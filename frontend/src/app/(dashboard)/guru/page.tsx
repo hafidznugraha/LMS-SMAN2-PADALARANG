@@ -249,7 +249,7 @@ export default function GuruDashboardPage() {
               ...s,
               nilai,
               feedback,
-              status_kumpul: s.status_kumpul === 'Belum Mengumpulkan' ? 'Tepat Waktu' : s.status_kumpul,
+              status_kumpul: s.status_kumpul,
             };
           }
           return s;

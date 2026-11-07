@@ -17,7 +17,8 @@ import {
   FileCheck2,
   ExternalLink,
   Edit3,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
@@ -92,6 +93,10 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   };
 
   const handleStartGradeStudent = (sub: PengumpulanTugas) => {
+    if (sub.status_kumpul === 'Belum Mengumpulkan') {
+      toast.warning('Siswa belum mengumpulkan tugas. Penilaian hanya dapat diberikan setelah tugas dikumpulkan.');
+      return;
+    }
     setGradingSubmission(sub);
     setInputSkor(sub.nilai ?? '');
     setInputFeedback(sub.feedback || (sub as unknown as { feedback_guru?: string }).feedback_guru || '');
@@ -100,6 +105,11 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   const handleSaveGrade = (e: React.FormEvent) => {
     e.preventDefault();
     if (!gradingSubmission) return;
+
+    if (gradingSubmission.status_kumpul === 'Belum Mengumpulkan') {
+      toast.error('Tidak dapat menilai siswa yang belum mengumpulkan tugas.');
+      return;
+    }
 
     const numScore = Number(inputSkor);
     if (isNaN(numScore) || numScore < 0 || numScore > 100) {
@@ -476,12 +486,25 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                         </td>
 
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => handleStartGradeStudent(sub)}
-                            className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition-colors cursor-pointer"
-                          >
-                            {typeof sub.nilai === 'number' && sub.nilai !== null ? 'Koreksi Nilai' : 'Beri Nilai'}
-                          </button>
+                          {sub.status_kumpul === 'Belum Mengumpulkan' ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 font-semibold cursor-not-allowed text-xs border border-slate-200/80 select-none"
+                              title="Siswa belum mengumpulkan tugas. Nilai hanya dapat diberikan setelah tugas dikumpulkan."
+                            >
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>Beri Nilai</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleStartGradeStudent(sub)}
+                              className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition-colors cursor-pointer text-xs"
+                            >
+                              {typeof sub.nilai === 'number' && sub.nilai !== null ? 'Koreksi Nilai' : 'Beri Nilai'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
