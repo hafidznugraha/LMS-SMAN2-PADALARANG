@@ -231,9 +231,10 @@ useEffect(() => {
                     </span>
                     </td>
 
-                                                <td className="p-4">
+                    <td className="p-4">
                       <textarea
                         defaultValue={item.catatan_wali || ""}
+                        disabled={item.status_laporan === "DisahkanKurikulum"}
                         placeholder="Tulis catatan perkembangan karakter..."
                         className="w-full min-h-[60px] p-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-slate-50/50"
                         id={`catatan-${item.id_laporan}`}
