@@ -331,6 +331,10 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 
 
 	cleanBaseName := sanitizeFilename(materi.Judul)
+	disposition := "attachment"
+	if c.Query("inline") == "true" || c.Query("disposition") == "inline" {
+		disposition = "inline"
+	}
 
 	// 1. Cek apakah ada file fisik di disk lokal server (uploads/materi/...)
 	var candidatePaths []string
@@ -352,7 +356,7 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 				}
 				downloadFilename := fmt.Sprintf("%s%s", cleanBaseName, ext)
 				c.Set("Content-Type", mimeTypeByExt(ext))
-				c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadFilename))
+				c.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, downloadFilename))
 				c.Set("Content-Length", strconv.Itoa(len(fileBytes)))
 				c.Set("Cache-Control", "no-store")
 				return c.Status(fiber.StatusOK).Send(fileBytes)
@@ -381,7 +385,7 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 
 				downloadFilename := fmt.Sprintf("%s%s", cleanBaseName, ext)
 				c.Set("Content-Type", mimeTypeByExt(ext))
-				c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadFilename))
+				c.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, downloadFilename))
 				c.Set("Content-Length", strconv.Itoa(len(data)))
 				c.Set("Cache-Control", "no-store")
 				return c.Status(fiber.StatusOK).Send(data)
@@ -413,7 +417,7 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 		docxBytes := GenerateMateriDOCX(materi.Judul, namaMapel, namaKelas, materi.Deskripsi, namaGuru)
 		downloadFilename := fmt.Sprintf("%s.docx", cleanBaseName)
 		c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadFilename))
+		c.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, downloadFilename))
 		c.Set("Content-Length", strconv.Itoa(len(docxBytes)))
 		c.Set("Cache-Control", "no-store")
 		return c.Status(fiber.StatusOK).Send(docxBytes)
@@ -422,7 +426,7 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 	pdfBytes := GenerateMateriPDF(materi.Judul, namaMapel, namaKelas, materi.Deskripsi, namaGuru)
 	downloadFilename := fmt.Sprintf("%s.pdf", cleanBaseName)
 	c.Set("Content-Type", "application/pdf")
-	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadFilename))
+	c.Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, downloadFilename))
 	c.Set("Content-Length", strconv.Itoa(len(pdfBytes)))
 	c.Set("Cache-Control", "no-store")
 	return c.Status(fiber.StatusOK).Send(pdfBytes)
