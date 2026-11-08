@@ -186,6 +186,7 @@ type Absensi struct {
 	WaktuMasuk *string       `gorm:"type:time" json:"waktu_masuk,omitempty"`
 	Status     AbsensiStatus `gorm:"type:varchar(20);not null" json:"status"`
 	Catatan    string        `gorm:"size:255" json:"catatan"`
+	IsVerified bool          `gorm:"default:false" json:"is_verified"`
 	CreatedAt  time.Time     `json:"created_at"`
 }
 

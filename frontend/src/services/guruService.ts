@@ -351,6 +351,16 @@ export async function updateAbsensiSiswaGuru(
   });
 }
 
+export async function verifyAbsensiGuru(kelasId: string, tanggal: string): Promise<ApiResponse<unknown>> {
+  return await fetchAPI<ApiResponse<unknown>>('/guru/absensi/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      kelas_id: kelasId,
+      tanggal,
+    }),
+  });
+}
+
 export async function getNilaiGuru(kelasId: string, mapelId?: string, guruId?: string): Promise<NilaiSiswa[]> {
   try {
     const searchParams = new URLSearchParams();

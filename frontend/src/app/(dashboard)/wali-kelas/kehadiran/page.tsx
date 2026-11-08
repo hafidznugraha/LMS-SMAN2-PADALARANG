@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { getStoredUser, AuthUser } from '@/lib/auth';
 import { fetchAPI } from '@/lib/api';
-import { getAbsensiGuru, updateAbsensiSiswaGuru } from '@/services/guruService';
+import { getAbsensiGuru, updateAbsensiSiswaGuru, verifyAbsensiGuru } from '@/services/guruService';
 import { Absensi, Kelas, StatusKehadiran } from '@/types/lms';
 import { AbsensiModule } from '@/components/absensi/AbsensiModule';
 import { ShieldAlert, ArrowLeft, Loader2 } from 'lucide-react';
@@ -17,6 +17,7 @@ export default function KehadiranKelasPage() {
   const [absensiList, setAbsensiList] = useState<Absensi[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
   useEffect(() => {
     const user = getStoredUser();
@@ -113,11 +114,26 @@ export default function KehadiranKelasPage() {
     }
   };
 
-  const handleVerifyAbsensi = (kelasId: string) => {
-    setAbsensiList((prev) =>
-      prev.map((a) => (a.id_kelas === kelasId ? { ...a, diverifikasi_oleh_guru: true } : a))
-    );
-    toast.success(`Presensi harian ${namaKelas} berhasil diverifikasi oleh Wali Kelas`);
+  const handleVerifyAbsensi = async (kelasId: string, tanggal?: string) => {
+    const targetTanggal = tanggal || selectedDate;
+    try {
+      setIsVerifying(true);
+      const res = await verifyAbsensiGuru(kelasId, targetTanggal);
+      if (res?.success) {
+        setAbsensiList((prev) =>
+          prev.map((a) => (a.id_kelas === kelasId ? { ...a, diverifikasi_oleh_guru: true } : a))
+        );
+        toast.success(`Presensi harian ${namaKelas} berhasil diverifikasi & disimpan ke sistem`);
+        await fetchAbsensi(kelasId, targetTanggal);
+      } else {
+        toast.error(res?.message || 'Gagal memverifikasi presensi');
+      }
+    } catch (err) {
+      console.error('Gagal verifikasi presensi:', err);
+      toast.error('Terjadi kesalahan saat memverifikasi presensi');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   if (!currentUser) {
@@ -173,6 +189,8 @@ export default function KehadiranKelasPage() {
       absensiList={absensiList}
       kelasList={singleKelasList}
       initialKelasId={kelasIdBinaan}
+      selectedDate={selectedDate}
+      isVerifying={isVerifying}
       title={`Kehadiran Kelas Binaan: ${namaKelas}`}
       subtitle={`Validasi kehadiran harian siswa rombel ${namaKelas} terintegrasi secara langsung dengan sistem`}
       showBackButton={true}

@@ -99,6 +99,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
 	guru.Post("/absensi", guruHandler.SaveOrUpdateAbsensi)
 	guru.Put("/absensi/:id", guruHandler.SaveOrUpdateAbsensi)
+	guru.Post("/absensi/verify", guruHandler.VerifyAbsensiKelas)
 
 	// 4. Modul Penilaian Siswa
 	guru.Get("/nilai", guruHandler.GetNilaiList)

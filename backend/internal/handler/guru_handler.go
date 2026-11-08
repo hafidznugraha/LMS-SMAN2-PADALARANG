@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -1029,6 +1030,13 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	}
 
 	tanggal := c.Query("tanggal", time.Now().Format("2006-01-02"))
+	tglParsed, errParse := time.Parse("2006-01-02", tanggal)
+	if errParse != nil {
+		tglParsed = time.Now()
+		tanggal = tglParsed.Format("2006-01-02")
+	}
+
+	isWeekend := tglParsed.Weekday() == time.Sunday || tglParsed.Weekday() == time.Saturday
 
 	db := repository.GetDB()
 	type AbsensiRow struct {
@@ -1059,7 +1067,7 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 			a.kelas_id,
 			a.kelas_id as id_kelas,
 			a.tanggal,
-			to_char(a.created_at, 'HH24:MI:SS') as waktu,
+			COALESCE(to_char(a.waktu_masuk, 'HH24:MI:SS'), to_char(a.created_at, 'HH24:MI:SS')) as waktu,
 			CASE 
 				WHEN LOWER(a.status) = 'hadir' THEN 'Hadir'
 				WHEN LOWER(a.status) = 'sakit' THEN 'Sakit'
@@ -1067,7 +1075,7 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 				ELSE 'Alfa'
 			END as status_kehadiran,
 			COALESCE(a.catatan, '') as keterangan,
-			true as diverifikasi_oleh_guru
+			COALESCE(a.is_verified, false) as diverifikasi_oleh_guru
 		FROM absensi a
 		JOIN siswa s ON s.id = a.siswa_id
 		JOIN users u ON u.id = s.user_id
@@ -1080,6 +1088,18 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 			Success: false,
 			Message: "Gagal mengambil data absensi kelas",
 			Error:   errQuery.Error(),
+		})
+	}
+
+	if isWeekend && len(rows) == 0 {
+		namaHari := "Minggu"
+		if tglParsed.Weekday() == time.Saturday {
+			namaHari = "Sabtu"
+		}
+		return c.JSON(model.APIResponse{
+			Success: true,
+			Message: fmt.Sprintf("Hari %s adalah hari libur akhir pekan. Tidak ada sesi kegiatan belajar mengajar atau presensi siswa.", namaHari),
+			Data:    []AbsensiRow{},
 		})
 	}
 
@@ -1109,10 +1129,10 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 				KelasID:              kelasUUID,
 				IDKelas:              kelasUUID.String(),
 				Tanggal:              tanggal,
-				Waktu:                "07:00:00",
-				StatusKehadiran:      "Hadir",
+				Waktu:                "00:00:00",
+				StatusKehadiran:      "Alfa",
 				Keterangan:           "-",
-				DiverifikasiOlehGuru: true,
+				DiverifikasiOlehGuru: false,
 			})
 		}
 	}
@@ -1127,12 +1147,13 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 // 12. POST & PUT /api/v1/guru/absensi - Menyimpan atau memperbarui kehadiran siswa ke Supabase
 func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	var req struct {
-		AbsensiID string `json:"absensi_id"`
-		SiswaID   string `json:"siswa_id"`
-		KelasID   string `json:"kelas_id"`
-		Tanggal   string `json:"tanggal"`
-		Status    string `json:"status"`
-		Catatan   string `json:"catatan"`
+		AbsensiID  string `json:"absensi_id"`
+		SiswaID    string `json:"siswa_id"`
+		KelasID    string `json:"kelas_id"`
+		Tanggal    string `json:"tanggal"`
+		Status     string `json:"status"`
+		Catatan    string `json:"catatan"`
+		IsVerified *bool  `json:"is_verified,omitempty"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -1159,14 +1180,19 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 		req.AbsensiID = c.Params("id")
 	}
 
+	updates := map[string]interface{}{
+		"status":  statusClean,
+		"catatan": req.Catatan,
+	}
+	if req.IsVerified != nil {
+		updates["is_verified"] = *req.IsVerified
+	}
+
 	if req.AbsensiID != "" {
 		if absenUUID, err := uuid.Parse(req.AbsensiID); err == nil {
 			resUpdate := db.Model(&model.Absensi{}).
 				Where("id = ?", absenUUID).
-				Updates(map[string]interface{}{
-					"status":  statusClean,
-					"catatan": req.Catatan,
-				})
+				Updates(updates)
 
 			if resUpdate.Error == nil && resUpdate.RowsAffected > 0 {
 				return c.JSON(model.APIResponse{
@@ -1188,10 +1214,7 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 		errFind := db.Where("siswa_id = ? AND kelas_id = ? AND tanggal = ?", siswaUUID, kelasUUID, tglParsed).First(&existing).Error
 
 		if errFind == nil {
-			db.Model(&existing).Updates(map[string]interface{}{
-				"status":  statusClean,
-				"catatan": req.Catatan,
-			})
+			db.Model(&existing).Updates(updates)
 			return c.JSON(model.APIResponse{
 				Success: true,
 				Message: "Presensi siswa berhasil diperbarui",
@@ -1199,6 +1222,10 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 			})
 		} else {
 			nowTime := time.Now().Format("15:04:05")
+			isVer := false
+			if req.IsVerified != nil {
+				isVer = *req.IsVerified
+			}
 			newAbsen := model.Absensi{
 				ID:         uuid.New(),
 				SiswaID:    siswaUUID,
@@ -1207,6 +1234,7 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 				WaktuMasuk: &nowTime,
 				Status:     model.AbsensiStatus(statusClean),
 				Catatan:    req.Catatan,
+				IsVerified: isVer,
 				CreatedAt:  time.Now(),
 			}
 			if err := db.Create(&newAbsen).Error; err != nil {
@@ -1226,6 +1254,85 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 		Success: false,
 		Message: "ID Siswa wajib valid",
+	})
+}
+
+// 13. POST /api/v1/guru/absensi/verify - Verifikasi seluruh presensi kelas pada tanggal sesi oleh Wali Kelas
+func (h *GuruHandler) VerifyAbsensiKelas(c *fiber.Ctx) error {
+	var req struct {
+		KelasID string `json:"kelas_id"`
+		Tanggal string `json:"tanggal"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Payload verifikasi tidak valid",
+		})
+	}
+
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID kelas tidak valid",
+		})
+	}
+
+	tanggalStr := strings.TrimSpace(req.Tanggal)
+	if tanggalStr == "" {
+		tanggalStr = time.Now().Format("2006-01-02")
+	}
+	tglParsed, err := time.Parse("2006-01-02", tanggalStr)
+	if err != nil {
+		tglParsed = time.Now()
+		tanggalStr = tglParsed.Format("2006-01-02")
+	}
+
+	db := repository.GetDB()
+
+	// 1. Ambil seluruh siswa di kelas tersebut
+	var siswaInKelas []model.Siswa
+	if err := db.Where("kelas_id = ?", kelasUUID).Find(&siswaInKelas).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal memuat siswa kelas",
+			Error:   err.Error(),
+		})
+	}
+
+	if len(siswaInKelas) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tidak ada siswa yang terdaftar di kelas ini",
+		})
+	}
+
+	nowTime := time.Now().Format("15:04:05")
+	for _, s := range siswaInKelas {
+		var existing model.Absensi
+		errFind := db.Where("siswa_id = ? AND kelas_id = ? AND tanggal = ?", s.ID, kelasUUID, tglParsed).First(&existing).Error
+		if errFind == nil {
+			db.Model(&existing).Update("is_verified", true)
+		} else {
+			newAbsen := model.Absensi{
+				ID:         uuid.New(),
+				SiswaID:    s.ID,
+				KelasID:    kelasUUID,
+				Tanggal:    tglParsed,
+				WaktuMasuk: &nowTime,
+				Status:     model.StatusAlpa,
+				Catatan:    "Diverifikasi oleh Wali Kelas",
+				IsVerified: true,
+				CreatedAt:  time.Now(),
+			}
+			db.Create(&newAbsen)
+		}
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Seluruh presensi harian rombel berhasil diverifikasi oleh Wali Kelas",
 	})
 }
 
