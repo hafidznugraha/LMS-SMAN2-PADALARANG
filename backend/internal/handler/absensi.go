@@ -245,7 +245,7 @@ func (h *AbsensiHandler) GetRekapRombelDetail(c *fiber.Ctx) error {
 		idKelas = c.Query("kelas_id")
 	}
 
-	query := db.Model(&model.Absensi{}).Preload("Siswa.User").Preload("Siswa.Kelas")
+	query := db.Model(&model.Absensi{})
 
 	if idKelas != "" && idKelas != "all" {
 		parsedKelas, err := uuid.Parse(idKelas)

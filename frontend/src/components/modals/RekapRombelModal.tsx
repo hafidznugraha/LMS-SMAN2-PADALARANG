@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useRef } from "react";
+import jsPDF from "jspdf";
+import ExcelJS from "exceljs";
 import Image from "next/image";
 import {
   Printer,
+  Download,
   FileSpreadsheet,
   X,
   CheckCircle2,
@@ -63,6 +66,11 @@ export interface RekapRombelModalProps {
   siswaList: SiswaInfo[];
   presensiList: PresensiItem[];
   laporanList: LaporanItem[];
+  progresNilai: {
+  total_mapel: number;
+  mapel_lengkap: number;
+  persentase: number;
+};
 }
 
 export function RekapRombelModal({
@@ -78,6 +86,7 @@ export function RekapRombelModal({
   siswaList,
   presensiList,
   laporanList,
+  progresNilai,
 }: RekapRombelModalProps) {
   const printAreaRef = useRef<HTMLDivElement>(null);
 
@@ -117,221 +126,1507 @@ export function RekapRombelModal({
     (l) => l.status_laporan === "DisahkanKurikulum"
   ).length;
 
-  const handlePrint = () => {
-    window.print();
-  };
 
-  const handleDownloadExcel = () => {
-    const tanggalCetak = new Date().toLocaleDateString("id-ID", {
+const handlePrint = async () => {
+  try {
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const W = pdf.internal.pageSize.getWidth();
+    const H = pdf.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = W - margin * 2;
+    const bottomLimit = H - 18;
+
+    const warna = {
+      navy: [30, 58, 138] as const,
+      dark: [15, 23, 42] as const,
+      gray: [100, 116, 139] as const,
+      light: [238, 242, 247] as const,
+      border: [203, 213, 225] as const,
+      white: [255, 255, 255] as const,
+      green: [22, 101, 52] as const,
+      amber: [146, 64, 14] as const,
+    };
+
+    const tanggal = new Date().toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
 
-    const htmlContent = `
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="utf-8">
-<style>
-  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
-  table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-  th, td { border: 1px solid #94a3b8; padding: 6px 10px; }
-  th { background-color: #1e3a8a; color: white; font-weight: bold; text-align: center; }
-  .title-main { font-size: 14pt; font-weight: bold; text-align: center; }
-  .subtitle { font-size: 11pt; text-align: center; color: #475569; }
-  .sec-header { background-color: #e2e8f0; font-weight: bold; font-size: 11pt; padding: 6px; }
-  .text-center { text-align: center; }
-  .text-right { text-align: right; }
-  .bold { font-weight: bold; }
-  .badge-success { background-color: #dcfce7; color: #15803d; font-weight: bold; }
-  .badge-warning { background-color: #fef3c7; color: #b45309; font-weight: bold; }
-</style>
-</head>
-<body>
-  <table>
-    <tr>
-      <td colspan="7" class="title-main">LAPORAN REKAPITULASI PEMBINAAN KELAS (ROMBEL)</td>
-    </tr>
-    <tr>
-      <td colspan="7" class="subtitle">SMA NEGERI 2 PADALARANG &bull; TAHUN AJARAN ${tahunAjaran}</td>
-    </tr>
-  </table>
+    let y = 16;
 
-  <table>
-    <tr class="sec-header"><td colspan="4">I. IDENTITAS KELAS & WALI KELAS</td></tr>
-    <tr>
-      <td class="bold" width="25%">Rombongan Belajar (Kelas)</td>
-      <td width="35%">${namaKelas} (Tingkat ${tingkat} - ${jurusan})</td>
-      <td class="bold" width="20%">Semester</td>
-      <td width="20%">${semester}</td>
-    </tr>
-    <tr>
-      <td class="bold">Nama Wali Kelas</td>
-      <td>${teacherName}</td>
-      <td class="bold">Tahun Ajaran</td>
-      <td>${tahunAjaran}</td>
-    </tr>
-    <tr>
-      <td class="bold">NIP Wali Kelas</td>
-      <td>${teacherNip}</td>
-      <td class="bold">Tanggal Cetak</td>
-      <td>${tanggalCetak}</td>
-    </tr>
-  </table>
+    const textColor = (color: readonly number[]) => {
+      pdf.setTextColor(color[0], color[1], color[2]);
+    };
 
-  <table>
-    <tr class="sec-header"><td colspan="5">II. JUMLAH SISWA TERDAFTAR</td></tr>
-    <tr>
-      <td class="bold">Total Siswa</td>
-      <td colspan="4">${totalSiswa} Orang (${countLaki} Laki-laki, ${countPerempuan} Perempuan)</td>
-    </tr>
-    <tr>
-      <th>No</th>
-      <th>NIS</th>
-      <th>NISN</th>
-      <th>Nama Lengkap Peserta Didik</th>
-      <th>Jenis Kelamin</th>
-    </tr>
-    ${siswaList
-      .map(
-        (s, idx) => `
-    <tr>
-      <td class="text-center">${idx + 1}</td>
-      <td>${s.nis || "-"}</td>
-      <td>${s.nisn || "-"}</td>
-      <td>${s.nama_lengkap}</td>
-      <td class="text-center">${s.jenis_kelamin || "-"}</td>
-    </tr>`
-      )
-      .join("")}
-  </table>
+    const fillColor = (color: readonly number[]) => {
+      pdf.setFillColor(color[0], color[1], color[2]);
+    };
 
-  <table>
-    <tr class="sec-header"><td colspan="8">III. REKAPITULASI KEHADIRAN SISWA</td></tr>
-    <tr>
-      <th>No</th>
-      <th>Nama Siswa</th>
-      <th>Hadir (H)</th>
-      <th>Sakit (S)</th>
-      <th>Izin (I)</th>
-      <th>Alpa (A)</th>
-      <th>Terlambat (T)</th>
-      <th>Persentase Kehadiran</th>
-    </tr>
-    ${presensiList
-      .map(
-        (p, idx) => `
-    <tr>
-      <td class="text-center">${idx + 1}</td>
-      <td>${p.nama}</td>
-      <td class="text-center">${p.hadir}</td>
-      <td class="text-center">${p.sakit}</td>
-      <td class="text-center">${p.izin}</td>
-      <td class="text-center">${p.alpa}</td>
-      <td class="text-center">${p.terlambat}</td>
-      <td class="text-center bold">${p.persentase}</td>
-    </tr>`
-      )
-      .join("")}
-  </table>
+    const newPage = () => {
+      pdf.addPage();
+      y = 17;
+    };
 
-  <table>
-    <tr class="sec-header"><td colspan="6">IV. RINGKASAN PERKEMBANGAN NILAI MATA PELAJARAN</td></tr>
-    <tr>
-      <th>No</th>
-      <th>Nama Siswa</th>
-      <th>Nilai Pengetahuan</th>
-      <th>Nilai Keterampilan</th>
-      <th>Rata-rata Akhir</th>
-      <th>Status Rapor</th>
-    </tr>
-    ${laporanList
-      .map(
-        (l, idx) => `
-    <tr>
-      <td class="text-center">${idx + 1}</td>
-      <td>${l.nama}</td>
-      <td class="text-center">${l.nilai_pengetahuan ?? "-"}</td>
-      <td class="text-center">${l.nilai_keterampilan ?? "-"}</td>
-      <td class="text-center bold">${l.rata_rata ?? "-"}</td>
-      <td class="text-center">${l.status_laporan || "Draf"}</td>
-    </tr>`
-      )
-      .join("")}
-  </table>
+    const ensureSpace = (required: number) => {
+      if (y + required > bottomLimit) {
+        newPage();
+      }
+    };
 
-  <table>
-    <tr class="sec-header"><td colspan="4">V. DAFTAR SISWA YANG MEMBUTUHKAN PERHATIAN KHUSUS</td></tr>
-    ${
-      siswaPerhatianKhusus.length === 0
-        ? `<tr><td colspan="4" class="badge-success">Tidak ada siswa yang memerlukan perhatian khusus. Seluruh siswa berada dalam kategori aman.</td></tr>`
-        : `
-    <tr>
-      <th>No</th>
-      <th>Nama Siswa</th>
-      <th>NIS</th>
-      <th>Catatan / Alasan Perhatian Khusus</th>
-    </tr>
-    ${siswaPerhatianKhusus
-      .map(
-        (sk, idx) => `
-    <tr>
-      <td class="text-center">${idx + 1}</td>
-      <td class="bold">${sk.nama}</td>
-      <td>${sk.nis}</td>
-      <td style="color: #b45309;">${sk.alasan.join("; ")}</td>
-    </tr>`
-      )
-      .join("")}
-    `
+    const writeText = (
+      value: string,
+      x: number,
+      positionY: number,
+      size = 9,
+      bold = false
+    ) => {
+      pdf.setFont("helvetica", bold ? "bold" : "normal");
+      pdf.setFontSize(size);
+      textColor(warna.dark);
+      pdf.text(String(value), x, positionY);
+    };
+
+    // ============================================
+    // KOP SEKOLAH
+    // ============================================
+
+    // Ambil logo dari folder public.
+    // Logo digambar langsung ke PDF agar tidak
+    // terpotong oleh CSS atau html2canvas.
+    try {
+      const image = new window.Image();
+      image.src = "/logo-sman2.png";
+
+      await new Promise<void>((resolve, reject) => {
+        if (image.complete && image.naturalWidth > 0) {
+          resolve();
+          return;
+        }
+
+        image.onload = () => resolve();
+        image.onerror = () => reject(
+          new Error("Logo sekolah tidak dapat dimuat")
+        );
+      });
+
+      const logoCanvas = document.createElement("canvas");
+      logoCanvas.width = 300;
+      logoCanvas.height = 300;
+
+      const ctx = logoCanvas.getContext("2d");
+
+      if (ctx) {
+        const ratio = Math.min(
+          300 / image.naturalWidth,
+          300 / image.naturalHeight
+        );
+
+        const width = image.naturalWidth * ratio;
+        const height = image.naturalHeight * ratio;
+
+        ctx.clearRect(0, 0, 300, 300);
+
+        ctx.drawImage(
+          image,
+          (300 - width) / 2,
+          (300 - height) / 2,
+          width,
+          height
+        );
+
+        pdf.addImage(
+          logoCanvas.toDataURL("image/png"),
+          "PNG",
+          17,
+          13,
+          23,
+          23
+        );
+      }
+    } catch (error) {
+      console.warn("Logo tidak dapat dimasukkan:", error);
     }
-  </table>
 
-  <table>
-    <tr class="sec-header"><td colspan="3">VI. STATUS PENYELESAIAN RAPORT</td></tr>
-    <tr>
-      <td class="bold" width="35%">Catatan Wali Kelas</td>
-      <td colspan="2">${catatanTerisi} dari ${totalSiswa} siswa telah diisi catatan (${Math.round(
-      (catatanTerisi / (totalSiswa || 1)) * 100
-    )}%)</td>
-    </tr>
-    <tr>
-      <td class="bold">Status Pengesahan Kurikulum</td>
-      <td colspan="2">${raporDisahkan} dari ${totalSiswa} siswa telah disahkan kurikulum</td>
-    </tr>
-  </table>
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    textColor(warna.dark);
 
-  <br/><br/>
-  <table>
-    <tr>
-      <td colspan="3" class="text-center" width="50%">
-        Mengetahui,<br/>
-        Kepala SMA Negeri 2 Padalarang<br/><br/><br/><br/>
-        <strong>Drs. Herman Wijaya, M.M</strong><br/>
-        NIP. 196804121995011002
-      </td>
-      <td colspan="4" class="text-center" width="50%">
-        Padalarang, ${tanggalCetak}<br/>
-        Wali Kelas ${namaKelas}<br/><br/><br/><br/>
-        <strong>${teacherName}</strong><br/>
-        NIP. ${teacherNip}
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-`;
+    pdf.text(
+      "PEMERINTAH DAERAH PROVINSI JAWA BARAT",
+      119,
+      17,
+      { align: "center" }
+    );
 
-    const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Laporan_Rekap_Rombel_${namaKelas.replace(/\s+/g, "_")}_${new Date().toISOString().substring(0, 10)}.xls`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    pdf.text(
+      "DINAS PENDIDIKAN",
+      119,
+      22,
+      { align: "center" }
+    );
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(15);
+    textColor(warna.navy);
+
+    pdf.text(
+      "SMA NEGERI 2 PADALARANG",
+      119,
+      30,
+      { align: "center" }
+    );
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7);
+    textColor(warna.gray);
+
+    pdf.text(
+      "Jl. Cihaliwung No. 2, Kertamulya,",
+      119,
+      35,
+      { align: "center" }
+    );
+
+    pdf.text(
+      "Kec. Padalarang, Kabupaten Bandung Barat, Jawa Barat 40553",
+      119,
+      39,
+      { align: "center" }
+    );
+
+    pdf.setDrawColor(15, 23, 42);
+    pdf.setLineWidth(0.65);
+    pdf.line(margin, 44, W - margin, 44);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    textColor(warna.navy);
+
+    pdf.text(
+      "LAPORAN REKAPITULASI PEMBINAAN KELAS (ROMBEL)",
+      W / 2,
+      52,
+      { align: "center" }
+    );
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    textColor(warna.gray);
+
+    pdf.text(
+      `${namaKelas} | ${semester} | Tahun Ajaran ${tahunAjaran}`,
+      W / 2,
+      58,
+      { align: "center" }
+    );
+
+    y = 66;
+
+    // ============================================
+    // HELPER JUDUL BAGIAN
+    // ============================================
+
+    const addSection = (title: string) => {
+      ensureSpace(20);
+
+      fillColor(warna.light);
+      pdf.roundedRect(
+        margin,
+        y,
+        contentWidth,
+        8,
+        1.5,
+        1.5,
+        "F"
+      );
+
+      fillColor(warna.navy);
+      pdf.rect(margin, y, 1.2, 8, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9);
+      textColor(warna.navy);
+
+      pdf.text(title, margin + 4, y + 5.3);
+
+      y += 12;
+    };
+
+    // ============================================
+    // HELPER TABEL
+    // ============================================
+
+    type Column = {
+      title: string;
+      width: number;
+      align?: "left" | "center" | "right";
+    };
+
+    type TableValue = string | number | null | undefined;
+
+    const addTable = (
+      columns: Column[],
+      rows: TableValue[][]
+    ) => {
+      const headerHeight = 11;
+
+      const drawHeader = () => {
+        ensureSpace(headerHeight + 9);
+
+        fillColor(warna.navy);
+        pdf.rect(
+          margin,
+          y,
+          contentWidth,
+          headerHeight,
+          "F"
+        );
+
+        let x = margin;
+
+        columns.forEach((col) => {
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(7.2);
+          textColor(warna.white);
+
+          const lines = pdf.splitTextToSize(
+            col.title,
+            col.width - 4
+          );
+
+          pdf.text(
+            lines,
+            x + col.width / 2,
+            y + 4.2,
+            { align: "center" }
+          );
+
+          x += col.width;
+        });
+
+        y += headerHeight;
+      };
+
+      drawHeader();
+
+      if (rows.length === 0) {
+        rows = [
+          [
+            "Belum ada data",
+            ...Array(columns.length - 1).fill("-"),
+          ],
+        ];
+      }
+
+      rows.forEach((row, rowIndex) => {
+        const wrapped = columns.map((col, index) => {
+          const value = String(row[index] ?? "-");
+
+          return pdf.splitTextToSize(
+            value,
+            col.width - 4
+          ) as string[];
+        });
+
+        const maxLines = Math.max(
+          1,
+          ...wrapped.map((lines) => lines.length)
+        );
+
+        const rowHeight = Math.max(
+          9,
+          maxLines * 4 + 4
+        );
+
+        if (y + rowHeight > bottomLimit) {
+          newPage();
+          drawHeader();
+        }
+
+        fillColor(
+          rowIndex % 2 === 0
+            ? warna.white
+            : [248, 250, 252]
+        );
+
+        pdf.rect(
+          margin,
+          y,
+          contentWidth,
+          rowHeight,
+          "F"
+        );
+
+        pdf.setDrawColor(...warna.border);
+        pdf.setLineWidth(0.15);
+
+        let x = margin;
+
+        columns.forEach((col, index) => {
+          pdf.rect(
+            x,
+            y,
+            col.width,
+            rowHeight
+          );
+
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(7.5);
+          textColor(warna.dark);
+
+          const align = col.align ?? "left";
+
+          const textX =
+            align === "center"
+              ? x + col.width / 2
+              : align === "right"
+                ? x + col.width - 2
+                : x + 2;
+
+          pdf.text(
+            wrapped[index],
+            textX,
+            y + 4.8,
+            { align }
+          );
+
+          x += col.width;
+        });
+
+        y += rowHeight;
+      });
+
+      y += 3;
+    };
+
+    // ============================================
+    // I. IDENTITAS KELAS
+    // ============================================
+
+    addSection("I. IDENTITAS KELAS & WALI KELAS");
+
+    const identities: [string, string][] = [
+      [
+        "Rombongan Belajar",
+        `${namaKelas} (Tingkat ${tingkat} - ${jurusan})`,
+      ],
+      ["Nama Wali Kelas", teacherName],
+      ["NIP Wali Kelas", String(teacherNip || "-")],
+      ["Semester", semester],
+      ["Tahun Ajaran", tahunAjaran],
+      ["Tanggal Laporan", tanggal],
+    ];
+
+    identities.forEach(([label, value]) => {
+      ensureSpace(6);
+
+      writeText(label + ":", margin + 2, y + 3, 8, true);
+      writeText(value, margin + 54, y + 3, 8);
+
+      y += 6;
+    });
+
+    y += 3;
+
+    // ============================================
+    // II. JUMLAH SISWA
+    // ============================================
+
+    addSection("II. JUMLAH SISWA TERDAFTAR");
+
+    writeText(
+      `Total ${totalSiswa} siswa (${countLaki} laki-laki, ${countPerempuan} perempuan)`,
+      margin + 2,
+      y + 2,
+      8,
+      true
+    );
+
+    y += 6;
+
+    addTable(
+      [
+        { title: "No", width: 10, align: "center" },
+        { title: "NIS", width: 24 },
+        { title: "NISN", width: 27 },
+        { title: "Nama Lengkap Siswa", width: 60 },
+        { title: "Jenis Kelamin", width: 40 },
+        { title: "Status", width: 21, align: "center" },
+      ],
+      siswaList.map((s, i) => [
+        i + 1,
+        s.nis || "-",
+        s.nisn || "-",
+        s.nama_lengkap,
+        s.jenis_kelamin || "-",
+        "Aktif",
+      ])
+    );
+
+    // ============================================
+    // III. KEHADIRAN
+    // ============================================
+
+    addSection("III. REKAPITULASI KEHADIRAN SISWA");
+
+    addTable(
+      [
+        { title: "No", width: 10, align: "center" },
+        { title: "Nama Siswa", width: 50 },
+        { title: "Hadir", width: 17, align: "center" },
+        { title: "Sakit", width: 17, align: "center" },
+        { title: "Izin", width: 17, align: "center" },
+        { title: "Alpa", width: 17, align: "center" },
+        { title: "Terlambat", width: 20, align: "center" },
+        { title: "Kehadiran", width: 34, align: "center" },
+      ],
+      presensiList.map((p, i) => [
+        i + 1,
+        p.nama,
+        p.hadir,
+        p.sakit,
+        p.izin,
+        p.alpa,
+        p.terlambat,
+        p.persentase,
+      ])
+    );
+
+    // ============================================
+    // IV. PERKEMBANGAN NILAI
+    // ============================================
+
+    addSection(
+      "IV. RINGKASAN PERKEMBANGAN NILAI MATA PELAJARAN"
+    );
+
+    writeText(
+      `Progres: ${progresNilai.mapel_lengkap} dari ${progresNilai.total_mapel} mata pelajaran lengkap`,
+      margin + 2,
+      y + 2,
+      8,
+      true
+    );
+
+    y += 6;
+
+    addTable(
+      [
+        { title: "No", width: 10, align: "center" },
+        { title: "Nama Siswa", width: 49 },
+        { title: "Pengetahuan", width: 28, align: "center" },
+        { title: "Keterampilan", width: 29, align: "center" },
+        { title: "Rata-rata", width: 23, align: "center" },
+        { title: "Status Rapor", width: 43, align: "center" },
+      ],
+      laporanList.map((l, i) => {
+        const status =
+          l.status_laporan === "DisahkanKurikulum"
+            ? "Disahkan Kurikulum"
+            : l.status_laporan === "DitinjauWali"
+              ? "Ditinjau Wali Kelas"
+              : l.status_laporan === "Draf"
+                ? "Draf"
+                : l.status_laporan || "Belum Ada Status";
+
+        return [
+          i + 1,
+          l.nama,
+          l.nilai_pengetahuan ?? "-",
+          l.nilai_keterampilan ?? "-",
+          l.rata_rata ?? "-",
+          status,
+        ];
+      })
+    );
+
+    // ============================================
+    // V. PERHATIAN KHUSUS
+    // ============================================
+
+    addSection(
+      "V. DAFTAR SISWA YANG MEMBUTUHKAN PERHATIAN KHUSUS"
+    );
+
+    if (siswaPerhatianKhusus.length === 0) {
+      ensureSpace(12);
+
+      fillColor([220, 252, 231]);
+      pdf.roundedRect(
+        margin,
+        y,
+        contentWidth,
+        10,
+        1.5,
+        1.5,
+        "F"
+      );
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      textColor(warna.green);
+
+      pdf.text(
+        "Tidak ada siswa yang membutuhkan perhatian khusus.",
+        margin + 4,
+        y + 6
+      );
+
+      y += 14;
+    } else {
+      addTable(
+        [
+          { title: "No", width: 10, align: "center" },
+          { title: "Nama Siswa", width: 45 },
+          { title: "NIS", width: 25 },
+          { title: "Catatan / Alasan", width: 102 },
+        ],
+        siswaPerhatianKhusus.map((s, i) => [
+          i + 1,
+          s.nama,
+          s.nis,
+          s.alasan.join("; "),
+        ])
+      );
+    }
+
+    // ============================================
+    // VI. STATUS PENYELESAIAN RAPOR
+    // ============================================
+
+    // Sisakan ruang untuk status dan tanda tangan.
+    // Jika tidak cukup, semuanya dipindah
+    // ke halaman baru tanpa terpotong.
+    ensureSpace(91);
+
+    addSection("VI. STATUS PENYELESAIAN RAPOR");
+
+    const statusRows: [string, string][] = [
+      [
+        "Pengisian Catatan Wali Kelas",
+        `${catatanTerisi} dari ${totalSiswa} siswa (${Math.round(
+          (catatanTerisi / (totalSiswa || 1)) * 100
+        )}%)`,
+      ],
+      [
+        "Pengesahan oleh Kurikulum",
+        `${raporDisahkan} dari ${totalSiswa} rapor disahkan`,
+      ],
+    ];
+
+    statusRows.forEach(([label, value]) => {
+      writeText(
+        label + ":",
+        margin + 2,
+        y + 3,
+        8,
+        true
+      );
+
+      writeText(
+        value,
+        margin + 70,
+        y + 3,
+        8
+      );
+
+      y += 7;
+    });
+
+    // ============================================
+    // TANDA TANGAN
+    // ============================================
+
+    y += 12;
+
+    const kiri = margin + 45;
+    const kanan = W - margin - 45;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    textColor(warna.dark);
+
+    pdf.text(
+      "Mengetahui,",
+      kiri,
+      y,
+      { align: "center" }
+    );
+
+    pdf.text(
+      "Kepala SMA Negeri 2 Padalarang",
+      kiri,
+      y + 5,
+      { align: "center" }
+    );
+
+    pdf.text(
+      `Padalarang, ${tanggal}`,
+      kanan,
+      y,
+      { align: "center" }
+    );
+
+    pdf.text(
+      `Wali Kelas ${namaKelas}`,
+      kanan,
+      y + 5,
+      { align: "center" }
+    );
+
+    y += 29;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9);
+
+    pdf.text(
+      "Drs. Herman Wijaya, M.M",
+      kiri,
+      y,
+      { align: "center" }
+    );
+
+    pdf.text(
+      teacherName,
+      kanan,
+      y,
+      { align: "center" }
+    );
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    textColor(warna.gray);
+
+    pdf.text(
+      "NIP. 196804121995011002",
+      kiri,
+      y + 5,
+      { align: "center" }
+    );
+
+    pdf.text(
+      `NIP. ${teacherNip || "-"}`,
+      kanan,
+      y + 5,
+      { align: "center" }
+    );
+
+    // ============================================
+    // FOOTER DAN NOMOR HALAMAN
+    // ============================================
+
+    const totalPages = pdf.getNumberOfPages();
+
+    for (let page = 1; page <= totalPages; page++) {
+      pdf.setPage(page);
+
+      pdf.setDrawColor(...warna.border);
+      pdf.setLineWidth(0.2);
+      pdf.line(
+        margin,
+        H - 14,
+        W - margin,
+        H - 14
+      );
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      textColor(warna.gray);
+
+      pdf.text(
+        `Rekap Rombel ${namaKelas} | ${tahunAjaran}`,
+        margin,
+        H - 10
+      );
+
+      pdf.text(
+        `Halaman ${page} dari ${totalPages}`,
+        W - margin,
+        H - 10,
+        { align: "right" }
+      );
+    }
+
+    // ============================================
+    // SIMPAN PDF
+    // ============================================
+
+    pdf.save(
+      `Rekap_Rombel_${namaKelas.replace(/\s+/g, "_")}.pdf`
+    );
+
+  } catch (error) {
+    console.error("Gagal membuat PDF:", error);
+    alert("Gagal membuat PDF. Silakan coba lagi.");
+  }
+};
+
+  const handleCetak = () => {
+    window.print();
   };
+  
+  const handleDownloadExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "LMS SMAN 2 Padalarang";
+      workbook.created = new Date();
+
+      const sheet = workbook.addWorksheet("Rekap Rombel", {
+        pageSetup: {
+          paperSize: 9,
+          orientation: "landscape",
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+        },
+        views: [{ state: "normal", showGridLines: false }],
+      });
+
+      const C = {
+        navy: "FF1E3A8A",
+        dark: "FF0F172A",
+        light: "FFEAF0FA",
+        white: "FFFFFFFF",
+        gray: "FFF8FAFC",
+        border: "FFCBD5E1",
+        green: "FFDCFCE7",
+        greenText: "FF166534",
+        amber: "FFFEF3C7",
+        amberText: "FF92400E",
+      };
+
+      sheet.columns = [
+        { width: 9 },  // A: Nomor
+        { width: 26 }, // B: Nama / NIS
+        { width: 20 }, // C: NISN
+        { width: 24 }, // D
+        { width: 20 }, // E
+        { width: 19 }, // F
+        { width: 19 }, // G
+        { width: 38 }, // H: Catatan panjang
+      ];
+
+      sheet.pageSetup.margins = {
+        left: 0.3,
+        right: 0.3,
+        top: 0.45,
+        bottom: 0.45,
+        header: 0.2,
+        footer: 0.2,
+      };
+
+      sheet.headerFooter.oddFooter =
+        "LMS SMAN 2 Padalarang - Rekap Rombel | Halaman &P dari &N";
+
+      const tanggalCetak = new Date().toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
+      type Span = [number, number];
+      type NilaiSel = string | number;
+
+      const garis: Partial<ExcelJS.Borders> = {
+        top: { style: "thin", color: { argb: C.border } },
+        bottom: { style: "thin", color: { argb: C.border } },
+        left: { style: "thin", color: { argb: C.border } },
+        right: { style: "thin", color: { argb: C.border } },
+      };
+
+      // Membuat satu sel yang dapat mencakup beberapa kolom.
+      const gabung = (
+        nomorBaris: number,
+        awal: number,
+        akhir: number,
+        nilai: NilaiSel
+      ) => {
+        if (akhir > awal) {
+          sheet.mergeCells(nomorBaris, awal, nomorBaris, akhir);
+        }
+
+        const cell = sheet.getRow(nomorBaris).getCell(awal);
+        cell.value = nilai;
+        return cell;
+      };
+
+      // Memberikan latar dan border pada seluruh baris.
+      const warnaiBaris = (
+        nomorBaris: number,
+        warna: string
+      ) => {
+        for (let kolom = 1; kolom <= 8; kolom++) {
+          const cell = sheet.getRow(nomorBaris).getCell(kolom);
+
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: warna },
+          };
+
+          cell.border = garis;
+        }
+      };
+
+      // Menambahkan judul setiap bagian laporan.
+      const tambahBagian = (judul: string) => {
+        sheet.addRow([]);
+
+        const row = sheet.addRow([]);
+        row.height = 29;
+
+        warnaiBaris(row.number, C.light);
+
+        const cell = gabung(row.number, 1, 8, judul);
+
+        cell.font = {
+          name: "Calibri",
+          size: 12,
+          bold: true,
+          color: { argb: C.navy },
+        };
+
+        cell.alignment = {
+          vertical: "middle",
+          horizontal: "left",
+          indent: 1,
+        };
+
+        return row;
+      };
+
+      // Membuat tabel dengan posisi kolom yang konsisten.
+      const tambahTabel = (
+        headers: string[],
+        spans: Span[],
+        data: NilaiSel[][],
+        kolomTeks: number[] = [],
+        kolomSorotan?: number
+      ) => {
+        // Header tabel
+        const headerRow = sheet.addRow([]);
+        headerRow.height = 39;
+
+        warnaiBaris(headerRow.number, C.navy);
+
+        spans.forEach(([awal, akhir], index) => {
+          const cell = gabung(
+            headerRow.number,
+            awal,
+            akhir,
+            headers[index]
+          );
+
+          cell.font = {
+            name: "Calibri",
+            size: 10,
+            bold: true,
+            color: { argb: C.white },
+          };
+
+          cell.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+            wrapText: true,
+          };
+        });
+
+        // Isi tabel
+        data.forEach((record, index) => {
+          const row = sheet.addRow([]);
+          row.height = 34;
+
+          const warna =
+            index % 2 === 0 ? C.white : C.gray;
+
+          warnaiBaris(row.number, warna);
+
+          spans.forEach(([awal, akhir], kolom) => {
+            const nilai = record[kolom] ?? "-";
+
+            const cell = gabung(
+              row.number,
+              awal,
+              akhir,
+              nilai
+            );
+
+            cell.font = {
+              name: "Calibri",
+              size: 10,
+              color: { argb: C.dark },
+              bold: kolom === kolomSorotan,
+            };
+
+            cell.alignment = {
+              vertical: "middle",
+              horizontal:
+                kolom === 0
+                  ? "center"
+                  : typeof nilai === "number"
+                    ? "center"
+                    : "left",
+              wrapText: true,
+            };
+
+            if (kolomTeks.includes(kolom)) {
+              cell.value = String(nilai);
+              cell.numFmt = "@";
+            }
+          });
+        });
+
+        return headerRow;
+      };
+
+      // ===================================================
+      // KOP SEKOLAH
+      // ===================================================
+
+      sheet.mergeCells("A1:H2");
+
+      const namaSekolah = sheet.getCell("A1");
+      namaSekolah.value = "SMA NEGERI 2 PADALARANG";
+      namaSekolah.font = {
+        name: "Calibri",
+        size: 20,
+        bold: true,
+        color: { argb: C.navy },
+      };
+      namaSekolah.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+
+      sheet.getRow(1).height = 27;
+      sheet.getRow(2).height = 27;
+
+      sheet.mergeCells("A3:H3");
+      const alamat = sheet.getCell("A3");
+
+      alamat.value =
+        "Jl. Cihaliwung No. 2, Kertamulya, Kec. Padalarang, Kabupaten Bandung Barat, Jawa Barat 40553";
+
+      alamat.font = {
+        name: "Calibri",
+        size: 10,
+        color: { argb: C.dark },
+      };
+
+      alamat.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+
+      sheet.getRow(3).height = 23;
+
+      sheet.mergeCells("A5:H5");
+
+      const judul = sheet.getCell("A5");
+      judul.value =
+        "LAPORAN REKAPITULASI PEMBINAAN KELAS (ROMBEL)";
+
+      judul.font = {
+        name: "Calibri",
+        size: 15,
+        bold: true,
+        color: { argb: C.navy },
+      };
+
+      judul.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+
+      sheet.getRow(5).height = 30;
+
+      sheet.mergeCells("A6:H6");
+
+      const subjudul = sheet.getCell("A6");
+      subjudul.value =
+        `Kelas ${namaKelas} | Semester ${semester} | Tahun Ajaran ${tahunAjaran}`;
+
+      subjudul.font = {
+        name: "Calibri",
+        size: 11,
+        color: { argb: C.dark },
+      };
+
+      subjudul.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+
+      sheet.getRow(6).height = 25;
+
+      // ===================================================
+      // I. IDENTITAS KELAS
+      // ===================================================
+
+      tambahBagian("I. IDENTITAS KELAS & WALI KELAS");
+
+      const identitas: [string, string][] = [
+        ["Rombongan Belajar", namaKelas],
+        ["Tingkat / Jurusan", `${tingkat} / ${jurusan}`],
+        ["Nama Wali Kelas", teacherName],
+        ["NIP Wali Kelas", String(teacherNip || "-")],
+        ["Semester", semester],
+        ["Tahun Ajaran", tahunAjaran],
+        ["Tanggal Laporan", tanggalCetak],
+      ];
+
+      identitas.forEach(([label, nilai]) => {
+        const row = sheet.addRow([]);
+        row.height = 27;
+
+        warnaiBaris(row.number, C.white);
+
+        const labelCell = gabung(
+          row.number,
+          1,
+          2,
+          label
+        );
+
+        labelCell.font = {
+          name: "Calibri",
+          size: 10,
+          bold: true,
+          color: { argb: C.dark },
+        };
+
+        labelCell.alignment = {
+          vertical: "middle",
+          indent: 1,
+        };
+
+        const valueCell = gabung(
+          row.number,
+          3,
+          8,
+          nilai
+        );
+
+        valueCell.font = {
+          name: "Calibri",
+          size: 10,
+          color: { argb: C.dark },
+        };
+
+        valueCell.numFmt = "@";
+
+        valueCell.alignment = {
+          vertical: "middle",
+          indent: 1,
+          wrapText: true,
+        };
+      });
+
+      // ===================================================
+      // II. DAFTAR SISWA
+      // ===================================================
+
+      tambahBagian("II. JUMLAH SISWA TERDAFTAR");
+
+      const ringkasan = sheet.addRow([]);
+      ringkasan.height = 27;
+
+      const info = gabung(
+        ringkasan.number,
+        1,
+        8,
+        `Total ${totalSiswa} siswa | ${countLaki} laki-laki | ${countPerempuan} perempuan`
+      );
+
+      info.font = {
+        name: "Calibri",
+        size: 11,
+        bold: true,
+        color: { argb: C.navy },
+      };
+
+      info.alignment = {
+        vertical: "middle",
+      };
+
+      tambahTabel(
+        [
+          "No",
+          "NIS",
+          "NISN",
+          "Nama Lengkap Peserta Didik",
+          "Jenis Kelamin",
+          "Status",
+        ],
+        [
+          [1, 1],
+          [2, 2],
+          [3, 3],
+          [4, 5],
+          [6, 7],
+          [8, 8],
+        ],
+        siswaList.map((s, index) => [
+          index + 1,
+          String(s.nis || "-"),
+          String(s.nisn || "-"),
+          s.nama_lengkap,
+          s.jenis_kelamin || "-",
+          "Aktif",
+        ]),
+        [1, 2],
+        3
+      );
+
+      // ===================================================
+      // III. REKAPITULASI KEHADIRAN
+      // ===================================================
+
+      tambahBagian("III. REKAPITULASI KEHADIRAN SISWA");
+
+      tambahTabel(
+        [
+          "No",
+          "Nama Peserta Didik",
+          "Hadir",
+          "Sakit",
+          "Izin",
+          "Alpa",
+          "Terlambat",
+          "Persentase Kehadiran",
+        ],
+        [
+          [1, 1],
+          [2, 2],
+          [3, 3],
+          [4, 4],
+          [5, 5],
+          [6, 6],
+          [7, 7],
+          [8, 8],
+        ],
+        presensiList.map((p, index) => [
+          index + 1,
+          p.nama,
+          p.hadir,
+          p.sakit,
+          p.izin,
+          p.alpa,
+          p.terlambat,
+          p.persentase,
+        ]),
+        [],
+        7
+      );
+
+      // ===================================================
+      // IV. PERKEMBANGAN NILAI
+      // ===================================================
+
+      tambahBagian(
+        "IV. RINGKASAN PERKEMBANGAN NILAI MATA PELAJARAN"
+      );
+
+      tambahTabel(
+        [
+          "No",
+          "Nama Siswa",
+          "Nilai Pengetahuan",
+          "Nilai Keterampilan",
+          "Rata-rata Akhir",
+          "Status Rapor",
+        ],
+        [
+          [1, 1],
+          [2, 3],
+          [4, 4],
+          [5, 5],
+          [6, 6],
+          [7, 8],
+        ],
+        laporanList.map((l, index) => [
+          index + 1,
+          l.nama,
+          l.nilai_pengetahuan ?? "-",
+          l.nilai_keterampilan ?? "-",
+          l.rata_rata ?? "-",
+          l.status_laporan || "Draf",
+        ]),
+        [],
+        4
+      );
+
+      // ===================================================
+      // V. SISWA PERHATIAN KHUSUS
+      // ===================================================
+
+      tambahBagian(
+        "V. DAFTAR SISWA YANG MEMBUTUHKAN PERHATIAN KHUSUS"
+      );
+
+      if (siswaPerhatianKhusus.length === 0) {
+        const row = sheet.addRow([]);
+        row.height = 30;
+
+        warnaiBaris(row.number, C.green);
+
+        const cell = gabung(
+          row.number,
+          1,
+          8,
+          "Tidak ada siswa yang membutuhkan perhatian khusus."
+        );
+
+        cell.font = {
+          name: "Calibri",
+          bold: true,
+          size: 10,
+          color: { argb: C.greenText },
+        };
+
+        cell.alignment = {
+          vertical: "middle",
+          indent: 1,
+        };
+      } else {
+        const headerPerhatian = tambahTabel(
+          [
+            "No",
+            "Nama Siswa",
+            "NIS",
+            "Catatan / Alasan Perhatian Khusus",
+          ],
+          [
+            [1, 1],
+            [2, 3],
+            [4, 4],
+            [5, 8],
+          ],
+          siswaPerhatianKhusus.map((s, index) => [
+            index + 1,
+            s.nama,
+            String(s.nis),
+            s.alasan.join("; "),
+          ]),
+          [2],
+          1
+        );
+
+        // Beri ruang lebih besar untuk catatan.
+        for (
+          let baris = headerPerhatian.number + 1;
+          baris <= headerPerhatian.number + siswaPerhatianKhusus.length;
+          baris++
+        ) {
+          sheet.getRow(baris).height = 55;
+
+          const cell = sheet.getRow(baris).getCell(5);
+          cell.alignment = {
+            vertical: "middle",
+            wrapText: true,
+            indent: 1,
+          };
+        }
+      }
+
+      // ===================================================
+      // VI. STATUS PENYELESAIAN RAPOR
+      // ===================================================
+
+      tambahBagian("VI. STATUS PENYELESAIAN RAPOR");
+
+      const status: [string, string][] = [
+        [
+          "Pengisian Catatan Wali Kelas",
+          `${catatanTerisi} dari ${totalSiswa} siswa telah diisi`,
+        ],
+        [
+          "Pengesahan Kurikulum",
+          `${raporDisahkan} dari ${totalSiswa} rapor telah disahkan`,
+        ],
+      ];
+
+      status.forEach(([label, nilai]) => {
+        const row = sheet.addRow([]);
+        row.height = 29;
+
+        warnaiBaris(row.number, C.white);
+
+        const labelCell = gabung(
+          row.number,
+          1,
+          3,
+          label
+        );
+
+        labelCell.font = {
+          name: "Calibri",
+          size: 10,
+          bold: true,
+          color: { argb: C.dark },
+        };
+
+        labelCell.alignment = {
+          vertical: "middle",
+          indent: 1,
+        };
+
+        const valueCell = gabung(
+          row.number,
+          4,
+          8,
+          nilai
+        );
+
+        valueCell.font = {
+          name: "Calibri",
+          size: 10,
+          color: { argb: C.dark },
+        };
+
+        valueCell.alignment = {
+          vertical: "middle",
+          indent: 1,
+        };
+      });
+
+      // ===================================================
+      // TANDA TANGAN
+      // ===================================================
+
+      sheet.addRow([]);
+      sheet.addRow([]);
+
+      const awalTTD = sheet.rowCount + 1;
+
+      sheet.mergeCells(
+        awalTTD,
+        1,
+        awalTTD,
+        4
+      );
+
+      sheet.mergeCells(
+        awalTTD,
+        5,
+        awalTTD,
+        8
+      );
+
+      const kepala = sheet.getCell(awalTTD, 1);
+      kepala.value =
+        "Mengetahui,\nKepala SMA Negeri 2 Padalarang";
+
+      const wali = sheet.getCell(awalTTD, 5);
+      wali.value =
+        `Padalarang, ${tanggalCetak}\nWali Kelas ${namaKelas}`;
+
+      [kepala, wali].forEach((cell) => {
+        cell.font = {
+          name: "Calibri",
+          size: 11,
+          color: { argb: C.dark },
+        };
+
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "middle",
+          wrapText: true,
+        };
+      });
+
+      sheet.getRow(awalTTD).height = 43;
+
+      sheet.addRow([]);
+      sheet.addRow([]);
+      sheet.addRow([]);
+
+      const akhirTTD = sheet.rowCount + 1;
+
+      sheet.mergeCells(
+        akhirTTD,
+        1,
+        akhirTTD,
+        4
+      );
+
+      sheet.mergeCells(
+        akhirTTD,
+        5,
+        akhirTTD,
+        8
+      );
+
+      const namaKepala = sheet.getCell(akhirTTD, 1);
+      namaKepala.value =
+        "Drs. Herman Wijaya, M.M\nNIP. 196804121995011002";
+
+      const namaWali = sheet.getCell(akhirTTD, 5);
+      namaWali.value =
+        `${teacherName}\nNIP. ${teacherNip || "-"}`;
+
+      [namaKepala, namaWali].forEach((cell) => {
+        cell.font = {
+          name: "Calibri",
+          size: 11,
+          bold: true,
+          underline: true,
+          color: { argb: C.dark },
+        };
+
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "middle",
+          wrapText: true,
+        };
+
+        cell.numFmt = "@";
+      });
+
+      sheet.getRow(akhirTTD).height = 46;
+
+      // ===================================================
+      // PENGATURAN CETAK DAN UNDUH XLSX
+      // ===================================================
+
+      sheet.pageSetup.printArea = `A1:H${sheet.rowCount}`;
+
+      sheet.pageSetup.horizontalCentered = true;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      const blob = new Blob(
+        [new Uint8Array(buffer)],
+        {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download =
+        `Laporan_Rekap_Rombel_${namaKelas.replace(/\s+/g, "_")}.xlsx`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Gagal mengunduh Excel:", error);
+      alert("Gagal membuat laporan Excel. Silakan coba lagi.");
+    }
+  };
+
 
   const tanggalHariIni = new Date().toLocaleDateString("id-ID", {
     day: "numeric",
@@ -405,8 +1700,17 @@ export function RekapRombelModal({
                 onClick={handlePrint}
                 className="gap-1.5 text-xs bg-[#1E3A8A] hover:bg-blue-950 text-white"
               >
+                <Download className="w-4 h-4" />
+                <span>Unduh PDF</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCetak}
+                className="gap-1.5 text-xs"
+              >
                 <Printer className="w-4 h-4" />
-                <span>Cetak / Simpan PDF</span>
+                <span>Cetak Laporan</span>
               </Button>
 
               <button
@@ -459,7 +1763,7 @@ export function RekapRombelModal({
               </div>
 
               {/* 1. IDENTITAS KELAS, WALI KELAS, SEMESTER, TAHUN AJARAN */}
-              <section className="space-y-2">
+              <section data-pdf-page-start="true"className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   I. Identitas Kelas & Wali Kelas
                 </h3>
@@ -576,9 +1880,12 @@ export function RekapRombelModal({
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     IV. Ringkasan Perkembangan Nilai Mata Pelajaran
                   </h3>
-                  <span className="text-xs text-slate-600">
-                    Status: <strong className="text-blue-900">8 / 12 Mapel Menyetor Nilai</strong>
-                  </span>
+                 <span className="text-xs text-slate-600">
+                  Status:{" "}
+                  <strong className="text-blue-900">
+                    {progresNilai.mapel_lengkap} / {progresNilai.total_mapel} Mapel Lengkap
+                  </strong>
+                </span>
                 </div>
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full text-xs text-left">
@@ -602,7 +1909,13 @@ export function RekapRombelModal({
                           <td className="py-2 px-3 text-center font-bold text-blue-900">{l.rata_rata ?? "-"}</td>
                           <td className="py-2 px-3 text-center">
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700">
-                              {l.status_laporan === "DisahkanKurikulum" ? "Disahkan" : "Ditinjau Wali"}
+                              {l.status_laporan === "DisahkanKurikulum"
+                                ? "Disahkan Kurikulum"
+                                : l.status_laporan === "DitinjauWali"
+                                  ? "Ditinjau Wali Kelas"
+                                  : l.status_laporan === "Draf"
+                                    ? "Draf"
+                                    : l.status_laporan || "Belum Ada Status"}
                             </span>
                           </td>
                         </tr>
@@ -710,24 +2023,6 @@ export function RekapRombelModal({
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={onClose}>
                 Tutup
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleDownloadExcel}
-                className="gap-1.5 text-xs text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <span>Unduh Excel</span>
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handlePrint}
-                className="gap-1.5 text-xs bg-[#1E3A8A] hover:bg-blue-950 text-white"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Cetak / Simpan PDF</span>
               </Button>
             </div>
           </div>

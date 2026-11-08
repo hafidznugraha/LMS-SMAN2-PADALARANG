@@ -918,3 +918,84 @@ func (h *LaporanHandler) ExportLegerCSV(c *fiber.Ctx) error {
 	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"Leger_Nilai_%s_%s.csv\"", semester, strings.ReplaceAll(tahunAjaran, "/", "_")))
 	return c.Send(buf.Bytes())
 }
+
+	
+func (h *LaporanHandler) GetProgresNilaiKelas(c *fiber.Ctx) error {
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	kelasID, err := uuid.Parse(c.Params("id_kelas"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID kelas tidak valid",
+		})
+	}
+
+	var hasil struct {
+		TotalMapel   int64 `gorm:"column:total_mapel"`
+		MapelLengkap int64 `gorm:"column:mapel_lengkap"`
+	}
+
+	err = db.Raw(`
+		WITH mapel_terjadwal AS (
+			SELECT DISTINCT mapel_id
+			FROM jadwal_pelajaran
+			WHERE kelas_id = ?
+		),
+		jumlah_siswa AS (
+			SELECT COUNT(*) AS total
+			FROM siswa
+			WHERE kelas_id = ?
+		),
+		kelengkapan AS (
+			SELECT
+				mt.mapel_id,
+				COUNT(DISTINCT n.siswa_id) AS siswa_dinilai
+			FROM mapel_terjadwal mt
+			LEFT JOIN nilai n
+				ON n.mapel_id = mt.mapel_id
+				AND n.siswa_id IN (
+					SELECT id FROM siswa WHERE kelas_id = ?
+				)
+			GROUP BY mt.mapel_id
+		)
+		SELECT
+			COUNT(*) AS total_mapel,
+			COUNT(*) FILTER (
+				WHERE siswa_dinilai = (SELECT total FROM jumlah_siswa)
+				AND (SELECT total FROM jumlah_siswa) > 0
+			) AS mapel_lengkap
+		FROM kelengkapan
+	`, kelasID, kelasID, kelasID).Scan(&hasil).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menghitung progres nilai kelas",
+			Error:   err.Error(),
+		})
+	}
+
+	persentase := 0.0
+	if hasil.TotalMapel > 0 {
+		persentase = float64(hasil.MapelLengkap) /
+			float64(hasil.TotalMapel) * 100
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Progres nilai kelas berhasil dimuat",
+		Data: fiber.Map{
+			"total_mapel":    hasil.TotalMapel,
+			"mapel_lengkap":  hasil.MapelLengkap,
+			"persentase":     persentase,
+		},
+	})
+}
+
