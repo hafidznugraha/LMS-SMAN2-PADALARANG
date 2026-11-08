@@ -15,7 +15,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/config"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
@@ -330,10 +329,6 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 		})
 	}
 
-	// Increment counter unduhan di database
-	_ = db.Model(&model.Materi{}).
-		Where("id = ?", targetID).
-		UpdateColumn("jumlah_melihat", gorm.Expr("COALESCE(jumlah_melihat, 0) + 1")).Error
 
 	cleanBaseName := sanitizeFilename(materi.Judul)
 

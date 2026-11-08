@@ -74,13 +74,6 @@ export default function GuruMateriPage() {
   }, [fetchMateriData]);
 
   const handleDownloadMateri = async (materi: Materi) => {
-    setMateriList((prev) =>
-      prev.map((m) =>
-        m.id_materi === materi.id_materi
-          ? { ...m, unduhan_count: (m.unduhan_count || 0) + 1 }
-          : m
-      )
-    );
     await downloadMateriFile(materi);
   };
 

@@ -222,8 +222,8 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 			COALESCE(m.tipe_file, 'PDF') as tipe_file,
 			COALESCE(m.tipe_file, 'PDF') as format_file,
 			COALESCE(m.ukuran_mb, 0) as ukuran_mb,
-			COALESCE(m.jumlah_melihat, 0) as jumlah_melihat,
-			COALESCE(m.jumlah_melihat, 0) as unduhan_count,
+			COALESCE((SELECT COUNT(DISTINCT mus.siswa_id) FROM materi_unduhan_siswa mus WHERE mus.materi_id = m.id), m.jumlah_melihat, 0) as jumlah_melihat,
+			COALESCE((SELECT COUNT(DISTINCT mus.siswa_id) FROM materi_unduhan_siswa mus WHERE mus.materi_id = m.id), m.jumlah_melihat, 0) as unduhan_count,
 			to_char(m.created_at, 'YYYY-MM-DD HH24:MI') as tanggal_unggah,
 			m.created_at
 		`).

@@ -128,6 +128,19 @@ func (Materi) TableName() string {
 	return "materi"
 }
 
+type MateriUnduhanSiswa struct {
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	MateriID     uuid.UUID `gorm:"type:uuid;not null;index:idx_materi_siswa,unique" json:"materi_id"`
+	SiswaID      uuid.UUID `gorm:"type:uuid;not null;index:idx_materi_siswa,unique" json:"siswa_id"`
+	DownloadedAt time.Time `gorm:"default:now()" json:"downloaded_at"`
+	Materi       *Materi   `gorm:"foreignKey:MateriID" json:"materi,omitempty"`
+	Siswa        *Siswa    `gorm:"foreignKey:SiswaID" json:"siswa,omitempty"`
+}
+
+func (MateriUnduhanSiswa) TableName() string {
+	return "materi_unduhan_siswa"
+}
+
 type Tugas struct {
 	ID          uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	GuruID      uuid.UUID          `gorm:"type:uuid;not null" json:"guru_id"`

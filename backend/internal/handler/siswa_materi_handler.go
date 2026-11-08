@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 )
@@ -157,9 +159,23 @@ func (h *SiswaHandler) DownloadMateri(c *fiber.Ctx) error {
 		fileURL = fmt.Sprintf("/api/v1/materi/%s/download", materi.ID.String())
 	}
 
-	// Hitung tampilan; kegagalan di sini tidak boleh menghalangi unduhan.
-	_ = db.Model(&model.Materi{}).Where("id = ?", materi.ID).
-		UpdateColumn("jumlah_melihat", gorm.Expr("COALESCE(jumlah_melihat, 0) + 1")).Error
+	// Catat riwayat unduhan siswa jika belum pernah tercatat (idempotent / unik per siswa)
+	unduhan := model.MateriUnduhanSiswa{
+		ID:           uuid.New(),
+		MateriID:     materi.ID,
+		SiswaID:      siswa.ID,
+		DownloadedAt: time.Now(),
+	}
+	if err := db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "materi_id"}, {Name: "siswa_id"}},
+		DoNothing: true,
+	}).Create(&unduhan).Error; err == nil {
+		var uniqueCount int64
+		_ = db.Model(&model.MateriUnduhanSiswa{}).Where("materi_id = ?", materi.ID).Distinct("siswa_id").Count(&uniqueCount).Error
+		if uniqueCount > 0 {
+			_ = db.Model(&model.Materi{}).Where("id = ?", materi.ID).UpdateColumn("jumlah_melihat", uniqueCount).Error
+		}
+	}
 
 	return c.JSON(model.APIResponse{
 		Success: true,
