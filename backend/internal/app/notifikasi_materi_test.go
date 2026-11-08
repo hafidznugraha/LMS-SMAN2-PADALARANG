@@ -77,6 +77,7 @@ func TestNotifikasiMateriKelasTarget(t *testing.T) {
 		UserID:  userGuru.ID,
 		NIP:     fmt.Sprintf("1980%014d", time.Now().UnixNano()%100000000000000),
 		MapelID: &mapel.ID,
+		Gelar:   "M.Kom.",
 	}
 	db.Create(&guru)
 	defer db.Delete(&guru)
@@ -213,6 +214,10 @@ func TestNotifikasiMateriKelasTarget(t *testing.T) {
 	}
 	if jsonNotifA.Data.Items[0].Judul != "Materi Baru: Materi Algoritma Pemrograman Kelas A" {
 		t.Errorf("Judul notifikasi tidak sesuai: %s", jsonNotifA.Data.Items[0].Judul)
+	}
+	expectedPesan := "Ibu Guru Notifikasi, M.Kom. mengunggah materi baru untuk mata pelajaran Pemrograman Web Lanjut."
+	if jsonNotifA.Data.Items[0].Pesan != expectedPesan {
+		t.Errorf("Pesan notifikasi harus memuat nama guru beserta gelar. Diharapkan: '%s', Didapat: '%s'", expectedPesan, jsonNotifA.Data.Items[0].Pesan)
 	}
 
 	// 6. Verifikasi KETAT: Siswa B (Kelas B) TIDAK BOLEH menerima notifikasi tersebut

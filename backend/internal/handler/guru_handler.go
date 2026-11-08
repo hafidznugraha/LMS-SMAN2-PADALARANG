@@ -394,12 +394,24 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	// Kirim notifikasi HANYA kepada siswa yang terdaftar di kelas materi terkait
 	var targetSiswa []model.Siswa
 	if err := db.Where("kelas_id = ?", kelasUUID).Find(&targetSiswa).Error; err == nil && len(targetSiswa) > 0 {
+		var guruInfo struct {
+			NamaLengkap string `gorm:"column:nama_lengkap"`
+			Gelar       string `gorm:"column:gelar"`
+		}
 		var namaGuru string
-		if err := db.Table("users").
-			Joins("JOIN guru ON guru.user_id = users.id").
+		if err := db.Table("guru").
+			Select("users.nama_lengkap, guru.gelar").
+			Joins("JOIN users ON users.id = guru.user_id").
 			Where("guru.id = ?", guruUUID).
-			Select("users.nama_lengkap").
-			Scan(&namaGuru).Error; err != nil || strings.TrimSpace(namaGuru) == "" {
+			Scan(&guruInfo).Error; err == nil && strings.TrimSpace(guruInfo.NamaLengkap) != "" {
+			namaGuru = strings.TrimSpace(guruInfo.NamaLengkap)
+			gelar := strings.TrimSpace(guruInfo.Gelar)
+			gelar = strings.TrimPrefix(gelar, ",")
+			gelar = strings.TrimSpace(gelar)
+			if gelar != "" && !strings.Contains(strings.ToLower(namaGuru), strings.ToLower(gelar)) {
+				namaGuru = fmt.Sprintf("%s, %s", namaGuru, gelar)
+			}
+		} else {
 			namaGuru = "Guru Pengampu"
 		}
 
