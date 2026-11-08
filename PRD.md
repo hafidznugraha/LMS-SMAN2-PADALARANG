@@ -126,10 +126,13 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 - **FR-LAP-02 (Penambahan Catatan Wali Kelas)**: Wali kelas meninjau draf laporan dan menambahkan deskripsi capaian perkembangan kepribadian/akademik siswa.
 - **FR-LAP-03 (Pengesahan Kurikulum & Integrasi Identitas Resmi Dokumen Rapor)**: Kurikulum melakukan verifikasi akhir dan mengunci laporan untuk dicetak menjadi rapor resmi. Format cetak dan pratinjau rapor secara dinamis mengintegrasikan identitas lembaga (nama sekolah, alamat, kontak) serta pejabat penandatangan resmi (Kepala Sekolah & Waka Kurikulum beserta NIP) langsung dari tabel basis data pengaturan sekolah (*pejabat_sekolah* dan *profil_sekolah*) tanpa nilai statis (*zero hardcode*).
 - **FR-LAP-04 (Integritas Data Dinamis & Arsitektur Fail-Closed)**: Seluruh modul verifikasi raport dan endpoint pelaporan beroperasi dengan prinsip *fail-closed* tanpa ketergantungan pada data *mock*, objek tiruan (*dummy UUIDs*), atau tahun ajaran statis. Jika tahun ajaran tidak dispesifikasikan oleh klien, sistem secara otomatis mengekstrak tahun ajaran dan semester aktif dari tabel `tahun_ajaran` (`is_aktif = true`). Seluruh kegagalan request/validasi menghasilkan respons penolakan valid (HTTP 400/422) dan antarmuka pengguna menampilkan *Empty State* informatif alih-alih menyuntikkan data tiruan.
-- **FR-NOTIF-01 (Notifikasi Otomatis)**: Sistem mengirimkan pemberitahuan otomatis ke dashboard pengguna:
-  - *Siswa*: Notifikasi penerbitan tugas baru dan peringatan mendekati deadline (H-1).
-  - *Guru*: Notifikasi jadwal presensi kelas dan pengingat koreksi tugas yang belum dinilai.
-  - *Wali Kelas*: Notifikasi ketersediaan rekapitulasi presensi dan nilai akhir kelas binaan.
+- **FR-NOTIF-01 (Notifikasi Penerbitan Materi Baru)**: Saat guru mengunggah materi ajar baru pada suatu kelas, sistem secara otomatis menerbitkan notifikasi ke seluruh siswa aktif pada kelas/rombel target tersebut. Pesan memuat nama guru pengampu beserta gelar akademik lengkap (jika tersedia), mata pelajaran, judul materi, serta deeplink langsung (`/siswa/materi?search=...`).
+- **FR-NOTIF-02 (Notifikasi Penerbitan Tugas & Tenggat Waktu)**: Saat guru menerbitkan tugas baru pada target kelas, sistem secara otomatis mendistribusikan notifikasi ke seluruh siswa di kelas target. Pesan notifikasi mencantumkan nama guru bergelar, judul tugas, tenggat waktu (*deadline*) dalam format resmi Bahasa Indonesia (contoh: *"Tenggat Waktu: Minggu, 15 November 2026 pukul 23:59 WIB"*), serta tautan langsung ke modul tugas siswa (`/siswa/tugas`).
+- **FR-NOTIF-03 (Manajemen Status Keterbacaan & Unread Counter)**: Sistem menyediakan counter notifikasi belum dibaca (*unread count badge*) secara real-time pada header navigasi. Pengguna dapat menandai notifikasi telah dibaca secara satuan (`PUT /api/v1/notifikasi/:id/read`) atau menandai seluruh notifikasi sekaligus (`PUT /api/v1/notifikasi/read-all`).
+- **FR-NOTIF-04 (Antarmuka Responsif & Mobile Native Drawer)**:
+  - *Desktop*: Notifikasi disajikan melalui popover dropdown interaktif pada ikon lonceng header navigasi.
+  - *Mobile/Tablet*: Notifikasi disajikan melalui *bottom drawer* yang muncul dari bawah layar (*slide-up entrance*) dan dapat ditutup menggunakan *gesture swipe down* ke bawah (*slide-down exit*) dengan kurva transisi GPU `cubic-bezier(0.32, 0.72, 0, 1)`.
+  - *Dashboard Siswa*: Kartu sorotan materi baru muncul di bagian atas dashboard dengan tombol cepat *"Pelajari Sekarang"* yang otomatis menandai notifikasi telah dibaca dan mengarahkan ke halaman materi terkait.
 
 ---
 
@@ -308,6 +311,48 @@ flowchart TD
 
 ---
 
+### 4.6 Flowchart 6: Siklus Distribusi & Interaksi Notifikasi Terisolasi
+Menjelaskan penerbitan notifikasi otomatis saat guru mengunggah materi atau menerbitkan tugas, serta alur penanganan keterbacaan oleh siswa:
+
+```mermaid
+flowchart TD
+    Start([Aksi Guru]) --> PilihAksi{"Jenis Penerbitan?"}
+    PilihAksi -- Materi Baru --> BuatMateri[Guru Unggah Materi & Tentukan Kelas Target]
+    PilihAksi -- Tugas Baru --> BuatTugas[Guru Terbitkan Tugas, Deadline, & Kelas Target]
+    
+    BuatMateri --> SimpanMateri[Sistem Menyimpan Data Materi ke Database]
+    BuatTugas --> SimpanTugas[Sistem Menyimpan Data Tugas ke Database]
+    
+    SimpanMateri --> PanggilServiceMateri["Panggil service.KirimKeKelas(...)"]
+    SimpanTugas --> PanggilServiceTugas["Panggil service.KirimKeKelas(...)"]
+    
+    PanggilServiceMateri --> QuerySiswa[Query Seluruh Siswa Terdaftar pada Kelas Target]
+    PanggilServiceTugas --> QuerySiswa
+    
+    QuerySiswa --> CekSiswa{"Siswa Ditemukan?"}
+    CekSiswa -- Tidak Ada Siswa --> SelesaiDistribusi[Lewati Pembuatan Notifikasi]
+    CekSiswa -- Ditemukan --> FormatPesan[Format Pesan: Nama Guru Bergelar + Judul + Deadline Indo + Deeplink]
+    
+    FormatPesan --> BatchInsert["Batch Insert ke Tabel notifikasi (db.CreateInBatches)"]
+    BatchInsert --> SelesaiDistribusi
+    
+    SelesaiDistribusi --> PollingSiswa[Siswa Membuka LMS / Topbar Polling Notifikasi]
+    PollingSiswa --> TampilBadge[Tampilkan Badge Counter Notifikasi Belum Dibaca]
+    
+    TampilBadge --> BukaNotif{"Siswa Membuka Panel Notifikasi?"}
+    BukaNotif -- Mobile --> OpenDrawer[Buka Bottom Drawer dengan Animasi Slide-Up & Swipe Down]
+    BukaNotif -- Desktop --> OpenDropdown[Buka Dropdown Popover Header]
+    
+    OpenDrawer --> KlikNotif[Siswa Mengklik Item Notifikasi]
+    OpenDropdown --> KlikNotif
+    
+    KlikNotif --> UpdateRead["Kirim Request PUT /api/v1/notifikasi/:id/read (is_read = true)"]
+    UpdateRead --> RedirectDeeplink[Arahkan Siswa Langsung ke URL Tautan Materi/Tugas]
+    RedirectDeeplink --> End([Selesai])
+```
+
+---
+
 ## 5. Skema Basis Data Relasional & Kamus Data
 
 Skema basis data diturunkan secara presisi dari:
@@ -471,13 +516,14 @@ erDiagram
     }
 
     NOTIFIKASI {
-        string id_notifikasi PK
-        string id_user FK
-        string judul_pesan
-        text isi_pesan
-        string tipe_notifikasi
-        boolean status_dibaca
-        datetime created_at
+        uuid id PK
+        uuid user_id FK
+        string judul
+        text pesan
+        string tipe
+        string tautan
+        boolean is_read
+        timestamptz created_at
     }
 
     JADWAL_PELAJARAN {
@@ -661,14 +707,18 @@ Draf dan pengesahan buku leger/rapor akhir semester.
 - `status_laporan` : `VARCHAR(25)` - **Default: 'Draf'**, `CHECK (status_laporan IN ('Draf', 'DitinjauWali', 'DisahkanKurikulum'))`.
 
 #### 13. Tabel `notifikasi`
-Daftar antrean pengingat sistem kepada pengguna.
-- `id_notifikasi` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_user` : `UUID` - **Foreign Key** ke `users(id_user)` ON DELETE CASCADE.
-- `judul_pesan` : `VARCHAR(150)` - **Not Null**.
-- `isi_pesan` : `TEXT` - **Not Null**.
-- `tipe_notifikasi` : `VARCHAR(20)` - **Not Null**, `CHECK (tipe_notifikasi IN ('Tugas', 'Absensi', 'Nilai', 'Sistem'))`.
-- `status_dibaca` : `BOOLEAN` - **Default: false**.
-- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+Daftar antrean dan riwayat pemberitahuan in-app bagi pengguna sistem (khususnya siswa dan guru).
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `user_id` : `UUID` - **Foreign Key** ke `users(id)` ON DELETE CASCADE.
+- `judul` : `VARCHAR(200)` - **Not Null**, judul ringkas notifikasi (contoh: *"Materi Baru: Algoritma Pemrograman"* atau *"Tugas Baru: Latihan Basis Data"*).
+- `pesan` : `TEXT` - **Not Null**, pesan deskriptif lengkap yang memuat nama guru pengampu bergelar, nama mata pelajaran, dan informasi tenggat waktu (untuk penugasan).
+- `tipe` : `VARCHAR(50)` - **Not Null**, **Default: 'materi'**, jenis notifikasi (`'materi'`, `'tugas'`, `'pengumuman'`, `'nilai'`).
+- `tautan` : `VARCHAR(255)` - **Default: '/siswa/materi'**, URL navigasi langsung (*deeplink*) ketika notifikasi diklik (misal: `/siswa/materi?search=...` atau `/siswa/tugas`).
+- `is_read` : `BOOLEAN` - **Not Null**, **Default: false**, status keterbacaan pesan oleh penerima.
+- `created_at` : `TIMESTAMPTZ` - **Not Null**, **Default: CURRENT_TIMESTAMP**, stempel waktu penerbitan notifikasi.
+- **Indeks Basis Data Relasional**:
+  - `idx_notifikasi_user_id` : Indeks tunggal pada `(user_id)` untuk pencarian cepat notifikasi per user.
+  - `idx_notifikasi_user_read_created` : Indeks komposit pada `(user_id, is_read, created_at DESC)` guna mengoptimalkan query aggregasi penghitungan *unread count* dan pengurutan kronologis riwayat notifikasi.
 
 #### 14. Tabel `jadwal_pelajaran`
 Pemetaan jadwal kegiatan belajar mengajar per kelas, guru, dan mata pelajaran (pengunci sesi absensi otomatis).
@@ -854,11 +904,13 @@ LMS-SMAN2-PADALARANG/
 │   │   │   ├── tugas_handler.go
 │   │   │   ├── absensi_handler.go
 │   │   │   ├── nilai_handler.go
-│   │   │   └── laporan_handler.go
+│   │   │   ├── laporan_handler.go
+│   │   │   └── notifikasi_handler.go    # Endpoint notifikasi (list, read, read-all)
 │   │   ├── middleware/                  # Middleware JWT, Role Guard (RBAC), CORS, Logger
 │   │   ├── model/                       # Go Structs memetakan 14 tabel database
 │   │   ├── repository/                  # Lapisan akses database (GORM queries)
-│   │   └── service/                     # Lapisan logika bisnis & validasi aturan akademik
+│   │   └── service/                     # Domain service terpusat (notifikasi_service.go, dsb.)
+│   ├── migrations/                      # Skrip migrasi SQL (000013_create_notifikasi.up.sql, dsb.)
 │   ├── pkg/
 │   │   ├── response/                    # Helper format JSON response terstandar
 │   │   └── utils/                       # Hashing Bcrypt, token JWT, validasi waktu
@@ -869,13 +921,14 @@ LMS-SMAN2-PADALARANG/
 │   ├── src/
 │   │   ├── app/                         # App Router (Next.js)
 │   │   │   ├── (auth)/login/            # Halaman Login Multi-Role (UI-02)
-│   │   │   ├── dashboard/
+│   │   │   ├── (dashboard)/
 │   │   │   │   ├── kurikulum/           # Dashboard & Kelola Data Master (UI-03)
 │   │   │   │   ├── guru/                # Dashboard Guru: Materi, Tugas, Absen (UI-04)
 │   │   │   │   ├── siswa/               # Dashboard Siswa: Tugas, Absen, Nilai (UI-05)
 │   │   │   │   └── walikelas/           # Dashboard Wali Kelas: Leger & Rekap (UI-06)
-│   │   ├── components/                  # Reusable UI (Sidebar, Navbar, Modal, Data Table)
-│   │   ├── hooks/                       # Custom hooks (useAuth, useMateri, useAbsensi)
+│   │   ├── components/                  # Reusable UI (Sidebar, Topbar/Drawer, Modal, Data Table)
+│   │   ├── hooks/                       # Custom hooks (useAuth, useNotifikasi, useMateri)
+│   │   ├── services/                    # Client services (notifikasiService.ts, dsb.)
 │   │   ├── lib/                         # Axios/API client instance, cookie/token storage
 │   │   └── types/                       # TypeScript interfaces mencocokkan kontrak REST API
 │   ├── package.json
@@ -1071,6 +1124,47 @@ Query parameter standar: `?page=1&limit=20&search=...&sort_by=created_at&sort_or
 | `PUT` | `/api/v1/jadwal/:id` | Kurikulum | Memperbarui jadwal pelajaran atau ruangan kelas. |
 | `DELETE`| `/api/v1/jadwal/:id`| Kurikulum | Menghapus entri jadwal pelajaran (*soft delete*). |
 
+#### 9. Modul Notifikasi Pengguna (`/api/v1/notifikasi`)
+| Method | Endpoint | Akses Role | Deskripsi Fungsional |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/notifikasi` | Semua Role | Mengambil riwayat hingga 50 notifikasi terbaru milik pengguna terautentikasi dan menghitung jumlah notifikasi belum dibaca (`unread_count`). Parameter opsional: `?limit=50`. |
+| `PUT` | `/api/v1/notifikasi/:id/read` | Semua Role | Menandai satu entitas notifikasi spesifik sebagai telah dibaca (`is_read = true`). Mencegah akses IDOR (hanya pemilik notifikasi yang dapat memperbarui). |
+| `PUT` | `/api/v1/notifikasi/read-all` | Semua Role | Menandai seluruh notifikasi yang belum dibaca (`is_read = false`) milik pengguna yang sedang login menjadi terbaca (`is_read = true`) dalam satu transaksi. |
+
+##### Contoh Payload Respon `GET /api/v1/notifikasi` (HTTP 200)
+```json
+{
+  "success": true,
+  "message": "Data notifikasi berhasil dimuat",
+  "data": {
+    "unread_count": 2,
+    "items": [
+      {
+        "id": "e4b2d3c1-4567-4890-a123-b56789abcdef",
+        "user_id": "c1f7a2d4-8391-4e2b-98a7-5ef2b6e19034",
+        "judul": "Tugas Baru: Latihan Algoritma Percabangan",
+        "pesan": "Drs. H. Parhan Romdhoni, M.Kom. menerbitkan tugas baru untuk mata pelajaran Pemrograman Web - X. Tenggat Waktu: Minggu, 15 November 2026 pukul 23:59 WIB.",
+        "tipe": "tugas",
+        "tautan": "/siswa/tugas",
+        "is_read": false,
+        "created_at": "2026-11-08T20:30:00Z"
+      },
+      {
+        "id": "d1a2b3c4-1234-4567-8901-abcdef123456",
+        "user_id": "c1f7a2d4-8391-4e2b-98a7-5ef2b6e19034",
+        "judul": "Materi Baru: Pengenalan HTML & CSS",
+        "pesan": "Euis, S.Pd mengunggah materi baru untuk mata pelajaran Pemrograman Web - X.",
+        "tipe": "materi",
+        "tautan": "/siswa/materi?search=Pemrograman%20Web",
+        "is_read": true,
+        "created_at": "2026-11-08T18:15:00Z"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
 ---
 
 ## 10. Rencana Tahapan Eksekusi & Roadmap Implementasi
@@ -1137,4 +1231,129 @@ flowchart LR
    - Penyesuaian responsivitas antarmuka di layar desktop dan ponsel cerdas (*mobile responsive*).
    - Pembersihan kode sumber dan penyusunan dokumentasi OpenAPI/Swagger untuk REST API.
    - *Definition of Done (DoD)*: Seluruh use case pada PRD teruji dan aplikasi siap dipresentasikan.
+
+---
+
+## 11. Panduan Arsitektur & Penggunaan Sistem Notifikasi (Developer Guide)
+
+Bagian ini disusun sebagai pedoman teknis operasional bagi seluruh pengembang (*developer guide*) untuk memahami, memelihara, dan memperluas implementasi sistem notifikasi in-app pada LMS SMAN 2 Padalarang.
+
+### 11.1 Filosofi Arsitektur: Domain Service Terpusat (Centralized Service Pattern)
+
+Pada arsitektur awal, fungsi pembentukan notifikasi sempat tersebar langsung di dalam controller HTTP (*Fat Handler anti-pattern*). Hal ini menimbulkan redundansi kode (*violates DRY*) dan menyulitkan pemeliharaan. 
+
+Oleh karena itu, arsitektur dirombak menjadi **Domain Service Terpusat** yang berlokasi di [`backend/internal/service/notifikasi_service.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/service/notifikasi_service.go):
+1. **Single Responsibility Principle (SRP)**: Handler HTTP ([`guru_handler.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/handler/guru_handler.go), [`tugas_handler.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/handler/tugas_handler.go)) hanya bertugas memvalidasi request HTTP, lalu mendelegasikan distribusi pemberitahuan ke modul service.
+2. **Isolasi Rombel Otomatis**: Service secara otomatis melakukan query relasi siswa aktif di kelas target (`siswa.kelas_id = ?`) sehingga notifikasi tidak pernah bocor lintas kelas.
+3. **High-Performance Batch Insert**: Menghindari eksekusi query satu-per-satu di dalam perulangan (*N-Query problem*). Service menggunakan `db.CreateInBatches(notifs, 100)` yang mengeksekusi operasi `INSERT` massal dalam satu round-trip database.
+4. **Fail-Safe & Non-Blocking**: Kegagalan pengiriman notifikasi dicatat dalam log namun tidak menggagalkan transaksi utama pembuatan materi atau tugas (menggunakan prinsip *graceful degradation*).
+5. **Testability Tinggi**: Logika pembagian notifikasi dapat diuji secara terisolasi via integration test ([`notifikasi_materi_test.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/app/notifikasi_materi_test.go) & [`notifikasi_tugas_test.go`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/backend/internal/app/notifikasi_tugas_test.go)) tanpa perlu me-mocking layer HTTP Fiber.
+
+---
+
+### 11.2 Referensi API Service Backend (`backend/internal/service`)
+
+Berikut adalah fungsi-fungsi publik yang siap digunakan oleh modul lain:
+
+| Fungsi | Parameter Input | Output | Deskripsi & Kegunaan |
+| :--- | :--- | :--- | :--- |
+| `KirimKeKelas` | `db *gorm.DB, kelasID uuid.UUID, judul, pesan, tipe, tautan string` | `(int, error)` | Mencari seluruh siswa pada `kelasID`, membentuk record notifikasi, dan menyimpannya secara batch. Mengembalikan jumlah notifikasi terkirim. |
+| `KirimKeUser` | `db *gorm.DB, userID uuid.UUID, judul, pesan, tipe, tautan string` | `error` | Mengirim notifikasi personal ke satu akun user spesifik (misal: pemberitahuan nilai/revisi). |
+| `KirimBatch` | `db *gorm.DB, notifs []model.Notifikasi` | `error` | Melakukan bulk-insert langsung dari koleksi objek `model.Notifikasi`. |
+| `FormatNamaGuruWithGelar`| `nama string, gelar string` | `string` | Menggabungkan nama dan gelar secara rapi (contoh: `"Drs. H. Parhan Romdhoni"` + `"M.Kom."` $\rightarrow$ `"Drs. H. Parhan Romdhoni, M.Kom."`). |
+| `FormatDeadlineIndo` | `t time.Time` | `string` | Mengonversi objek waktu menjadi format tanggal dan jam resmi Bahasa Indonesia (contoh: `"Minggu, 15 November 2026 pukul 23:59 WIB"`). |
+
+---
+
+### 11.3 Contoh Implementasi Backend (How to Trigger Notifications)
+
+#### Contoh 1: Notifikasi Saat Guru Mengunggah Materi Baru
+```go
+// File: backend/internal/handler/guru_handler.go
+import (
+    "net/url"
+    "github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/service"
+)
+
+// Setelah entitas materi berhasil disimpan ke database:
+namaGuruLengkap := service.FormatNamaGuruWithGelar(guruUser.NamaLengkap, guruProfile.Gelar)
+judulNotif := "Materi Baru: " + newMateri.Judul
+pesanNotif := fmt.Sprintf("%s mengunggah materi baru untuk mata pelajaran %s.", namaGuruLengkap, mapel.NamaMapel)
+tautanNotif := "/siswa/materi?search=" + url.QueryEscape(mapel.NamaMapel)
+
+if count, err := service.KirimKeKelas(h.DB, newMateri.KelasID, judulNotif, pesanNotif, "materi", tautanNotif); err != nil {
+    log.Printf("[NOTIFIKASI WARNING] Gagal mengirim notifikasi materi: %v", err)
+} else {
+    log.Printf("[NOTIFIKASI INFO] Berhasil mengirim notifikasi materi ke %d siswa", count)
+}
+```
+
+#### Contoh 2: Notifikasi Saat Guru Menerbitkan Tugas Baru
+```go
+// File: backend/internal/handler/guru_handler.go
+import "github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/service"
+
+// Setelah entitas tugas berhasil disimpan ke database:
+deadlineIndo := service.FormatDeadlineIndo(newTugas.Deadline)
+namaGuruLengkap := service.FormatNamaGuruWithGelar(guruUser.NamaLengkap, guruProfile.Gelar)
+judulNotif := "Tugas Baru: " + newTugas.Judul
+pesanNotif := fmt.Sprintf(
+    "%s menerbitkan tugas baru untuk mata pelajaran %s. Tenggat Waktu: %s.",
+    namaGuruLengkap,
+    mapel.NamaMapel,
+    deadlineIndo,
+)
+tautanNotif := "/siswa/tugas"
+
+if count, err := service.KirimKeKelas(h.DB, newTugas.KelasID, judulNotif, pesanNotif, "tugas", tautanNotif); err != nil {
+    log.Printf("[NOTIFIKASI WARNING] Gagal mengirim notifikasi tugas: %v", err)
+} else {
+    log.Printf("[NOTIFIKASI INFO] Berhasil mengirim notifikasi tugas ke %d siswa", count)
+}
+```
+
+---
+
+### 11.4 Konsumsi Notifikasi pada Frontend (Next.js & React)
+
+#### 1. Custom Hook `useNotifikasi()`
+Berada di [`frontend/src/hooks/useNotifikasi.ts`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/hooks/useNotifikasi.ts). Hook ini mengelola pengambilan data berkala (*auto-polling* setiap 30 detik) dan mutasi status baca:
+
+```tsx
+import { useNotifikasi } from "@/hooks/useNotifikasi";
+
+export function KomponenHeader() {
+  const { items, unreadCount, isLoading, markAsRead, markAllAsRead, refresh } = useNotifikasi();
+
+  return (
+    <div>
+      <span>Pemberitahuan ({unreadCount})</span>
+      {items.map((notif) => (
+        <div key={notif.id} onClick={() => markAsRead(notif.id)}>
+          <h4>{notif.judul}</h4>
+          <p>{notif.pesan}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+#### 2. Panduan UX Responsif: Desktop Dropdown vs Mobile Bottom Drawer
+Komponen navigasi atas ([`frontend/src/components/shared/topbar.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/components/shared/topbar.tsx)) telah dioptimasi untuk seluruh ukuran layar:
+- **Layar Desktop ($\ge$ 768px)**:
+  - Menggunakan dropdown popover absolut yang melekat pada tombol lonceng.
+  - Mendukung auto-close saat pengguna mengklik area luar (*click-outside detection*).
+- **Layar Mobile (< 768px)**:
+  - Menggunakan **Mobile Bottom Drawer** yang dirender ke `document.body` melalui React Portal (`createPortal`) untuk menghindari pemotongan visual (*z-index clipping / overflow issue*).
+  - Dilengkapi *Backdrop Dimming* semi-transparan dengan efek blur halus.
+  - **Animasi Fisika Alami**:
+    - Animasi Masuk (*Entrance*): Bergeser dari bawah ke atas (*slide-up*) selama 320ms dengan kurva `cubic-bezier(0.32, 0.72, 0, 1)`.
+    - Animasi Keluar (*Exit*): Bergeser kembali ke bawah (*slide-down*) selama 260ms sebelum unmount dari DOM.
+  - **Dukungan Gestur Geser (*Swipe Down*)**: Pengguna dapat menyentuh *handle bar* di bagian atas drawer dan menariknya ke bawah untuk menutup drawer secara instan layaknya aplikasi mobile native (iOS/Android).
+
+#### 3. Integrasi Dashboard Siswa
+Pada halaman [`frontend/src/app/(dashboard)/siswa/page.tsx`](file:///home/hafidz-nugraha/Documents/LMS-SMAN2-PADALARANG/frontend/src/app/(dashboard)/siswa/page.tsx), jika terdeteksi ada notifikasi materi yang belum dibaca, sistem menampilkan kartu hero (*gradient banner*) interaktif:
+- Siswa dapat langsung melihat judul materi dan guru yang mengunggah.
+- Menekan tombol *"Pelajari Sekarang"* secara otomatis menandai notifikasi tersebut sebagai terbaca (`markNotifRead(notif.id)`) dan mengarahkan siswa ke halaman materi (`router.push(notif.tautan)`).
 
