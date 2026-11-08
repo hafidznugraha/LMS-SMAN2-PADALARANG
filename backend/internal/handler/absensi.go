@@ -245,7 +245,7 @@ func (h *AbsensiHandler) GetRekapRombelDetail(c *fiber.Ctx) error {
 		idKelas = c.Query("kelas_id")
 	}
 
-	query := db.Model(&model.Absensi{}).Preload("Siswa.User").Preload("Siswa.Kelas")
+	query := db.Model(&model.Absensi{})
 
 	if idKelas != "" && idKelas != "all" {
 		parsedKelas, err := uuid.Parse(idKelas)
@@ -267,7 +267,10 @@ func (h *AbsensiHandler) GetRekapRombelDetail(c *fiber.Ctx) error {
 	for _, l := range logs {
 		var waktuStr *string
 		if l.WaktuMasuk != nil {
-			s := l.WaktuMasuk.Format("15:04")
+			s := *l.WaktuMasuk
+			if len(s) >= 5 {
+				s = s[:5]
+			}
 			waktuStr = &s
 		}
 

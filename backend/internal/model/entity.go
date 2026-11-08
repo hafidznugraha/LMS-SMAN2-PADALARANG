@@ -177,7 +177,7 @@ type Absensi struct {
 	SiswaID    uuid.UUID     `gorm:"type:uuid;not null" json:"siswa_id"`
 	KelasID    uuid.UUID     `gorm:"type:uuid;not null" json:"kelas_id"`
 	Tanggal    time.Time     `gorm:"type:date;not null" json:"tanggal"`
-	WaktuMasuk *time.Time    `json:"waktu_masuk,omitempty"`
+	WaktuMasuk *string `gorm:"type:time" json:"waktu_masuk,omitempty"`
 	Status     AbsensiStatus `gorm:"type:varchar(20);not null" json:"status"`
 	Catatan    string        `gorm:"size:255" json:"catatan"`
 	CreatedAt  time.Time     `json:"created_at"`
