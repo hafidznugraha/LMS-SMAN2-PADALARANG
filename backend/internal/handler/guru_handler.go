@@ -376,7 +376,7 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 			END as jenis,
 			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
 			t.deadline,
-			'pdf, docx' as format_file,
+			COALESCE(t.format_file, 'pdf, docx') as format_file,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
@@ -503,17 +503,23 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		deskripsi = strings.TrimSpace(req.Instruksi)
 	}
 
+	formatFile := strings.TrimSpace(req.FormatFile)
+	if formatFile == "" {
+		formatFile = "pdf, docx"
+	}
+
 	newID := uuid.New()
 	now := time.Now()
 	newTugas := model.Tugas{
-		ID:        newID,
-		GuruID:    guruUUID,
-		MapelID:   mapelUUID,
-		KelasID:   kelasUUID, // Terkunci ke kelas ini saja!
-		Judul:     req.Judul,
-		Deskripsi: deskripsi,
-		Deadline:  deadlineTime,
-		CreatedAt: now,
+		ID:         newID,
+		GuruID:     guruUUID,
+		MapelID:    mapelUUID,
+		KelasID:    kelasUUID, // Terkunci ke kelas ini saja!
+		Judul:      req.Judul,
+		Deskripsi:  deskripsi,
+		FormatFile: formatFile,
+		Deadline:   deadlineTime,
+		CreatedAt:  now,
 	}
 
 	if err := db.Create(&newTugas).Error; err != nil {
@@ -547,7 +553,7 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 			END as jenis,
 			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
 			t.deadline,
-			'pdf, docx' as format_file,
+			COALESCE(t.format_file, 'pdf, docx') as format_file,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			0 as jumlah_mengumpulkan,
@@ -620,6 +626,9 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 	if mapelUUID, err := uuid.Parse(req.MapelID); err == nil && mapelUUID != uuid.Nil {
 		existing.MapelID = mapelUUID
 	}
+	if strings.TrimSpace(req.FormatFile) != "" {
+		existing.FormatFile = strings.TrimSpace(req.FormatFile)
+	}
 
 	deadlineStr := strings.TrimSpace(req.Deadline)
 	if deadlineStr == "" {
@@ -683,7 +692,7 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 			END as jenis,
 			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
 			t.deadline,
-			'pdf, docx' as format_file,
+			COALESCE(t.format_file, 'pdf, docx') as format_file,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,

@@ -21,6 +21,7 @@ type SiswaTugasItem struct {
 	ID            uuid.UUID         `json:"id"`
 	Judul         string            `json:"judul"`
 	Deskripsi     string            `json:"deskripsi"`
+	FormatFile    string            `json:"format_file"`
 	NamaMapel     string            `json:"nama_mapel"`
 	NamaGuru      string            `json:"nama_guru"`
 	Deadline      time.Time         `json:"deadline"`

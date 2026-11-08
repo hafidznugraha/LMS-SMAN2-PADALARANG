@@ -132,6 +132,7 @@ type Tugas struct {
 	KelasID     uuid.UUID          `gorm:"type:uuid;not null" json:"kelas_id"`
 	Judul       string             `gorm:"size:200;not null" json:"judul"`
 	Deskripsi   string             `gorm:"type:text" json:"deskripsi"`
+	FormatFile  string             `gorm:"size:100;default:'pdf, docx'" json:"format_file"`
 	Deadline    time.Time          `gorm:"not null" json:"deadline"`
 	CreatedAt   time.Time          `json:"created_at"`
 	Guru        *Guru              `gorm:"foreignKey:GuruID" json:"guru,omitempty"`

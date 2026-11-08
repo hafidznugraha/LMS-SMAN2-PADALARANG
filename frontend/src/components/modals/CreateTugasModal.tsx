@@ -1,7 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Loader2, Edit3, Calendar } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Loader2,
+  Edit3,
+  Calendar,
+  FileText,
+  Image,
+  FileSpreadsheet,
+  FileArchive,
+  Presentation,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, JenisPenugasan, Kelas } from '../../types/lms';
 import { createTugasGuru, updateTugasGuru } from '../../services/guruService';
@@ -14,6 +25,100 @@ interface CreateTugasModalProps {
   currentBidangStudi: string;
   onSaveTugas: (savedTugas: TugasKuis) => void;
   initialData?: TugasKuis | null;
+}
+
+interface FormatOption {
+  id: string;
+  label: string;
+  extensions: string[];
+  badge: string;
+  iconDesc: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const FILE_FORMAT_OPTIONS: FormatOption[] = [
+  {
+    id: 'pdf',
+    label: 'Dokumen PDF',
+    extensions: ['pdf'],
+    badge: '.pdf',
+    iconDesc: 'Scan / Lembar Dokumen',
+    icon: FileText,
+  },
+  {
+    id: 'word',
+    label: 'Microsoft Word',
+    extensions: ['docx', 'doc'],
+    badge: '.docx',
+    iconDesc: 'Makalah / Laporan Ketik',
+    icon: FileText,
+  },
+  {
+    id: 'image',
+    label: 'Foto / Gambar',
+    extensions: ['jpg', 'jpeg', 'png'],
+    badge: '.jpg, .png',
+    iconDesc: 'Foto Buku Catatan Manual',
+    icon: Image,
+  },
+  {
+    id: 'excel',
+    label: 'Microsoft Excel',
+    extensions: ['xlsx', 'xls'],
+    badge: '.xlsx',
+    iconDesc: 'Tabel & Analisis Angka',
+    icon: FileSpreadsheet,
+  },
+  {
+    id: 'ppt',
+    label: 'Presentasi PPT',
+    extensions: ['pptx', 'ppt'],
+    badge: '.pptx',
+    iconDesc: 'Slide Tugas Kelompok',
+    icon: Presentation,
+  },
+  {
+    id: 'zip',
+    label: 'Arsip ZIP / RAR',
+    extensions: ['zip', 'rar'],
+    badge: '.zip',
+    iconDesc: 'Proyek / Multi-berkas',
+    icon: FileArchive,
+  },
+];
+
+function parseFormatStringToIds(formatStr?: string): string[] {
+  if (!formatStr) return ['pdf', 'word'];
+  const clean = formatStr.toLowerCase();
+  const matched = new Set<string>();
+
+  if (clean.includes('pdf')) matched.add('pdf');
+  if (clean.includes('doc')) matched.add('word');
+  if (
+    clean.includes('jpg') ||
+    clean.includes('jpeg') ||
+    clean.includes('png') ||
+    clean.includes('gambar') ||
+    clean.includes('foto')
+  ) {
+    matched.add('image');
+  }
+  if (clean.includes('xls')) matched.add('excel');
+  if (clean.includes('ppt')) matched.add('ppt');
+  if (clean.includes('zip') || clean.includes('rar')) matched.add('zip');
+
+  return matched.size > 0 ? Array.from(matched) : ['pdf', 'word'];
+}
+
+function getFormatStringFromIds(ids: string[]): string {
+  const exts: string[] = [];
+  ids.forEach((id) => {
+    const opt = FILE_FORMAT_OPTIONS.find((o) => o.id === id);
+    if (opt) {
+      exts.push(...opt.extensions);
+    }
+  });
+  return exts.join(', ');
 }
 
 function getDefaultDeadline(): string {
@@ -74,7 +179,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
   const [jenis, setJenis] = useState<JenisPenugasan>('Tugas');
   const [tenggatWaktu, setTenggatWaktu] = useState(getDefaultDeadline);
-  const [formatFile, setFormatFile] = useState('pdf, docx');
+  const [selectedFormatIds, setSelectedFormatIds] = useState<string[]>(['pdf', 'word']);
   const [instruksi, setInstruksi] = useState('');
   const [rubrik, setRubrik] = useState(
     '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
@@ -88,6 +193,20 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     setTenggatWaktu(`${year}-${month}-${day}T23:59`);
+  };
+
+  const toggleFormatId = (id: string) => {
+    setSelectedFormatIds((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) {
+          toast.warning('Pilih minimal 1 format berkas yang diizinkan');
+          return prev;
+        }
+        return prev.filter((item) => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
   };
 
   const now = new Date();
@@ -109,7 +228,9 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           (initialData as unknown as { deadline?: string }).deadline
         )
       );
-      setFormatFile(initialData.format_file || 'pdf, docx');
+      setSelectedFormatIds(
+        parseFormatStringToIds(initialData.format_file)
+      );
       setInstruksi(
         initialData.instruksi ||
         (initialData as unknown as { deskripsi?: string }).deskripsi ||
@@ -124,7 +245,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
       setIdKelas(kelasList[0]?.id_kelas || '');
       setJenis('Tugas');
       setTenggatWaktu(getDefaultDeadline());
-      setFormatFile('pdf, docx');
+      setSelectedFormatIds(['pdf', 'word']);
       setInstruksi('');
       setRubrik(
         '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
@@ -157,6 +278,11 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
       return;
     }
 
+    if (selectedFormatIds.length === 0) {
+      toast.error('Pilih minimal satu format berkas yang diizinkan');
+      return;
+    }
+
     setIsSubmitting(true);
     const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
     const user = getStoredUser();
@@ -165,6 +291,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
       (initialData as unknown as { id?: string })?.id;
 
     const formattedDeadline = toBackendDeadline(tenggatWaktu);
+    const compiledFormatFile = getFormatStringFromIds(selectedFormatIds);
 
     try {
       if (isEditMode && tugasId) {
@@ -175,7 +302,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           jenis,
           deadline: formattedDeadline,
           tenggat_waktu: formattedDeadline,
-          format_file: formatFile,
+          format_file: compiledFormatFile,
           rubrik_penilaian: rubrik,
           kelas_id: kelasObj?.id_kelas,
         });
@@ -195,7 +322,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           jenis,
           deadline: formattedDeadline,
           tenggat_waktu: formattedDeadline,
-          format_file: formatFile,
+          format_file: compiledFormatFile,
           rubrik_penilaian: rubrik,
           kelas_id: kelasObj?.id_kelas,
           guru_id: user?.extra?.guru_id,
@@ -222,7 +349,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-start justify-between border-b border-slate-100 pb-3">
           <div>
@@ -296,61 +423,127 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-blue-900" />
-                <span>Tenggat Waktu *</span>
-              </label>
-              <span className="text-[10px] text-slate-400 font-medium">WIB</span>
-            </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-blue-900" />
+              <span>Tenggat Waktu (Deadline) *</span>
+            </label>
+            <span className="text-[10px] text-slate-400 font-medium">WIB</span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <input
               type="datetime-local"
               required
               min={isEditMode ? undefined : minDateTime}
               value={tenggatWaktu}
               onChange={(e) => setTenggatWaktu(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
+              className="w-full sm:max-w-xs px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
             />
             {/* Quick Presets */}
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] text-slate-400">Pintas:</span>
               <button
                 type="button"
                 onClick={() => setPresetDays(3)}
-                className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
+                className="px-2 py-1 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
               >
                 +3 Hari
               </button>
               <button
                 type="button"
                 onClick={() => setPresetDays(7)}
-                className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md transition-colors cursor-pointer"
+                className="px-2 py-1 text-[10px] font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md transition-colors cursor-pointer"
               >
                 +1 Minggu
               </button>
               <button
                 type="button"
                 onClick={() => setPresetDays(14)}
-                className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
+                className="px-2 py-1 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
               >
                 +2 Minggu
               </button>
             </div>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Format Berkas Diizinkan
-            </label>
-            <input
-              type="text"
-              placeholder="pdf, docx, zip, jpg"
-              value={formatFile}
-              onChange={(e) => setFormatFile(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white font-mono"
-            />
+        {/* Format Berkas yang Diizinkan (Checkbox Card Grid) */}
+        <div className="pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-800">
+                Format Berkas yang Diizinkan Siswa *
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Pilih jenis berkas yang boleh dikumpulkan siswa
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] text-slate-400">Pilihan cepat:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedFormatIds(['pdf', 'word'])}
+                className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
+              >
+                Standar (PDF & Word)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedFormatIds(['pdf', 'word', 'image'])}
+                className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md transition-colors cursor-pointer"
+              >
+                + Foto Buku
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedFormatIds(FILE_FORMAT_OPTIONS.map((o) => o.id))}
+                className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
+              >
+                Semua Format
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {FILE_FORMAT_OPTIONS.map((opt) => {
+              const isSelected = selectedFormatIds.includes(opt.id);
+              const Icon = opt.icon;
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => toggleFormatId(opt.id)}
+                  className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50/70 shadow-xs'
+                      : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleFormatId(opt.id)}
+                    className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer pointer-events-none"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-blue-700' : 'text-slate-500'}`} />
+                      <span className={`text-xs font-bold leading-tight ${isSelected ? 'text-blue-950' : 'text-slate-800'}`}>
+                        {opt.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-white/80 border border-slate-200/80 text-slate-600">
+                        {opt.badge}
+                      </span>
+                      <span className="text-[10px] text-slate-500 truncate">
+                        {opt.iconDesc}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

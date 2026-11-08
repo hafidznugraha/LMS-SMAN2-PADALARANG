@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +21,83 @@ const submissionBucket = "pengumpulan-tugas"
 
 var disallowedSubmissionExt = map[string]bool{
 	".exe": true, ".bat": true, ".cmd": true, ".sh": true, ".vbs": true, ".msi": true,
+}
+
+var formatExtMap = map[string][]string{
+	"pdf":    {".pdf"},
+	"docx":   {".docx", ".doc"},
+	"doc":    {".doc", ".docx"},
+	"word":   {".docx", ".doc"},
+	"gambar": {".jpg", ".jpeg", ".png", ".webp"},
+	"image":  {".jpg", ".jpeg", ".png", ".webp"},
+	"foto":   {".jpg", ".jpeg", ".png", ".webp"},
+	"jpg":    {".jpg", ".jpeg"},
+	"jpeg":   {".jpeg", ".jpg"},
+	"png":    {".png"},
+	"webp":   {".webp"},
+	"xlsx":   {".xlsx", ".xls", ".csv"},
+	"xls":    {".xls", ".xlsx", ".csv"},
+	"excel":  {".xlsx", ".xls", ".csv"},
+	"pptx":   {".pptx", ".ppt"},
+	"ppt":    {".ppt", ".pptx"},
+	"zip":    {".zip", ".rar", ".7z"},
+	"rar":    {".rar", ".zip", ".7z"},
+	"7z":     {".7z", ".zip", ".rar"},
+	"txt":    {".txt"},
+}
+
+func getAllowedExtensions(formatSpec string) map[string]bool {
+	raw := strings.ToLower(strings.TrimSpace(formatSpec))
+	if raw == "" || raw == "all" || raw == "*" || strings.Contains(raw, "semua") {
+		return nil
+	}
+
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == '/' || r == '|' || r == ' '
+	})
+
+	allowed := make(map[string]bool)
+	for _, p := range parts {
+		token := strings.TrimPrefix(strings.TrimSpace(p), ".")
+		if token == "" {
+			continue
+		}
+		if exts, ok := formatExtMap[token]; ok {
+			for _, ext := range exts {
+				allowed[ext] = true
+			}
+		} else {
+			allowed["."+token] = true
+		}
+	}
+
+	if len(allowed) == 0 {
+		return nil
+	}
+	return allowed
+}
+
+func isFileExtensionAllowed(filename string, formatSpec string) (bool, string) {
+	allowed := getAllowedExtensions(formatSpec)
+	if allowed == nil {
+		return true, ""
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+	if allowed[ext] {
+		return true, ""
+	}
+
+	var exts []string
+	for k := range allowed {
+		exts = append(exts, strings.ToUpper(strings.TrimPrefix(k, ".")))
+	}
+	sort.Strings(exts)
+	allowedStr := strings.Join(exts, ", ")
+	userExt := strings.ToUpper(strings.TrimPrefix(ext, "."))
+	if userExt == "" {
+		userExt = "TANPA EKSTENSI"
+	}
+	return false, fmt.Sprintf("Format berkas (%s) tidak diizinkan. Guru hanya menerima format: %s", userExt, allowedStr)
 }
 
 // newSubmissionStore memilih Supabase Storage bila kuncinya diisi,
@@ -41,6 +119,7 @@ type tugasRow struct {
 	ID         uuid.UUID  `gorm:"column:id"`
 	Judul      string     `gorm:"column:judul"`
 	Deskripsi  string     `gorm:"column:deskripsi"`
+	FormatFile string     `gorm:"column:format_file"`
 	NamaMapel  string     `gorm:"column:nama_mapel"`
 	NamaGuru   string     `gorm:"column:nama_guru"`
 	Deadline   time.Time  `gorm:"column:deadline"`
@@ -74,6 +153,7 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 			t.id,
 			t.judul,
 			COALESCE(t.deskripsi, '') AS deskripsi,
+			COALESCE(t.format_file, 'pdf, docx') AS format_file,
 			mp.nama_mapel,
 			u.nama_lengkap AS nama_guru,
 			t.deadline,
@@ -106,6 +186,7 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 			ID:            r.ID,
 			Judul:         r.Judul,
 			Deskripsi:     r.Deskripsi,
+			FormatFile:    r.FormatFile,
 			NamaMapel:     r.NamaMapel,
 			NamaGuru:      r.NamaGuru,
 			Deadline:      r.Deadline,
@@ -270,6 +351,14 @@ func (h *SiswaHandler) SubmitTugas(c *fiber.Ctx) error {
 		return respondUploadError(c, code, msg)
 	}
 
+	if allowed, errMsg := isFileExtensionAllowed(file.Name, tugas.FormatFile); !allowed {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: errMsg,
+			Error:   "INVALID_FILE_FORMAT",
+		})
+	}
+
 	catatan := strings.TrimSpace(c.FormValue("catatan"))
 	if len([]rune(catatan)) > 500 {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{Success: false, Message: "Catatan maksimal 500 karakter"})
@@ -361,6 +450,16 @@ func (h *SiswaHandler) UpdatePengumpulan(c *fiber.Ctx) error {
 	file, code, msg := readSubmissionFile(c, false)
 	if code != "" {
 		return respondUploadError(c, code, msg)
+	}
+
+	if file != nil {
+		if allowed, errMsg := isFileExtensionAllowed(file.Name, tugas.FormatFile); !allowed {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: errMsg,
+				Error:   "INVALID_FILE_FORMAT",
+			})
+		}
 	}
 
 	catatan := strings.TrimSpace(c.FormValue("catatan"))

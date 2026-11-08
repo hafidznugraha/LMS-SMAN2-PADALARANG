@@ -203,6 +203,11 @@ export default function SiswaTugasPage() {
                         </span>
                       )}
                     </p>
+                    {t.format_file && (
+                      <p className="text-xs text-slate-500">
+                        Format berkas: <span className="font-medium text-slate-700 uppercase">{t.format_file}</span>
+                      </p>
+                    )}
                     {p && (
                       <p className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                         <FileText className="w-3.5 h-3.5" />
