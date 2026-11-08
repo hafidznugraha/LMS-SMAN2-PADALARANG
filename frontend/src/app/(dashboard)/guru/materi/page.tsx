@@ -36,7 +36,7 @@ export default function GuruMateriPage() {
 
       const [materiData, kelasRes] = await Promise.all([
         getMateriGuru(undefined, guruId),
-        getKelasGuru(),
+        getKelasGuru(guruId),
       ]);
 
       const activeKelasList = Array.isArray(kelasRes) ? kelasRes : [];

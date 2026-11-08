@@ -81,7 +81,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	auth.Get("/me", middleware.JWTProtected(cfg), handler.MeHandler())
 
 	guru := api.Group("/guru")
-	guru.Get("/kelas", masterHandler.GetKelasList)
+	guru.Get("/kelas", guruHandler.GetKelasAjar)
 	guru.Get("/materi", guruHandler.GetMateriList)
 	guru.Post("/materi", guruHandler.CreateMateri)
 	guru.Put("/materi/:id", guruHandler.UpdateMateri)

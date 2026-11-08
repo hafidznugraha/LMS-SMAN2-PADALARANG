@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Upload, CheckCircle2, Loader2, Edit3 } from 'lucide-react';
+import { X, Upload, CheckCircle2, Loader2, Edit3, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 import { uploadMateriGuru, updateMateriGuru } from '../../services/guruService';
@@ -66,6 +66,11 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
     e.preventDefault();
     if (!judul.trim()) {
       toast.error('Judul materi pembelajaran wajib diisi');
+      return;
+    }
+
+    if (kelasList.length === 0 || !idKelas) {
+      toast.error('Belum ada rombel/kelas yang dijadwalkan oleh Kurikulum');
       return;
     }
 
@@ -220,6 +225,13 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           />
         </div>
 
+        {kelasList.length === 0 && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+            <span>Anda belum memiliki jadwal mengajar resmi dari Kurikulum. Hubungi bagian kurikulum untuk plotting jadwal KBM.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -228,13 +240,18 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
             <select
               value={idKelas}
               onChange={(e) => setIdKelas(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              disabled={kelasList.length === 0}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {kelasList.map((k) => (
-                <option key={k.id_kelas} value={k.id_kelas}>
-                  Kelas {k.nama_kelas}
-                </option>
-              ))}
+              {kelasList.length === 0 ? (
+                <option value="">Belum ada kelas terjadwal</option>
+              ) : (
+                kelasList.map((k) => (
+                  <option key={k.id_kelas} value={k.id_kelas}>
+                    Kelas {k.nama_kelas}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -333,7 +350,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || kelasList.length === 0}
             className="px-5 py-2 rounded-xl bg-[#142d72] hover:bg-[#1a388f] text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             {isSubmitting ? (

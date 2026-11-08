@@ -25,6 +25,31 @@ func NewGuruHandler(cfg *config.Config) *GuruHandler {
 	return &GuruHandler{cfg: cfg}
 }
 
+func (h *GuruHandler) isCallerKurikulum(c *fiber.Ctx) bool {
+	authHeader := c.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		cfg := h.cfg
+		if cfg == nil {
+			cfg = config.LoadConfig()
+		}
+		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fiber.ErrUnauthorized
+			}
+			return []byte(cfg.JWTSecret), nil
+		})
+		if err == nil && token != nil && token.Valid {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if roleStr, ok := claims["role"].(string); ok && strings.EqualFold(roleStr, string(model.RoleKurikulum)) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // getCallerGuruID resolves the guru_id from query param, form value, or Authorization JWT token.
 // If caller is authenticated as a guru, it returns that guru's UUID and true.
 // If caller is kurikulum/admin without guru_id query, it returns false (meaning no restriction).
@@ -77,6 +102,68 @@ func (h *GuruHandler) getCallerGuruID(c *fiber.Ctx) (uuid.UUID, bool) {
 	}
 
 	return uuid.Nil, false
+}
+
+// 0. GET /api/v1/guru/kelas - Mengambil daftar rombel/kelas yang secara resmi dijadwalkan oleh Kurikulum untuk guru ini
+func (h *GuruHandler) GetKelasAjar(c *fiber.Ctx) error {
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	var activeTA model.TahunAjaran
+	tahunAjaranStr := "2026/2027"
+	if err := db.Where("is_aktif = ?", true).First(&activeTA).Error; err == nil && activeTA.Tahun != "" {
+		tahunAjaranStr = activeTA.Tahun
+	}
+
+	guruUUID, hasCaller := h.getCallerGuruID(c)
+
+	// Jika pemanggil adalah kurikulum/admin tanpa parameter guru_id tertentu, tampilkan seluruh kelas master
+	if !hasCaller || guruUUID == uuid.Nil {
+		var list []model.Kelas
+		if err := db.Select("kelas.*, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS total_siswa, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS jumlah_siswa, ? AS tahun_ajaran", tahunAjaranStr).
+			Preload("WaliGuru.User").
+			Order("tingkat asc, nama_kelas asc").
+			Find(&list).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal mengambil data kelas",
+				Error:   err.Error(),
+			})
+		}
+		return c.JSON(model.APIResponse{
+			Success: true,
+			Message: "Data seluruh kelas master berhasil dimuat",
+			Data:    list,
+		})
+	}
+
+	// Kueri HANYA kelas yang secara resmi memiliki jadwal KBM untuk guru pengampu ini di jadwal_pelajaran
+	var list []model.Kelas
+	err := db.Select("DISTINCT kelas.*, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS total_siswa, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS jumlah_siswa, ? AS tahun_ajaran", tahunAjaranStr).
+		Preload("WaliGuru.User").
+		Joins("JOIN jadwal_pelajaran jp ON jp.kelas_id = kelas.id").
+		Where("jp.guru_id = ?", guruUUID).
+		Order("tingkat asc, nama_kelas asc").
+		Find(&list).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal memuat kelas ajar yang dijadwalkan untuk guru",
+			Error:   err.Error(),
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Data kelas ajar yang dijadwalkan berhasil dimuat",
+		Data:    list,
+	})
 }
 
 // 1. GET /api/v1/guru/materi - Mengambil daftar seluruh materi dari Supabase
@@ -208,16 +295,37 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
+	callerGuruUUID, hasCaller := h.getCallerGuruID(c)
 	guruUUID, err := uuid.Parse(req.GuruID)
-	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+	if hasCaller {
 		guruUUID = callerGuruUUID
 	} else if err != nil {
 		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback jika unauthenticated
 	}
 
 	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1
+	if err != nil || kelasUUID == uuid.Nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Target rombel/kelas wajib dipilih",
+		})
+	}
+
+	if !h.isCallerKurikulum(c) {
+		var countJadwal int64
+		if err := db.Model(&model.JadwalPelajaran{}).Where("guru_id = ? AND kelas_id = ?", guruUUID, kelasUUID).Count(&countJadwal).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal memverifikasi wewenang kelas mengajar",
+				Error:   err.Error(),
+			})
+		}
+		if countJadwal == 0 {
+			return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+				Success: false,
+				Message: "Anda tidak memiliki jadwal mengajar resmi pada kelas yang dipilih",
+			})
+		}
 	}
 
 	mapelUUID, err := uuid.Parse(req.MapelID)
@@ -431,17 +539,38 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 	db := repository.GetDB()
 
 	// 1. Validasi UUID Guru
+	callerGuruUUID, hasCaller := h.getCallerGuruID(c)
 	guruUUID, err := uuid.Parse(req.GuruID)
-	if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+	if hasCaller {
 		guruUUID = callerGuruUUID
 	} else if err != nil {
 		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback jika unauthenticated
 	}
 
-	// 2. Kunci Kelas yang dipilih Guru
+	// 2. Kunci Kelas yang dipilih Guru & Validasi Wewenang
 	kelasUUID, err := uuid.Parse(req.KelasID)
-	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1 jika kosong
+	if err != nil || kelasUUID == uuid.Nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Target rombel/kelas wajib dipilih",
+		})
+	}
+
+	if !h.isCallerKurikulum(c) {
+		var countJadwal int64
+		if err := db.Model(&model.JadwalPelajaran{}).Where("guru_id = ? AND kelas_id = ?", guruUUID, kelasUUID).Count(&countJadwal).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal memverifikasi wewenang kelas mengajar",
+				Error:   err.Error(),
+			})
+		}
+		if countJadwal == 0 {
+			return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+				Success: false,
+				Message: "Anda tidak memiliki jadwal mengajar resmi pada kelas yang dipilih",
+			})
+		}
 	}
 
 	// 3. Validasi UUID Mapel
@@ -621,7 +750,34 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 	if deskripsi != "" {
 		existing.Deskripsi = deskripsi
 	}
-	if kelasUUID, err := uuid.Parse(req.KelasID); err == nil && kelasUUID != uuid.Nil {
+	if strings.TrimSpace(req.KelasID) != "" {
+		kelasUUID, err := uuid.Parse(req.KelasID)
+		if err != nil || kelasUUID == uuid.Nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID kelas tidak valid",
+			})
+		}
+		if !h.isCallerKurikulum(c) {
+			checkGuruUUID := existing.GuruID
+			if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+				checkGuruUUID = callerGuruUUID
+			}
+			var countJadwal int64
+			if err := db.Model(&model.JadwalPelajaran{}).Where("guru_id = ? AND kelas_id = ?", checkGuruUUID, kelasUUID).Count(&countJadwal).Error; err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+					Success: false,
+					Message: "Gagal memverifikasi wewenang kelas mengajar",
+					Error:   err.Error(),
+				})
+			}
+			if countJadwal == 0 {
+				return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+					Success: false,
+					Message: "Anda tidak memiliki jadwal mengajar resmi pada kelas yang dipilih",
+				})
+			}
+		}
 		existing.KelasID = kelasUUID
 	}
 	if mapelUUID, err := uuid.Parse(req.MapelID); err == nil && mapelUUID != uuid.Nil {

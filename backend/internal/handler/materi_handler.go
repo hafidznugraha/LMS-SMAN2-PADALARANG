@@ -231,7 +231,34 @@ func (h *GuruHandler) UpdateMateri(c *fiber.Ctx) error {
 	if req.Deskripsi != "" || c.FormValue("deskripsi") != "" {
 		existing.Deskripsi = req.Deskripsi
 	}
-	if kelasUUID, err := uuid.Parse(strings.TrimSpace(req.KelasID)); err == nil {
+	if strings.TrimSpace(req.KelasID) != "" {
+		kelasUUID, err := uuid.Parse(strings.TrimSpace(req.KelasID))
+		if err != nil || kelasUUID == uuid.Nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "ID kelas tidak valid",
+			})
+		}
+		if !h.isCallerKurikulum(c) {
+			checkGuruUUID := existing.GuruID
+			if callerGuruUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+				checkGuruUUID = callerGuruUUID
+			}
+			var countJadwal int64
+			if err := db.Model(&model.JadwalPelajaran{}).Where("guru_id = ? AND kelas_id = ?", checkGuruUUID, kelasUUID).Count(&countJadwal).Error; err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+					Success: false,
+					Message: "Gagal memverifikasi wewenang kelas mengajar",
+					Error:   err.Error(),
+				})
+			}
+			if countJadwal == 0 {
+				return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+					Success: false,
+					Message: "Anda tidak memiliki jadwal mengajar resmi pada kelas yang dipilih",
+				})
+			}
+		}
 		existing.KelasID = kelasUUID
 	}
 	if mapelUUID, err := uuid.Parse(strings.TrimSpace(req.MapelID)); err == nil {

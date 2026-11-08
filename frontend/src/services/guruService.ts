@@ -21,8 +21,20 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-export async function getKelasGuru(): Promise<Kelas[]> {
+export async function getKelasGuru(guruId?: string): Promise<Kelas[]> {
   try {
+    const user = getStoredUser();
+    const effectiveGuruId =
+      guruId !== undefined
+        ? guruId
+        : ((user?.extra?.guru_id as string) || (user?.id as string) || '');
+
+    const searchParams = new URLSearchParams();
+    if (effectiveGuruId && effectiveGuruId !== 'ALL') {
+      searchParams.append('guru_id', effectiveGuruId);
+    }
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+
     const res = await fetchAPI<
       ApiResponse<
         Array<{
@@ -35,7 +47,7 @@ export async function getKelasGuru(): Promise<Kelas[]> {
           tahun_ajaran?: string;
         }>
       >
-    >('/guru/kelas');
+    >(`/guru/kelas${qs}`);
     if (res?.success && Array.isArray(res.data)) {
       return res.data.map((k) => ({
         id_kelas: k.id,

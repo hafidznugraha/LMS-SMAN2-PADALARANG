@@ -41,7 +41,8 @@ export default function NilaiPage() {
           'Mata Pelajaran';
         setCurrentMapelNama(mapelName);
 
-        const kelas = await getKelasGuru();
+        const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+        const kelas = await getKelasGuru(guruId);
         setKelasList(kelas);
         if (kelas.length > 0) {
           const firstKelasId = kelas[0].id_kelas;

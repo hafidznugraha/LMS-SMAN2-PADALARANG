@@ -38,7 +38,7 @@ export default function TugasPage() {
 
       const [tugasData, kelasData] = await Promise.all([
         getTugasGuru({ guru_id: guruId }),
-        getKelasGuru(),
+        getKelasGuru(guruId),
       ]);
 
       setTugasList(tugasData);

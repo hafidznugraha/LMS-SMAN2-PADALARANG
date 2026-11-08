@@ -99,7 +99,7 @@ export default function GuruDashboardPage() {
       const mapelId = (user?.extra?.mapel_id as string) || (user?.extra?.mapel as { id?: string })?.id || '';
 
       const [kelasData, materiData, allTugas, jadwalData] = await Promise.all([
-        getKelasGuru(),
+        getKelasGuru(guruId),
         getMateriGuru(undefined, guruId),
         getTugasGuru({ guru_id: guruId }),
         getJadwalGuru({ guru_id: guruId }),
