@@ -459,26 +459,43 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		deadlineStr = strings.TrimSpace(req.TenggatWaktu)
 	}
 
+	if deadlineStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tenggat waktu (deadline) wajib ditentukan",
+		})
+	}
+
 	var deadlineTime time.Time
-	if deadlineStr != "" {
-		layouts := []string{
-			"2006-01-02 15:04:05",
-			"2006-01-02 15:04",
-			"2006-01-02T15:04:05Z07:00",
-			"2006-01-02T15:04:05.000Z",
-			"2006-01-02T15:04:05Z",
-			"2006-01-02",
-		}
-		for _, layout := range layouts {
-			t, errParse := time.Parse(layout, deadlineStr)
-			if errParse == nil {
-				deadlineTime = t
-				break
-			}
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04",
+		"2006-01-02",
+	}
+	for _, layout := range layouts {
+		t, errParse := time.Parse(layout, deadlineStr)
+		if errParse == nil {
+			deadlineTime = t
+			break
 		}
 	}
+
 	if deadlineTime.IsZero() {
-		deadlineTime = time.Now().AddDate(0, 0, 7)
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format tenggat waktu tidak valid. Gunakan pemilih tanggal dan jam yang benar",
+		})
+	}
+
+	if deadlineTime.Before(time.Now().Add(-5 * time.Minute)) {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tenggat waktu penugasan tidak boleh berada di masa lalu",
+		})
 	}
 
 	deskripsi := strings.TrimSpace(req.Deskripsi)
@@ -615,15 +632,24 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 			"2006-01-02T15:04:05Z07:00",
 			"2006-01-02T15:04:05.000Z",
 			"2006-01-02T15:04:05Z",
+			"2006-01-02T15:04",
 			"2006-01-02",
 		}
+		var parsedDeadline time.Time
 		for _, layout := range layouts {
 			t, errParse := time.Parse(layout, deadlineStr)
 			if errParse == nil {
-				existing.Deadline = t
+				parsedDeadline = t
 				break
 			}
 		}
+		if parsedDeadline.IsZero() {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Format tenggat waktu tidak valid. Gunakan pemilih tanggal dan jam yang benar",
+			})
+		}
+		existing.Deadline = parsedDeadline
 	}
 
 	if err := db.Save(&existing).Error; err != nil {
