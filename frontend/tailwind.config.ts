@@ -32,6 +32,19 @@ const config: Config = {
         "2xl": "1rem",
         "3xl": "1.5rem",
       },
+      transitionTimingFunction: {
+        "ease-out-custom": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "ease-drawer": "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
+      keyframes: {
+        dropdownEnter: {
+          "0%": { opacity: "0", transform: "scale(0.96) translateY(-4px)" },
+          "100%": { opacity: "1", transform: "scale(1) translateY(0)" },
+        },
+      },
+      animation: {
+        "dropdown-enter": "dropdownEnter 160ms cubic-bezier(0.23, 1, 0.32, 1) forwards",
+      },
     },
   },
   plugins: [],

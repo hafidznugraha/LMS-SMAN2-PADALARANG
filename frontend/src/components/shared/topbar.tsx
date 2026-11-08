@@ -54,6 +54,8 @@ export function Topbar({
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isDrawerMounted, setIsDrawerMounted] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +67,24 @@ export function Topbar({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (isDropdownOpen) {
+      setIsDrawerMounted(true);
+      const rafId = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsDrawerOpen(true);
+        });
+      });
+      return () => cancelAnimationFrame(rafId);
+    } else {
+      setIsDrawerOpen(false);
+      const timer = setTimeout(() => {
+        setIsDrawerMounted(false);
+      }, 320);
+      return () => clearTimeout(timer);
+    }
+  }, [isDropdownOpen]);
 
   useEffect(() => {
     if (isDropdownOpen && typeof window !== "undefined" && window.innerWidth < 640) {
@@ -283,7 +303,7 @@ export function Topbar({
 
           {/* Desktop Popover: Anchored directly below the Bell button */}
           {isDropdownOpen && (
-            <div className="hidden sm:block absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="hidden sm:block absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 origin-top-right animate-dropdown-enter">
               {renderHeader()}
               <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto mt-2 pr-1">
                 {renderNotificationList()}
@@ -293,15 +313,23 @@ export function Topbar({
         </div>
 
         {/* Mobile Bottom Drawer: Rendered via Portal directly into document.body */}
-        {isDropdownOpen &&
+        {isDrawerMounted &&
           mounted &&
           createPortal(
             <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
-              {/* Dark Translucent Backdrop */}
+              {/* Dark Translucent Backdrop with smooth fade in/out */}
               <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-200"
+                className="fixed inset-0 bg-black/50 backdrop-blur-xs"
                 style={{
-                  opacity: dragOffset > 0 ? Math.max(0.1, 1 - dragOffset / 250) : 1,
+                  opacity: isDrawerOpen
+                    ? dragOffset > 0
+                      ? Math.max(0, 1 - dragOffset / 250)
+                      : 1
+                    : 0,
+                  transition:
+                    dragOffset > 0
+                      ? "none"
+                      : "opacity 260ms cubic-bezier(0.23, 1, 0.32, 1)",
                 }}
                 onClick={() => {
                   setIsDropdownOpen(false);
@@ -310,12 +338,22 @@ export function Topbar({
                 aria-hidden="true"
               />
 
-              {/* Bottom Sheet Drawer with interactive swipe-down gesture */}
+              {/* Bottom Sheet Drawer with interactive swipe-down gesture and entrance slide */}
               <div
-                className="relative z-10 bg-white rounded-t-3xl shadow-2xl border-t border-slate-200 p-4 pb-8 max-h-[85dvh] flex flex-col overscroll-contain animate-in slide-in-from-bottom duration-200"
+                className="relative z-10 bg-white rounded-t-3xl shadow-2xl border-t border-slate-200 p-4 pb-8 max-h-[85dvh] flex flex-col overscroll-contain will-change-transform transform-gpu motion-reduce:transform-none"
                 style={{
-                  transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-                  transition: dragOffset === 0 ? "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)" : "none",
+                  transform:
+                    dragOffset > 0
+                      ? `translateY(${dragOffset}px)`
+                      : isDrawerOpen
+                        ? "translateY(0%)"
+                        : "translateY(100%)",
+                  transition:
+                    dragOffset > 0
+                      ? "none"
+                      : isDrawerOpen
+                        ? "transform 320ms cubic-bezier(0.32, 0.72, 0, 1)"
+                        : "transform 260ms cubic-bezier(0.32, 0.72, 0, 1)",
                 }}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
