@@ -13,7 +13,19 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { getStoredUser } from '@/lib/auth';
 import { NilaiSiswa, Kelas } from '../../types/lms';
+
+function escapeHtml(str: unknown): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 interface NilaiModuleProps {
   nilaiList: NilaiSiswa[];
@@ -117,29 +129,317 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     }
   };
 
-  const handleExportCSV = () => {
-    const headers = ['No', 'Nama Siswa', 'NIS', 'Tugas (30%)', 'UH (20%)', 'UTS (25%)', 'UAS (25%)', 'Nilai Akhir', 'Predikat', 'Feedback'];
-    const rows = classGrades.map((g, idx) => [
-      idx + 1,
-      `"${g.nama_siswa}"`,
-      `"${g.nis}"`,
-      g.nilai_tugas,
-      g.nilai_uh,
-      g.nilai_uts,
-      g.nilai_uas,
-      g.nilai_akhir,
-      `"${g.skor_huruf}"`,
-      `"${g.feedback || ''}"`,
-    ]);
+  const handleExportExcel = () => {
+    const allClassGrades = nilaiList.filter((n) => !selectedKelasId || n.id_kelas === selectedKelasId);
+    const exportList = searchQuery.trim() && classGrades.length > 0 ? classGrades : allClassGrades;
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    if (exportList.length === 0) {
+      toast.warning('Tidak ada data nilai siswa untuk diekspor');
+      return;
+    }
+
+    const user = getStoredUser();
+    const teacherName = user?.nama_lengkap || 'Guru Pengampu';
+    const teacherNip = (user?.extra?.nip as string) || (user?.extra?.nomor_identitas as string) || '-';
+
+    const tanggalUnduh = new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const totalSiswa = exportList.length;
+    const avgTugas = totalSiswa ? (exportList.reduce((acc, curr) => acc + curr.nilai_tugas, 0) / totalSiswa).toFixed(1) : '0.0';
+    const avgUH = totalSiswa ? (exportList.reduce((acc, curr) => acc + curr.nilai_uh, 0) / totalSiswa).toFixed(1) : '0.0';
+    const avgUTS = totalSiswa ? (exportList.reduce((acc, curr) => acc + curr.nilai_uts, 0) / totalSiswa).toFixed(1) : '0.0';
+    const avgUAS = totalSiswa ? (exportList.reduce((acc, curr) => acc + curr.nilai_uas, 0) / totalSiswa).toFixed(1) : '0.0';
+    const calculatedClassAvg = totalSiswa ? (exportList.reduce((acc, curr) => acc + curr.nilai_akhir, 0) / totalSiswa).toFixed(1) : '0.0';
+
+    const countAExp = exportList.filter((g) => g.skor_huruf === 'A').length;
+    const countBExp = exportList.filter((g) => g.skor_huruf === 'B').length;
+    const countCExp = exportList.filter((g) => g.skor_huruf === 'C').length;
+    const countDExp = exportList.filter((g) => g.skor_huruf === 'D').length;
+
+    const rowsHtml = exportList
+      .map((g, idx) => {
+        const isTuntas = g.nilai_akhir >= 75;
+        const statusClass = isTuntas ? 'status-tuntas' : 'status-remedial';
+        const statusText = isTuntas ? 'TUNTAS' : 'REMEDIAL';
+        const badgeClass =
+          g.skor_huruf === 'A' ? 'badge-a' :
+          g.skor_huruf === 'B' ? 'badge-b' :
+          g.skor_huruf === 'C' ? 'badge-c' : 'badge-d';
+
+        return `
+    <tr>
+      <td class="td-cell text-center">${idx + 1}</td>
+      <td class="td-cell nis-format">${escapeHtml(g.nis)}</td>
+      <td class="td-cell text-left bold">${escapeHtml(g.nama_siswa)}</td>
+      <td class="td-cell score-format">${g.nilai_tugas}</td>
+      <td class="td-cell score-format">${g.nilai_uh}</td>
+      <td class="td-cell score-format">${g.nilai_uts}</td>
+      <td class="td-cell score-format">${g.nilai_uas}</td>
+      <td class="td-cell num-format bold" style="color: #1d4ed8;">${g.nilai_akhir.toFixed(1)}</td>
+      <td class="td-cell ${badgeClass}">${escapeHtml(g.skor_huruf)}</td>
+      <td class="td-cell ${statusClass}">${statusText}</td>
+      <td class="td-cell text-left" style="font-style: italic; color: #475569;">${escapeHtml(g.feedback || '-')}</td>
+    </tr>`;
+      })
+      .join('');
+
+    const htmlContent = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
+<!--[if gte mso 9]>
+<xml>
+ <x:ExcelWorkbook>
+  <x:ExcelWorksheets>
+   <x:ExcelWorksheet>
+    <x:Name>Leger Nilai</x:Name>
+    <x:WorksheetOptions>
+     <x:DisplayGridlines/>
+     <x:Print>
+      <x:ValidPrinterInfo/>
+      <x:PaperSizeIndex>9</x:PaperSizeIndex>
+      <x:HorizontalResolution>600</x:HorizontalResolution>
+      <x:VerticalResolution>600</x:VerticalResolution>
+     </x:Print>
+    </x:WorksheetOptions>
+   </x:ExcelWorksheet>
+  </x:ExcelWorksheets>
+ </x:ExcelWorkbook>
+</xml>
+<![endif]-->
+<style>
+  body {
+    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt;
+    color: #0f172a;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 14px;
+  }
+  .header-main {
+    font-size: 15pt;
+    font-weight: bold;
+    text-align: center;
+    color: #1e3a8a;
+  }
+  .header-sub {
+    font-size: 12pt;
+    font-weight: bold;
+    text-align: center;
+    color: #1e293b;
+  }
+  .header-desc {
+    font-size: 9.5pt;
+    text-align: center;
+    color: #64748b;
+  }
+  .section-header {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 10.5pt;
+    padding: 6px 10px;
+  }
+  .meta-label {
+    background-color: #f1f5f9;
+    font-weight: bold;
+    font-size: 10pt;
+    border: 1px solid #cbd5e1;
+    padding: 5px 8px;
+    width: 20%;
+  }
+  .meta-val {
+    font-size: 10pt;
+    border: 1px solid #cbd5e1;
+    padding: 5px 8px;
+    width: 30%;
+  }
+  .th-col {
+    background-color: #1d4ed8;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid #1e3a8a;
+    padding: 8px 6px;
+    font-size: 10pt;
+    vertical-align: middle;
+  }
+  .th-col-sub {
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid #1e3a8a;
+    padding: 6px 4px;
+    font-size: 9pt;
+  }
+  .td-cell {
+    border: 1px solid #94a3b8;
+    padding: 6px 8px;
+    font-size: 10pt;
+    vertical-align: middle;
+  }
+  .text-center { text-align: center; }
+  .text-left { text-align: left; }
+  .text-right { text-align: right; }
+  .bold { font-weight: bold; }
+  .nis-format { mso-number-format: "\\@"; text-align: center; }
+  .num-format { mso-number-format: "0\\.0"; text-align: center; }
+  .score-format { mso-number-format: "0"; text-align: center; }
+  .badge-a { background-color: #dcfce7; color: #166534; font-weight: bold; text-align: center; }
+  .badge-b { background-color: #dbeafe; color: #1e40af; font-weight: bold; text-align: center; }
+  .badge-c { background-color: #fef3c7; color: #92400e; font-weight: bold; text-align: center; }
+  .badge-d { background-color: #fee2e2; color: #991b1b; font-weight: bold; text-align: center; }
+  .status-tuntas { background-color: #dcfce7; color: #15803d; font-weight: bold; text-align: center; }
+  .status-remedial { background-color: #fee2e2; color: #b91c1c; font-weight: bold; text-align: center; }
+  .footer-row td {
+    background-color: #f8fafc;
+    border: 1px solid #94a3b8;
+    font-weight: bold;
+    padding: 7px 8px;
+    font-size: 10pt;
+  }
+  .sig-table td {
+    border: none;
+    padding: 10px;
+    text-align: center;
+    font-size: 10pt;
+  }
+</style>
+</head>
+<body>
+  <table>
+    <tr>
+      <td colspan="11" class="header-main">SMA NEGERI 2 PADALARANG</td>
+    </tr>
+    <tr>
+      <td colspan="11" class="header-sub">BUKU LEGER NILAI AKADEMIK MATA PELAJARAN</td>
+    </tr>
+    <tr>
+      <td colspan="11" class="header-desc">Sistem Informasi Pembelajaran Terpadu (LMS) &bull; Terakreditasi A &bull; Tahun Ajaran 2025/2026</td>
+    </tr>
+    <tr><td colspan="11" style="border-bottom: 2px solid #1e3a8a; height: 8px;"></td></tr>
+  </table>
+
+  <table>
+    <tr>
+      <td colspan="4" class="section-header">I. INFORMASI AKADEMIK & KELAS</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Mata Pelajaran</td>
+      <td class="meta-val bold">${escapeHtml(namaMapel || 'Mata Pelajaran')}</td>
+      <td class="meta-label">Rombongan Belajar (Kelas)</td>
+      <td class="meta-val bold">${escapeHtml(currentKelas?.nama_kelas || 'Kelas')}</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Guru Pengampu</td>
+      <td class="meta-val">${escapeHtml(teacherName)}</td>
+      <td class="meta-label">Batas KKM</td>
+      <td class="meta-val bold">75.00</td>
+    </tr>
+    <tr>
+      <td class="meta-label">NIP Guru</td>
+      <td class="meta-val">${escapeHtml(teacherNip)}</td>
+      <td class="meta-label">Rata-Rata Nilai Kelas</td>
+      <td class="meta-val bold" style="color: #1d4ed8;">${calculatedClassAvg}</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Total Peserta Didik</td>
+      <td class="meta-val">${totalSiswa} Siswa</td>
+      <td class="meta-label">Tanggal Pengunduhan</td>
+      <td class="meta-val">${tanggalUnduh}</td>
+    </tr>
+  </table>
+
+  <table>
+    <tr>
+      <td colspan="4" class="section-header">II. RINGKASAN REKAPITULASI PREDIKAT KELAS</td>
+    </tr>
+    <tr>
+      <td class="meta-label" style="text-align: center;">Predikat A (&ge; 88)</td>
+      <td class="meta-label" style="text-align: center;">Predikat B (78 - 87)</td>
+      <td class="meta-label" style="text-align: center;">Predikat C (68 - 77)</td>
+      <td class="meta-label" style="text-align: center;">Predikat D (&lt; 68)</td>
+    </tr>
+    <tr>
+      <td class="meta-val badge-a" style="text-align: center; font-size: 11pt;">${countAExp} Siswa</td>
+      <td class="meta-val badge-b" style="text-align: center; font-size: 11pt;">${countBExp} Siswa</td>
+      <td class="meta-val badge-c" style="text-align: center; font-size: 11pt;">${countCExp} Siswa</td>
+      <td class="meta-val badge-d" style="text-align: center; font-size: 11pt;">${countDExp} Siswa</td>
+    </tr>
+  </table>
+
+  <table class="data-table">
+    <tr>
+      <td colspan="11" class="section-header">III. DAFTAR PEROLEHAN NILAI SISWA</td>
+    </tr>
+    <tr>
+      <th class="th-col" rowspan="2" style="width: 40px;">No</th>
+      <th class="th-col" rowspan="2" style="width: 100px;">NIS</th>
+      <th class="th-col" rowspan="2" style="width: 220px;">Nama Lengkap Siswa</th>
+      <th class="th-col" colspan="4">Komponen Penilaian</th>
+      <th class="th-col" rowspan="2" style="width: 90px;">Nilai Akhir</th>
+      <th class="th-col" rowspan="2" style="width: 70px;">Predikat</th>
+      <th class="th-col" rowspan="2" style="width: 110px;">Status KKM</th>
+      <th class="th-col" rowspan="2" style="width: 240px;">Catatan Kompetensi / Feedback</th>
+    </tr>
+    <tr>
+      <th class="th-col-sub" style="width: 80px;">Tugas (30%)</th>
+      <th class="th-col-sub" style="width: 80px;">UH (20%)</th>
+      <th class="th-col-sub" style="width: 80px;">UTS (25%)</th>
+      <th class="th-col-sub" style="width: 80px;">UAS (25%)</th>
+    </tr>
+    ${rowsHtml}
+    <tr class="footer-row">
+      <td colspan="3" class="text-center bold">RATA-RATA KOMPONEN</td>
+      <td class="num-format bold">${avgTugas}</td>
+      <td class="num-format bold">${avgUH}</td>
+      <td class="num-format bold">${avgUTS}</td>
+      <td class="num-format bold">${avgUAS}</td>
+      <td class="num-format bold" style="color: #1d4ed8;">${calculatedClassAvg}</td>
+      <td colspan="3" class="text-center italic" style="color: #64748b;">KKM Acuan: 75.00</td>
+    </tr>
+  </table>
+
+  <table class="sig-table">
+    <tr>
+      <td style="width: 50%;">
+        Mengetahui,<br/>
+        Kepala SMA Negeri 2 Padalarang<br/><br/><br/><br/>
+        <strong>Drs. Herman Wijaya, M.M</strong><br/>
+        NIP. 196804121995011002
+      </td>
+      <td style="width: 50%;">
+        Padalarang, ${tanggalUnduh}<br/>
+        Guru Mata Pelajaran ${escapeHtml(namaMapel || 'Mata Pelajaran')}<br/><br/><br/><br/>
+        <strong>${escapeHtml(teacherName)}</strong><br/>
+        NIP. ${escapeHtml(teacherNip)}
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Leger_Nilai_${currentKelas?.nama_kelas || 'Kelas'}.csv`);
+    link.href = url;
+    const kelasClean = (currentKelas?.nama_kelas || 'Kelas').replace(/\s+/g, '_');
+    const mapelClean = (namaMapel || 'Mata_Pelajaran').replace(/\s+/g, '_');
+    const tanggalFile = new Date().toISOString().substring(0, 10);
+    link.setAttribute('download', `Leger_Nilai_${kelasClean}_${mapelClean}_${tanggalFile}.xls`);
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    toast.success(`Buku Leger Nilai (${currentKelas?.nama_kelas || 'Kelas'}) berhasil diekspor ke Excel`);
   };
 
   return (
@@ -156,11 +456,13 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold transition-all shadow-xs cursor-pointer"
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer hover:shadow-md"
+            title="Unduh Leger Nilai dalam format Microsoft Excel (.xls)"
           >
-            <Download className="w-4 h-4 text-slate-600" />
-            <span>Ekspor CSV / Leger</span>
+            <FileSpreadsheet className="w-4 h-4 text-white" />
+            <span>Ekspor Excel (.xls)</span>
           </button>
         </div>
       </div>

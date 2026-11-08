@@ -1110,27 +1110,16 @@ func (h *GuruHandler) GradeSubmission(c *fiber.Ctx) error {
 				existing = bySiswa
 				checkErr = nil
 			} else {
-				newSub := model.PengumpulanTugas{
-					ID:           subUUID,
-					TugasID:      tugasUUID,
-					SiswaID:      siswaUUID,
-					FileURL:      "",
-					Catatan:      "",
-					Nilai:        &req.Nilai,
-					FeedbackGuru: feedback,
-					Status:       "dinilai",
-					SubmittedAt:  now,
-					GradedAt:     &now,
-				}
-				if err := db.Create(&newSub).Error; err != nil {
-					return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
-						Success: false,
-						Message: "Gagal membuat entri penilaian: " + err.Error(),
-					})
-				}
-				existing = newSub
-				checkErr = nil
+				return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+					Success: false,
+					Message: "Siswa belum mengumpulkan tugas. Penilaian hanya dapat diberikan setelah siswa mengumpulkan tugas.",
+				})
 			}
+		} else {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: "Data pengumpulan tugas tidak ditemukan atau siswa belum mengumpulkan tugas",
+			})
 		}
 	}
 
