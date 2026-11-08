@@ -8,6 +8,7 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
 import { useSiswaDashboard } from "@/hooks/useSiswaDashboard";
 import { useSiswaJadwal } from "@/hooks/useSiswaJadwal";
+import { useNotifikasi } from "@/hooks/useNotifikasi";
 import { sapaan } from "@/lib/utils";
 
 function DashboardSkeleton() {
@@ -55,6 +56,10 @@ export default function SiswaDashboardPage() {
     : "";
   const jamAbsen = data.absen_hari_ini.waktu_masuk?.slice(0, 5);
   const jadwalHariIni = Array.isArray(jadwalData?.items) ? jadwalData.items : [];
+  const { items: notifItems, markAsRead: markNotifRead } = useNotifikasi();
+  const unreadMateriNotif = notifItems.find(
+    (n) => !n.is_read && n.tipe?.toLowerCase() === "materi"
+  );
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -67,6 +72,40 @@ export default function SiswaDashboardPage() {
           {periode}
         </p>
       </div>
+
+      {unreadMateriNotif && (
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 rounded-2xl p-4.5 text-white shadow-md border border-blue-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-blue-200 mt-0.5">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <span className="inline-block text-[10px] font-bold tracking-wider uppercase bg-blue-500/30 text-blue-200 px-2 py-0.5 rounded-full mb-1 border border-blue-400/20">
+                Materi Baru Tersedia
+              </span>
+              <h4 className="text-sm font-bold text-white leading-snug truncate">
+                {unreadMateriNotif.judul}
+              </h4>
+              <p className="text-xs text-blue-100/90 mt-0.5 line-clamp-1 leading-relaxed">
+                {unreadMateriNotif.pesan}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <Button
+              size="sm"
+              className="bg-white text-blue-950 hover:bg-blue-50 font-bold shadow-xs cursor-pointer text-xs"
+              onClick={() => {
+                markNotifRead(unreadMateriNotif.id);
+                router.push(unreadMateriNotif.tautan || "/siswa/materi");
+              }}
+            >
+              <span>Pelajari Sekarang</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard

@@ -141,6 +141,22 @@ func (MateriUnduhanSiswa) TableName() string {
 	return "materi_unduhan_siswa"
 }
 
+type Notifikasi struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
+	Judul     string    `gorm:"size:200;not null" json:"judul"`
+	Pesan     string    `gorm:"type:text;not null" json:"pesan"`
+	Tipe      string    `gorm:"size:50;not null;default:'materi'" json:"tipe"`
+	Tautan    string    `gorm:"size:255;default:'/siswa/materi'" json:"tautan"`
+	IsRead    bool      `gorm:"not null;default:false" json:"is_read"`
+	CreatedAt time.Time `gorm:"default:now()" json:"created_at"`
+	User      *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
+}
+
+func (Notifikasi) TableName() string {
+	return "notifikasi"
+}
+
 type Tugas struct {
 	ID          uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	GuruID      uuid.UUID          `gorm:"type:uuid;not null" json:"guru_id"`

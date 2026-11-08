@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -388,6 +389,52 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 			Message: "Gagal menyimpan materi ke Supabase: " + err.Error(),
 			Error:   err.Error(),
 		})
+	}
+
+	// Kirim notifikasi HANYA kepada siswa yang terdaftar di kelas materi terkait
+	var targetSiswa []model.Siswa
+	if err := db.Where("kelas_id = ?", kelasUUID).Find(&targetSiswa).Error; err == nil && len(targetSiswa) > 0 {
+		var namaGuru string
+		if err := db.Table("users").
+			Joins("JOIN guru ON guru.user_id = users.id").
+			Where("guru.id = ?", guruUUID).
+			Select("users.nama_lengkap").
+			Scan(&namaGuru).Error; err != nil || strings.TrimSpace(namaGuru) == "" {
+			namaGuru = "Guru Pengampu"
+		}
+
+		var namaMapel string
+		var mapel model.MataPelajaran
+		if err := db.Where("id = ?", mapelUUID).First(&mapel).Error; err == nil && mapel.NamaMapel != "" {
+			namaMapel = mapel.NamaMapel
+		} else {
+			namaMapel = "Mata Pelajaran"
+		}
+
+		judulNotif := fmt.Sprintf("Materi Baru: %s", newMateri.Judul)
+		pesanNotif := fmt.Sprintf("%s mengunggah materi baru untuk mata pelajaran %s.", namaGuru, namaMapel)
+
+		notifList := make([]model.Notifikasi, 0, len(targetSiswa))
+		for _, s := range targetSiswa {
+			if s.UserID != uuid.Nil {
+				notifList = append(notifList, model.Notifikasi{
+					ID:        uuid.New(),
+					UserID:    s.UserID,
+					Judul:     judulNotif,
+					Pesan:     pesanNotif,
+					Tipe:      "materi",
+					Tautan:    "/siswa/materi",
+					IsRead:    false,
+					CreatedAt: time.Now(),
+				})
+			}
+		}
+
+		if len(notifList) > 0 {
+			if err := db.CreateInBatches(&notifList, 100).Error; err != nil {
+				log.Printf("[ERROR] Gagal membuat notifikasi materi untuk siswa kelas %s: %v\n", kelasUUID, err)
+			}
+		}
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{

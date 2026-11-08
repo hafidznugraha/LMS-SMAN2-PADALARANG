@@ -235,6 +235,9 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           tanggal_unggah: serverData?.created_at ? serverData.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         };
         toast.success('Materi pembelajaran berhasil diunggah ke Supabase');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('lms:sync-notifikasi'));
+        }
       }
 
       onSaveMateri(savedMateri);

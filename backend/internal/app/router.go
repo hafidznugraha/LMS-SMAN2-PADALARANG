@@ -62,6 +62,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	pengaturanHandler := handler.NewPengaturanHandler()
 	absensiHandler := handler.NewAbsensiHandler()
 	siswaHandler := handler.NewSiswaHandler(cfg)
+	notifikasiHandler := handler.NewNotifikasiHandler(cfg)
 
 	api := app.Group("/api/v1")
 
@@ -107,6 +108,12 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Post("/nilai", guruHandler.UpdateNilai)
 
 	protected := api.Group("", middleware.JWTProtected(cfg))
+
+	// Notifikasi
+	notif := protected.Group("/notifikasi")
+	notif.Get("/", notifikasiHandler.GetNotifikasi)
+	notif.Put("/read-all", notifikasiHandler.MarkAllAsRead)
+	notif.Put("/:id/read", notifikasiHandler.MarkAsRead)
 
 	// Master Data
 	master := protected.Group("/master")
@@ -175,6 +182,9 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	siswa.Get("/jadwal", siswaHandler.GetJadwal)
 	siswa.Get("/materi", siswaHandler.GetMateriList)
 	siswa.Get("/materi/:id/download", siswaHandler.DownloadMateri)
+	siswa.Get("/notifikasi", notifikasiHandler.GetNotifikasi)
+	siswa.Put("/notifikasi/read-all", notifikasiHandler.MarkAllAsRead)
+	siswa.Put("/notifikasi/:id/read", notifikasiHandler.MarkAsRead)
 	siswa.Get("/tugas", siswaHandler.GetTugasList)
 	siswa.Post("/tugas/:id/submit", siswaHandler.SubmitTugas)
 	siswa.Put("/submissions/:id", siswaHandler.UpdatePengumpulan)
