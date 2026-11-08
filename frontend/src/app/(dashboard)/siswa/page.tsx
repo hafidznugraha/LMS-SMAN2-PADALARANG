@@ -1,13 +1,10 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BookOpen, ClipboardList, CheckCircle2, UserCheck, Upload, Award, Calendar, Clock, ArrowRight } from "lucide-react";
+import { BookOpen, ClipboardList, CheckCircle2, UserCheck, Award, AlarmClock, Clock, MapPin } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
 import { useSiswaDashboard } from "@/hooks/useSiswaDashboard";
-import { useSiswaJadwal } from "@/hooks/useSiswaJadwal";
 import { sapaan } from "@/lib/utils";
 
 function DashboardSkeleton() {
@@ -26,13 +23,41 @@ function DashboardSkeleton() {
   );
 }
 
-export default function SiswaDashboardPage() {
-  const router = useRouter();
-  const { data, isLoading, isError, refetch } = useSiswaDashboard();
+function InfoRow({
+  icon: Icon,
+  judul,
+  nilai,
+  keterangan,
+  tone = "default",
+}: {
+  icon: React.ElementType;
+  judul: string;
+  nilai: string;
+  keterangan?: string;
+  tone?: "default" | "warning";
+}) {
+  return (
+    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex items-center gap-3.5 shadow-xs">
+      <div
+        className={
+          tone === "warning"
+            ? "w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0"
+            : "w-10 h-10 rounded-xl bg-blue-50 text-blue-900 flex items-center justify-center shrink-0"
+        }
+      >
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500">{judul}</p>
+        <p className="text-sm font-bold text-slate-900">{nilai}</p>
+        {keterangan && <p className="text-xs text-slate-500 mt-0.5">{keterangan}</p>}
+      </div>
+    </div>
+  );
+}
 
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
-  const namaHariIni = days[new Date().getDay()];
-  const { data: jadwalData } = useSiswaJadwal(namaHariIni);
+export default function SiswaDashboardPage() {
+  const { data, isLoading, isError, refetch } = useSiswaDashboard();
 
   if (isLoading) return <DashboardSkeleton />;
 
@@ -49,12 +74,14 @@ export default function SiswaDashboardPage() {
 
   const namaDepan = data.nama_lengkap.split(" ")[0];
   const periode = data.semester ? ` • Semester ${data.semester} ${data.tahun_ajaran}` : "";
+
   const sudahAbsen = data.absen_hari_ini.sudah;
   const statusAbsen = data.absen_hari_ini.status
     ? data.absen_hari_ini.status.charAt(0).toUpperCase() + data.absen_hari_ini.status.slice(1)
     : "";
   const jamAbsen = data.absen_hari_ini.waktu_masuk?.slice(0, 5);
-  const jadwalHariIni = Array.isArray(jadwalData?.items) ? jadwalData.items : [];
+
+  const jadwal = data.jadwal_hari_ini ?? [];
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -104,112 +131,82 @@ export default function SiswaDashboardPage() {
       </div>
 
       <div className="pt-2">
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Aksi Cepat</h3>
+        <h3 className="text-sm font-semibold text-slate-800 mb-3">Ringkasan Hari Ini</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-900 flex items-center justify-center shrink-0">
-                <UserCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800">Absen Masuk</h4>
-                <p className="text-xs text-slate-500">
-                  {sudahAbsen
-                    ? `Tercatat: ${statusAbsen}${jamAbsen ? ` • ${jamAbsen}` : ""}`
-                    : "Catat kehadiran hari ini"}
-                </p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={sudahAbsen}
-              onClick={() => router.push("/siswa/absensi")}
-            >
-              {sudahAbsen ? "Tercatat" : "Rekam"}
-            </Button>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                <Upload className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800">Upload Tugas</h4>
-                <p className="text-xs text-slate-500">Kumpulkan tugas yang sudah selesai</p>
-              </div>
-            </div>
-            <Button size="sm" variant="primary" onClick={() => router.push("/siswa/tugas")}>
-              Kirim
-            </Button>
-          </div>
+          <InfoRow
+            icon={UserCheck}
+            judul="Absensi hari ini"
+            nilai={sudahAbsen ? statusAbsen : "Belum tercatat"}
+            keterangan={sudahAbsen && jamAbsen ? `Tercatat pukul ${jamAbsen} WIB` : undefined}
+          />
+          <InfoRow
+            icon={AlarmClock}
+            judul="Tugas yang menunggu"
+            nilai={`${data.tugas_menunggu} tugas`}
+            keterangan={
+              data.tugas_mendesak > 0
+                ? `${data.tugas_mendesak} tenggat dalam 48 jam`
+                : "Tidak ada tenggat dalam 48 jam"
+            }
+            tone={data.tugas_mendesak > 0 ? "warning" : "default"}
+          />
         </div>
       </div>
 
-      {/* Widget Jadwal Pelajaran Hari Ini */}
-      <div className="pt-2">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#142d72]" />
-            <h3 className="text-sm font-semibold text-slate-800">
-              Jadwal Pelajaran Hari Ini ({namaHariIni})
-            </h3>
-          </div>
-          <Link
-            href="/siswa/jadwal"
-            className="text-xs font-semibold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
-          >
-            <span>Lihat Jadwal Mingguan</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+      <div>
+        <div className="flex items-baseline justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-800">Jadwal Hari Ini</h3>
+          <span className="text-xs text-slate-500">{data.hari_ini}</span>
         </div>
 
-        {jadwalHariIni.length === 0 ? (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-500 shadow-xs">
-            {namaHariIni === "Minggu"
-              ? "Hari Minggu libur akhir pekan. Tidak ada sesi kegiatan belajar mengajar hari ini."
-              : `Belum ada sesi pelajaran yang dijadwalkan untuk hari ${namaHariIni}.`}
+        {jadwal.length === 0 ? (
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center">
+            <p className="text-sm text-slate-700">Tidak ada jadwal pelajaran hari ini.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {jadwalHariIni.map((j) => (
-              <div
-                key={j.id}
-                className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-blue-400 hover:shadow-sm transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                    <span className="flex items-center gap-1 font-mono font-bold text-slate-800 text-[11px]">
-                      <Clock className="w-3.5 h-3.5 text-blue-900" />
-                      {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)} WIB
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold border border-slate-200">
-                      {j.ruang || "Ruang Kelas"}
-                    </span>
+          <ul className="space-y-3">
+            {jadwal.map((j) => {
+              const berlangsung = j.status === "berlangsung";
+              const selesai = j.status === "selesai";
+              return (
+                <li
+                  key={j.id}
+                  className={
+                    "bg-white p-4 rounded-2xl border flex items-center gap-4 shadow-xs " +
+                    (berlangsung ? "border-blue-300 ring-1 ring-blue-100" : "border-slate-200/80") +
+                    (selesai ? " opacity-60" : "")
+                  }
+                >
+                  <div className="shrink-0 w-[68px] text-center">
+                    <p className="text-sm font-bold text-slate-900">{j.jam_mulai}</p>
+                    <p className="text-xs text-slate-500">{j.jam_selesai}</p>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900 leading-snug line-clamp-1">
-                    {j.nama_mapel}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1 truncate">
-                    {j.nama_guru}
-                  </p>
-                </div>
-
-                <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold text-slate-400">
-                    {j.kode_mapel}
-                  </span>
-                  <Link
-                    href={`/siswa/materi?search=${encodeURIComponent(j.nama_mapel)}`}
-                    className="text-[11px] font-semibold text-blue-700 hover:underline"
+                  <div className="min-w-0 flex-1 border-l border-slate-200 pl-4">
+                    <p className="text-sm font-bold text-slate-900 truncate">{j.nama_mapel}</p>
+                    <p className="text-xs text-slate-500 truncate">{j.nama_guru}</p>
+                    {j.ruang && (
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {j.ruang}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={
+                      "shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full " +
+                      (berlangsung
+                        ? "bg-blue-100 text-blue-800"
+                        : selesai
+                          ? "bg-slate-100 text-slate-500"
+                          : "bg-amber-50 text-amber-700")
+                    }
                   >
-                    Buka Materi &rarr;
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <Clock className="w-3 h-3" />
+                    {berlangsung ? "Berlangsung" : selesai ? "Selesai" : "Akan datang"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </div>

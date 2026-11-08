@@ -55,6 +55,8 @@ export interface SiswaDashboard {
     status?: string;
     waktu_masuk?: string;
   };
+  hari_ini: string;                 // <- tambah
+  jadwal_hari_ini: SiswaJadwalItem[]; // <- tambah
 }
 
 export interface SiswaMateri {
@@ -247,4 +249,14 @@ export interface SiswaJadwalResponse {
   nama_kelas: string;
   tingkat: string;
   items: SiswaJadwalItem[];
+}
+
+export interface SiswaJadwalItem {
+  id: string;
+  nama_mapel: string;
+  nama_guru: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  ruang: string;
+  status: "selesai" | "berlangsung" | "akan_datang";
 }
