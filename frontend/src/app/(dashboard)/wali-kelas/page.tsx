@@ -33,6 +33,11 @@ export default function WaliKelasDashboardPage() {
 
   const [siswaList, setSiswaList] = useState<SiswaInfo[]>([]);
   const [presensiList, setPresensiList] = useState<PresensiItem[]>([]);
+  
+  const [absensiHarian, setAbsensiHarian] = useState<
+    { tanggal: string; status: string }[]
+  >([]);
+
   const [laporanList, setLaporanList] = useState<LaporanItem[]>([]);
   const [loadingData, setLoadingData] = useState<boolean>(false);
 
@@ -95,6 +100,23 @@ export default function WaliKelasDashboardPage() {
             }))
           );
         }
+        
+        
+        const resAbsensiHarian = await fetchAPI<{
+          success: boolean;
+          data: { tanggal: string; status: string }[];
+        }>(
+          `/absensi/kelas/${encodeURIComponent(kelasId)}`
+        );
+
+        if (
+          resAbsensiHarian.success &&
+          Array.isArray(resAbsensiHarian.data)
+        ) {
+          setAbsensiHarian(resAbsensiHarian.data);
+        } else {
+          setAbsensiHarian([]);
+        }
 
         // 3. Ambil data presensi rombel dari endpoint export-csv
         const resAbsensi = await fetch(
@@ -150,6 +172,57 @@ export default function WaliKelasDashboardPage() {
   }, [kelasId, namaKelas]);
 
   const displayTotal = totalSiswa !== null ? totalSiswa : 3;
+  
+  const totalHadirRombel = presensiList.reduce(
+    (total, siswa) => total + siswa.hadir + siswa.terlambat,
+    0
+  );
+
+  const totalPresensiRombel = presensiList.reduce(
+    (total, siswa) => total + siswa.total,
+    0
+  );
+
+  const persentaseKehadiranRombel =
+    totalPresensiRombel > 0
+      ? `${Math.round((totalHadirRombel / totalPresensiRombel) * 100)}%`
+      : "-";
+    
+  const jumlahPerhatianKhusus = presensiList.filter((siswa) => {
+    if (siswa.total === 0) return false;
+
+    const persentase =
+      ((siswa.hadir + siswa.terlambat) / siswa.total) * 100;
+
+    return persentase < 80;
+  }).length;
+  
+  const tanggalHariIni = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Jakarta",
+  });
+
+  const dataHariIni = absensiHarian.filter(
+    (item) => item.tanggal === tanggalHariIni
+  );
+
+  const rekapHariIni = {
+    hadir: dataHariIni.filter(
+      (item) => item.status.toLowerCase() === "hadir"
+    ).length,
+    sakit: dataHariIni.filter(
+      (item) => item.status.toLowerCase() === "sakit"
+    ).length,
+    izin: dataHariIni.filter(
+      (item) => item.status.toLowerCase() === "izin"
+    ).length,
+    alfa: dataHariIni.filter(
+      (item) => ["alfa", "alpa"].includes(item.status.toLowerCase())
+    ).length,
+    terlambat: dataHariIni.filter(
+      (item) => item.status.toLowerCase() === "terlambat"
+    ).length,
+  };
+
 
   return (
     <div className="space-y-6">
@@ -214,13 +287,15 @@ export default function WaliKelasDashboardPage() {
           icon={Users}
           variant="primary"
         />
+        
         <MetricCard
           title="Kehadiran Rombel"
-          value="100%"
-          subtitle="Rata-rata kehadiran bulan ini"
+          value={persentaseKehadiranRombel}
+          subtitle="Rata-rata kehadiran dari data tersedia"
           icon={UserCheck}
           variant="success"
         />
+
         <MetricCard
           title="Progres Nilai Mapel"
           value="8 / 12"
@@ -230,7 +305,7 @@ export default function WaliKelasDashboardPage() {
         />
         <MetricCard
           title="Perhatian Khusus"
-          value="0"
+          value={String(jumlahPerhatianKhusus)}
           subtitle="Siswa dengan catatan absensi"
           icon={AlertTriangle}
           variant="white"
@@ -250,22 +325,37 @@ export default function WaliKelasDashboardPage() {
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
             <div className="grid grid-cols-4 gap-2 text-center">
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200/60">
-                <div className="text-xl font-bold text-emerald-800">{displayTotal}</div>
+                <div className="text-xl font-bold text-emerald-800">
+                  {rekapHariIni.hadir}
+                </div>
                 <div className="text-[11px] font-semibold text-emerald-700">Hadir</div>
               </div>
               <div className="p-3 rounded-xl bg-blue-50 border border-blue-200/60">
-                <div className="text-xl font-bold text-blue-800">0</div>
+                <div className="text-xl font-bold text-blue-800">
+                  {rekapHariIni.sakit}
+                </div>
                 <div className="text-[11px] font-semibold text-blue-700">Sakit (S)</div>
               </div>
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/60">
-                <div className="text-xl font-bold text-amber-800">0</div>
+                <div className="text-xl font-bold text-amber-800">
+                  {rekapHariIni.izin}
+                </div>
                 <div className="text-[11px] font-semibold text-amber-700">Izin (I)</div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
-                <div className="text-xl font-bold text-slate-800">0</div>
+                <div className="text-xl font-bold text-slate-800">
+                  {rekapHariIni.alfa}
+                </div>
                 <div className="text-[11px] font-semibold text-slate-600">Alfa (A)</div>
               </div>
             </div>
+
+            
+            {!loadingData && dataHariIni.length === 0 && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                Belum ada data presensi untuk hari ini ({tanggalHariIni}).
+              </div>
+            )}
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-slate-500">
