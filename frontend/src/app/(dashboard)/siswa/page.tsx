@@ -30,6 +30,10 @@ export default function SiswaDashboardPage() {
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useSiswaDashboard();
 
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
+  const namaHariIni = days[new Date().getDay()];
+  const { data: jadwalData } = useSiswaJadwal(namaHariIni);
+
   if (isLoading) return <DashboardSkeleton />;
 
   if (isError || !data) {
@@ -50,10 +54,6 @@ export default function SiswaDashboardPage() {
     ? data.absen_hari_ini.status.charAt(0).toUpperCase() + data.absen_hari_ini.status.slice(1)
     : "";
   const jamAbsen = data.absen_hari_ini.waktu_masuk?.slice(0, 5);
-
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
-  const namaHariIni = days[new Date().getDay()];
-  const { data: jadwalData } = useSiswaJadwal(namaHariIni);
   const jadwalHariIni = Array.isArray(jadwalData?.items) ? jadwalData.items : [];
 
   return (
