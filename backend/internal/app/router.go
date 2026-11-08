@@ -172,6 +172,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	siswa := protected.Group("/siswa", middleware.RequireRole(model.RoleSiswa))
 	siswa.Get("/me", siswaHandler.GetMe)
 	siswa.Get("/dashboard", siswaHandler.GetDashboard)
+	siswa.Get("/jadwal", siswaHandler.GetJadwal)
 	siswa.Get("/materi", siswaHandler.GetMateriList)
 	siswa.Get("/materi/:id/download", siswaHandler.DownloadMateri)
 	siswa.Get("/tugas", siswaHandler.GetTugasList)

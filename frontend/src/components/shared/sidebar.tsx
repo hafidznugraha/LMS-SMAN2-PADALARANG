@@ -55,6 +55,7 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
   const navLinks = {
     siswa: [
       { href: "/siswa", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/siswa/jadwal", label: "Jadwal", icon: Calendar },
       { href: "/siswa/materi", label: "Materi", icon: BookOpen },
       { href: "/siswa/tugas", label: "Tugas", icon: ClipboardList },
       { href: "/siswa/absensi", label: "Absensi", icon: UserCheck },

@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, ClipboardList, CheckCircle2, UserCheck, Upload, Award } from "lucide-react";
+import { BookOpen, ClipboardList, CheckCircle2, UserCheck, Upload, Award, Calendar, Clock, ArrowRight } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
 import { useSiswaDashboard } from "@/hooks/useSiswaDashboard";
+import { useSiswaJadwal } from "@/hooks/useSiswaJadwal";
 import { sapaan } from "@/lib/utils";
 
 function DashboardSkeleton() {
@@ -48,6 +50,11 @@ export default function SiswaDashboardPage() {
     ? data.absen_hari_ini.status.charAt(0).toUpperCase() + data.absen_hari_ini.status.slice(1)
     : "";
   const jamAbsen = data.absen_hari_ini.waktu_masuk?.slice(0, 5);
+
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
+  const namaHariIni = days[new Date().getDay()];
+  const { data: jadwalData } = useSiswaJadwal(namaHariIni);
+  const jadwalHariIni = Array.isArray(jadwalData?.items) ? jadwalData.items : [];
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -138,6 +145,72 @@ export default function SiswaDashboardPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Widget Jadwal Pelajaran Hari Ini */}
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-[#142d72]" />
+            <h3 className="text-sm font-semibold text-slate-800">
+              Jadwal Pelajaran Hari Ini ({namaHariIni})
+            </h3>
+          </div>
+          <Link
+            href="/siswa/jadwal"
+            className="text-xs font-semibold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
+          >
+            <span>Lihat Jadwal Mingguan</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {jadwalHariIni.length === 0 ? (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-500 shadow-xs">
+            {namaHariIni === "Minggu"
+              ? "Hari Minggu libur akhir pekan. Tidak ada sesi kegiatan belajar mengajar hari ini."
+              : `Belum ada sesi pelajaran yang dijadwalkan untuk hari ${namaHariIni}.`}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {jadwalHariIni.map((j) => (
+              <div
+                key={j.id}
+                className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-blue-400 hover:shadow-sm transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                    <span className="flex items-center gap-1 font-mono font-bold text-slate-800 text-[11px]">
+                      <Clock className="w-3.5 h-3.5 text-blue-900" />
+                      {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)} WIB
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold border border-slate-200">
+                      {j.ruang || "Ruang Kelas"}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 leading-snug line-clamp-1">
+                    {j.nama_mapel}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 truncate">
+                    {j.nama_guru}
+                  </p>
+                </div>
+
+                <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold text-slate-400">
+                    {j.kode_mapel}
+                  </span>
+                  <Link
+                    href={`/siswa/materi?search=${encodeURIComponent(j.nama_mapel)}`}
+                    className="text-[11px] font-semibold text-blue-700 hover:underline"
+                  >
+                    Buka Materi &rarr;
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

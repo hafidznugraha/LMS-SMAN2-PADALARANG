@@ -226,3 +226,25 @@ export interface SiswaRaporDetail {
   };
   nilai_mapel: SiswaRaporMapel[];
 }
+
+export interface SiswaJadwalItem {
+  id: string;
+  hari: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  ruang: string;
+  mapel_id: string;
+  nama_mapel: string;
+  kode_mapel: string;
+  guru_id: string;
+  nama_guru: string;
+  nip_guru: string;
+  kelas_id: string;
+  nama_kelas: string;
+}
+
+export interface SiswaJadwalResponse {
+  nama_kelas: string;
+  tingkat: string;
+  items: SiswaJadwalItem[];
+}
