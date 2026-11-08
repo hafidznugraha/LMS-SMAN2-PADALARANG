@@ -12,11 +12,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/config"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/repository"
+	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/service"
 )
 
 type GuruHandler struct {
@@ -393,42 +393,19 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	}
 
 	// Kirim notifikasi HANYA kepada siswa yang terdaftar di kelas materi terkait
-	var targetSiswa []model.Siswa
-	if err := db.Where("kelas_id = ?", kelasUUID).Find(&targetSiswa).Error; err == nil && len(targetSiswa) > 0 {
-		namaGuru := formatNamaGuruWithGelar(db, guruUUID)
+	namaGuru := service.FormatNamaGuruWithGelar(db, guruUUID)
+	var namaMapel string
+	var mapel model.MataPelajaran
+	if err := db.Where("id = ?", mapelUUID).First(&mapel).Error; err == nil && mapel.NamaMapel != "" {
+		namaMapel = mapel.NamaMapel
+	} else {
+		namaMapel = "Mata Pelajaran"
+	}
 
-		var namaMapel string
-		var mapel model.MataPelajaran
-		if err := db.Where("id = ?", mapelUUID).First(&mapel).Error; err == nil && mapel.NamaMapel != "" {
-			namaMapel = mapel.NamaMapel
-		} else {
-			namaMapel = "Mata Pelajaran"
-		}
-
-		judulNotif := fmt.Sprintf("Materi Baru: %s", newMateri.Judul)
-		pesanNotif := fmt.Sprintf("%s mengunggah materi baru untuk mata pelajaran %s.", namaGuru, namaMapel)
-
-		notifList := make([]model.Notifikasi, 0, len(targetSiswa))
-		for _, s := range targetSiswa {
-			if s.UserID != uuid.Nil {
-				notifList = append(notifList, model.Notifikasi{
-					ID:        uuid.New(),
-					UserID:    s.UserID,
-					Judul:     judulNotif,
-					Pesan:     pesanNotif,
-					Tipe:      "materi",
-					Tautan:    "/siswa/materi",
-					IsRead:    false,
-					CreatedAt: time.Now(),
-				})
-			}
-		}
-
-		if len(notifList) > 0 {
-			if err := db.CreateInBatches(&notifList, 100).Error; err != nil {
-				log.Printf("[ERROR] Gagal membuat notifikasi materi untuk siswa kelas %s: %v\n", kelasUUID, err)
-			}
-		}
+	judulNotif := fmt.Sprintf("Materi Baru: %s", newMateri.Judul)
+	pesanNotif := fmt.Sprintf("%s mengunggah materi baru untuk mata pelajaran %s.", namaGuru, namaMapel)
+	if _, errNotif := service.KirimKeKelas(db, kelasUUID, judulNotif, pesanNotif, "materi", "/siswa/materi"); errNotif != nil {
+		log.Printf("[WARN] Gagal mengirim notifikasi materi ke kelas %s: %v\n", kelasUUID, errNotif)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
@@ -702,43 +679,20 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 	}
 
 	// Kirim notifikasi HANYA kepada siswa yang terdaftar di kelas tugas terkait
-	var targetSiswa []model.Siswa
-	if err := db.Where("kelas_id = ?", kelasUUID).Find(&targetSiswa).Error; err == nil && len(targetSiswa) > 0 {
-		namaGuru := formatNamaGuruWithGelar(db, guruUUID)
+	namaGuru := service.FormatNamaGuruWithGelar(db, guruUUID)
+	var namaMapel string
+	var mapel model.MataPelajaran
+	if err := db.Where("id = ?", mapelUUID).First(&mapel).Error; err == nil && mapel.NamaMapel != "" {
+		namaMapel = mapel.NamaMapel
+	} else {
+		namaMapel = "Mata Pelajaran"
+	}
 
-		var namaMapel string
-		var mapel model.MataPelajaran
-		if err := db.Where("id = ?", mapelUUID).First(&mapel).Error; err == nil && mapel.NamaMapel != "" {
-			namaMapel = mapel.NamaMapel
-		} else {
-			namaMapel = "Mata Pelajaran"
-		}
-
-		deadlineStr := formatDeadlineIndo(newTugas.Deadline)
-		judulNotif := fmt.Sprintf("Tugas Baru: %s", newTugas.Judul)
-		pesanNotif := fmt.Sprintf("%s menerbitkan tugas baru untuk mata pelajaran %s. Tenggat waktu: %s.", namaGuru, namaMapel, deadlineStr)
-
-		notifList := make([]model.Notifikasi, 0, len(targetSiswa))
-		for _, s := range targetSiswa {
-			if s.UserID != uuid.Nil {
-				notifList = append(notifList, model.Notifikasi{
-					ID:        uuid.New(),
-					UserID:    s.UserID,
-					Judul:     judulNotif,
-					Pesan:     pesanNotif,
-					Tipe:      "tugas",
-					Tautan:    "/siswa/tugas",
-					IsRead:    false,
-					CreatedAt: time.Now(),
-				})
-			}
-		}
-
-		if len(notifList) > 0 {
-			if err := db.CreateInBatches(&notifList, 100).Error; err != nil {
-				log.Printf("[ERROR] Gagal membuat notifikasi tugas untuk siswa kelas %s: %v\n", kelasUUID, err)
-			}
-		}
+	deadlineIndo := service.FormatDeadlineIndo(newTugas.Deadline)
+	judulNotif := fmt.Sprintf("Tugas Baru: %s", newTugas.Judul)
+	pesanNotif := fmt.Sprintf("%s menerbitkan tugas baru untuk mata pelajaran %s. Tenggat waktu: %s.", namaGuru, namaMapel, deadlineIndo)
+	if _, errNotif := service.KirimKeKelas(db, kelasUUID, judulNotif, pesanNotif, "tugas", "/siswa/tugas"); errNotif != nil {
+		log.Printf("[WARN] Gagal mengirim notifikasi tugas ke kelas %s: %v\n", kelasUUID, errNotif)
 	}
 
 	var detail model.TugasDetailResponse
@@ -1837,39 +1791,4 @@ func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
 		Success: true,
 		Message: "Nilai siswa berhasil disimpan",
 	})
-}
-
-// formatNamaGuruWithGelar mengambil nama guru beserta gelar akademis secara cerdas
-func formatNamaGuruWithGelar(db *gorm.DB, guruUUID uuid.UUID) string {
-	var guruInfo struct {
-		NamaLengkap string `gorm:"column:nama_lengkap"`
-		Gelar       string `gorm:"column:gelar"`
-	}
-	if err := db.Table("guru").
-		Select("users.nama_lengkap, guru.gelar").
-		Joins("JOIN users ON users.id = guru.user_id").
-		Where("guru.id = ?", guruUUID).
-		Scan(&guruInfo).Error; err == nil && strings.TrimSpace(guruInfo.NamaLengkap) != "" {
-		nama := strings.TrimSpace(guruInfo.NamaLengkap)
-		gelar := strings.TrimSpace(guruInfo.Gelar)
-		gelar = strings.TrimPrefix(gelar, ",")
-		gelar = strings.TrimSpace(gelar)
-		if gelar != "" && !strings.Contains(strings.ToLower(nama), strings.ToLower(gelar)) {
-			return fmt.Sprintf("%s, %s", nama, gelar)
-		}
-		return nama
-	}
-	return "Guru Pengampu"
-}
-
-// formatDeadlineIndo memformat deadline tugas dalam bahasa Indonesia yang ramah
-func formatDeadlineIndo(t time.Time) string {
-	bulanIndo := [...]string{
-		"", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-	}
-	m := int(t.Month())
-	if m >= 1 && m <= 12 {
-		return fmt.Sprintf("%02d %s %d, %02d:%02d WIB", t.Day(), bulanIndo[m], t.Year(), t.Hour(), t.Minute())
-	}
-	return t.Format("02/01/2006 15:04 WIB")
 }
