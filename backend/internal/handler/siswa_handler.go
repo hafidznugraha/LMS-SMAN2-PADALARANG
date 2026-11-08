@@ -203,9 +203,63 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 		}
 	}
 
+	// Jadwal pelajaran hari ini (hanya untuk dilihat)
+	resp.HariIni = namaHari[int(now.Weekday())]
+	resp.JadwalHariIni = []model.SiswaJadwalItem{}
+	if siswa.KelasID != nil {
+		var jrows []dashboardJadwalRow
+		if err := db.Raw(`
+			SELECT j.id::text AS id, mp.nama_mapel, u.nama_lengkap AS nama_guru,
+			       to_char(j.jam_mulai, 'HH24:MI') AS jam_mulai,
+			       to_char(j.jam_selesai, 'HH24:MI') AS jam_selesai,
+			       COALESCE(j.ruang, '') AS ruang
+			FROM jadwal_pelajaran j
+			JOIN mata_pelajaran mp ON mp.id = j.mapel_id
+			JOIN guru g ON g.id = j.guru_id
+			JOIN users u ON u.id = g.user_id
+			WHERE j.kelas_id = ? AND j.hari = ?
+			ORDER BY j.jam_mulai ASC`, *siswa.KelasID, resp.HariIni).Scan(&jrows).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+				Success: false,
+				Message: "Gagal memuat jadwal hari ini",
+				Error:   err.Error(),
+			})
+		}
+		menitSekarang := now.Hour()*60 + now.Minute()
+		for _, r := range jrows {
+			status := "akan_datang"
+			switch {
+			case menitSekarang >= parseJamMenit(r.JamSelesai, 0):
+				status = "selesai"
+			case menitSekarang >= parseJamMenit(r.JamMulai, 0):
+				status = "berlangsung"
+			}
+			resp.JadwalHariIni = append(resp.JadwalHariIni, model.SiswaJadwalItem{
+				ID:         r.ID,
+				NamaMapel:  r.NamaMapel,
+				NamaGuru:   r.NamaGuru,
+				JamMulai:   r.JamMulai,
+				JamSelesai: r.JamSelesai,
+				Ruang:      r.Ruang,
+				Status:     status,
+			})
+		}
+	}
+
 	return c.JSON(model.APIResponse{
 		Success: true,
 		Message: "Ringkasan dashboard siswa berhasil dimuat",
 		Data:    resp,
 	})
 }
+
+type dashboardJadwalRow struct {
+	ID         string `gorm:"column:id"`
+	NamaMapel  string `gorm:"column:nama_mapel"`
+	NamaGuru   string `gorm:"column:nama_guru"`
+	JamMulai   string `gorm:"column:jam_mulai"`
+	JamSelesai string `gorm:"column:jam_selesai"`
+	Ruang      string `gorm:"column:ruang"`
+}
+
+var namaHari = [...]string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
