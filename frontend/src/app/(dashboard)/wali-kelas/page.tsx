@@ -39,6 +39,11 @@ export default function WaliKelasDashboardPage() {
   >([]);
 
   const [laporanList, setLaporanList] = useState<LaporanItem[]>([]);
+  const [progresNilai, setProgresNilai] = useState({
+  total_mapel: 0,
+  mapel_lengkap: 0,
+  persentase: 0,
+});
   const [loadingData, setLoadingData] = useState<boolean>(false);
 
   useEffect(() => {
@@ -75,6 +80,21 @@ export default function WaliKelasDashboardPage() {
             jenis_kelamin: s.jenis_kelamin || "-",
           }));
           setSiswaList(mapped);
+        }
+        
+        const resProgresNilai = await fetchAPI<{
+          success: boolean;
+          data: {
+            total_mapel: number;
+            mapel_lengkap: number;
+            persentase: number;
+          };
+        }>(`/laporan/progres-nilai/${encodeURIComponent(kelasId)}`);
+
+        console.log("Data progres nilai kelas:", resProgresNilai);
+
+        if (resProgresNilai.success && resProgresNilai.data) {
+          setProgresNilai(resProgresNilai.data);
         }
 
         // 2. Ambil data laporan akademik (leger/raport)
@@ -296,13 +316,15 @@ export default function WaliKelasDashboardPage() {
           variant="success"
         />
 
+        
         <MetricCard
           title="Progres Nilai Mapel"
-          value="8 / 12"
-          subtitle="Mapel telah menyetor nilai"
+          value={`${progresNilai.mapel_lengkap} / ${progresNilai.total_mapel}`}
+          subtitle="Mapel dengan nilai seluruh siswa lengkap"
           icon={Award}
           variant="cyan"
         />
+
         <MetricCard
           title="Perhatian Khusus"
           value={String(jumlahPerhatianKhusus)}
@@ -407,15 +429,25 @@ export default function WaliKelasDashboardPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-700">Kelengkapan Nilai Mata Pelajaran</span>
-                <span className="text-blue-900">67% (8/12)</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-blue-900 rounded-full w-2/3" />
-              </div>
+            
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-slate-700">
+                Kelengkapan Nilai Mata Pelajaran
+              </span>
+              <span className="text-blue-900">
+                {Math.round(progresNilai.persentase)}% ({progresNilai.mapel_lengkap}/{progresNilai.total_mapel})
+              </span>
             </div>
+
+            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className="h-full bg-blue-900 rounded-full transition-all duration-300"
+                style={{ width: `${progresNilai.persentase}%` }}
+              />
+            </div>
+          </div>
+
 
             <div className="space-y-2.5 pt-2">
               <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs">

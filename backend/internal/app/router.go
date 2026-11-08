@@ -118,6 +118,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	laporan := protected.Group("/laporan")
 	laporan.Get("/summary", laporanHandler.GetLaporanSummary)
 	laporan.Get("/kelas/:id_kelas", laporanHandler.GetLaporanByKelas)
+	laporan.Get("/progres-nilai/:id_kelas", laporanHandler.GetProgresNilaiKelas)
 	laporan.Get("/export-csv", laporanHandler.ExportLegerCSV)
 	laporan.Post("/generate", middleware.RequireRole(model.RoleKurikulum), laporanHandler.GenerateLaporan)
 	laporan.Put("/finalize-batch", middleware.RequireRole(model.RoleKurikulum), laporanHandler.FinalizeBatch)
