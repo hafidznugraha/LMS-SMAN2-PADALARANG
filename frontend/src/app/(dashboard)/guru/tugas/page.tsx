@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasModule } from '@/components/tugas/TugasModule';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { getStoredUser } from '@/lib/auth';
 import {
   getTugasGuru,
@@ -23,6 +24,8 @@ export default function TugasPage() {
   const [selectedTugasForEdit, setSelectedTugasForEdit] = useState<TugasKuis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentBidangStudi, setCurrentBidangStudi] = useState('Informatika');
+  const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -76,26 +79,31 @@ export default function TugasPage() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteTugas = async (tugasId: string, judul?: string) => {
+  const handleDeleteTugas = (tugasId: string, judul?: string) => {
     if (!tugasId) {
       toast.error('ID tugas tidak valid');
       return;
     }
 
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus tugas "${judul || 'ini'}"?\nSemua riwayat pengumpulan siswa terkait tugas ini akan ikut terhapus.`
-    );
-    if (!confirmed) return;
+    setDeletingTarget({
+      id: tugasId,
+      judul: judul || 'Tugas ini',
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTarget) return;
 
     try {
-      const res = await deleteTugasGuru(tugasId);
+      setIsDeleting(true);
+      const res = await deleteTugasGuru(deletingTarget.id);
       if (res?.success) {
-        toast.success(`Tugas "${judul || ''}" berhasil dihapus dari Supabase`);
+        toast.success(`Tugas "${deletingTarget.judul}" berhasil dihapus`);
         setTugasList((prev) =>
           prev.filter(
             (t) =>
-              t.id_tugas_kuis !== tugasId &&
-              (t as unknown as { id?: string }).id !== tugasId
+              t.id_tugas_kuis !== deletingTarget.id &&
+              (t as unknown as { id?: string }).id !== deletingTarget.id
           )
         );
         const user = getStoredUser();
@@ -110,6 +118,9 @@ export default function TugasPage() {
     } catch (err) {
       console.error(err);
       toast.error('Terjadi kesalahan saat menghapus tugas dari server');
+    } finally {
+      setIsDeleting(false);
+      setDeletingTarget(null);
     }
   };
 
@@ -169,8 +180,8 @@ export default function TugasPage() {
       });
 
       const user = getStoredUser();
-    const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
-    const refreshed = await getTugasGuru({ guru_id: guruId });
+      const guruId = (user?.extra?.guru_id as string) || (user?.id as string) || '';
+      const refreshed = await getTugasGuru({ guru_id: guruId });
       if (refreshed.length > 0) {
         setTugasList(refreshed);
       }
@@ -211,6 +222,22 @@ export default function TugasPage() {
         currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveTugas}
         initialData={selectedTugasForEdit}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deletingTarget)}
+        onClose={() => setDeletingTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Tugas Pembelajaran"
+        message={
+          deletingTarget?.judul
+            ? `Apakah Anda yakin ingin menghapus tugas "${deletingTarget.judul}"? Semua riwayat pengumpulan siswa terkait tugas ini akan ikut terhapus.`
+            : 'Apakah Anda yakin ingin menghapus tugas ini? Semua riwayat pengumpulan siswa terkait tugas ini akan ikut terhapus.'
+        }
+        confirmText="Ya, Hapus Tugas"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

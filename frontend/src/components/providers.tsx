@@ -16,7 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={client}>
       {children}
       <Toaster
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           classNames: {
             success: "!bg-emerald-50 !text-emerald-800 !border-emerald-200",
