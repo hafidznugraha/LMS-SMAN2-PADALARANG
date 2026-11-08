@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Upload, CheckCircle2, Loader2, Edit3, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  X,
+  Upload,
+  CheckCircle2,
+  Loader2,
+  Edit3,
+  AlertCircle,
+  FileText,
+  ExternalLink,
+  RotateCcw,
+  Video,
+  FileSpreadsheet,
+  FileCode,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Materi, MateriFormat, Kelas } from '../../types/lms';
 import { uploadMateriGuru, updateMateriGuru } from '../../services/guruService';
@@ -25,9 +38,27 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
   onSaveMateri,
 }) => {
   const isEditMode = Boolean(initialData && initialData.id_materi);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const availableKelasList = useMemo(() => {
+    const list = [...kelasList];
+    if (isEditMode && initialData?.id_kelas) {
+      const exists = list.some((k) => k.id_kelas === initialData.id_kelas);
+      if (!exists) {
+        list.unshift({
+          id_kelas: initialData.id_kelas,
+          nama_kelas: initialData.nama_kelas || 'Kelas Terdaftar',
+          tingkat: 'XII',
+          tahun_ajaran: '2026/2027',
+          jumlah_siswa: 0,
+        });
+      }
+    }
+    return list;
+  }, [kelasList, isEditMode, initialData]);
 
   const [judul, setJudul] = useState('');
-  const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
+  const [idKelas, setIdKelas] = useState(availableKelasList[0]?.id_kelas || '');
   const [deskripsi, setDeskripsi] = useState('');
   const [formatFile, setFormatFile] = useState<MateriFormat>('PDF');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -40,7 +71,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
     if (isOpen) {
       if (initialData) {
         setJudul(initialData.judul_materi || '');
-        setIdKelas(initialData.id_kelas || kelasList[0]?.id_kelas || '');
+        setIdKelas(initialData.id_kelas || availableKelasList[0]?.id_kelas || '');
         setDeskripsi(initialData.deskripsi || '');
         setFormatFile(initialData.format_file || 'PDF');
         setSelectedFile(null);
@@ -49,7 +80,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
         setExternalUrl(initialData.format_file === 'LINK' ? initialData.file_url || '' : '');
       } else {
         setJudul('');
-        setIdKelas(kelasList[0]?.id_kelas || '');
+        setIdKelas(availableKelasList[0]?.id_kelas || '');
         setDeskripsi('');
         setFormatFile('PDF');
         setSelectedFile(null);
@@ -57,10 +88,61 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
         setFileSize('3.8 MB');
         setExternalUrl('');
       }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
-  }, [isOpen, initialData, kelasList]);
+  }, [isOpen, initialData, availableKelasList]);
 
   if (!isOpen) return null;
+
+  const getFormatBadgeIcon = (fmt: MateriFormat) => {
+    switch (fmt) {
+      case 'PDF':
+        return <FileText className="w-4 h-4 text-rose-500" />;
+      case 'MP4':
+        return <Video className="w-4 h-4 text-sky-500" />;
+      case 'PPTX':
+        return <FileSpreadsheet className="w-4 h-4 text-amber-500" />;
+      case 'DOCX':
+        return <FileText className="w-4 h-4 text-blue-500" />;
+      default:
+        return <FileCode className="w-4 h-4 text-slate-500" />;
+    }
+  };
+
+  const getExistingFileName = (data: Materi): string => {
+    if (data.format_file === 'LINK') return data.file_url || 'Tautan Eksternal';
+    if (data.file_url) {
+      try {
+        const urlObj = new URL(data.file_url, 'http://localhost');
+        const pathname = urlObj.pathname;
+        const base = pathname.split('/').pop();
+        if (base && base.includes('.')) {
+          return decodeURIComponent(base);
+        }
+      } catch {
+      }
+    }
+    const ext = (data.format_file || 'PDF').toLowerCase();
+    const cleanTitle = (data.judul_materi || 'Materi')
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '_');
+    return `${cleanTitle}.${ext}`;
+  };
+
+  const handleCancelNewFile = () => {
+    setSelectedFile(null);
+    setSimulatedFileName('');
+    if (initialData) {
+      setFileSize(initialData.file_size || '3.5 MB');
+      setFormatFile(initialData.format_file || 'PDF');
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,13 +151,13 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
       return;
     }
 
-    if (kelasList.length === 0 || !idKelas) {
+    if (availableKelasList.length === 0 || !idKelas) {
       toast.error('Belum ada rombel/kelas yang dijadwalkan oleh Kurikulum');
       return;
     }
 
     setIsSubmitting(true);
-    const kelasObj = kelasList.find((k) => k.id_kelas === idKelas) || kelasList[0];
+    const kelasObj = availableKelasList.find((k) => k.id_kelas === idKelas) || availableKelasList[0];
     const parsedSize = parseFloat(fileSize) || 3.5;
     const computedFileUrl =
       formatFile === 'LINK' && externalUrl.trim()
@@ -225,7 +307,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           />
         </div>
 
-        {kelasList.length === 0 && (
+        {availableKelasList.length === 0 && (
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
             <span>Anda belum memiliki jadwal mengajar resmi dari Kurikulum. Hubungi bagian kurikulum untuk plotting jadwal KBM.</span>
@@ -240,13 +322,13 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
             <select
               value={idKelas}
               onChange={(e) => setIdKelas(e.target.value)}
-              disabled={kelasList.length === 0}
+              disabled={availableKelasList.length === 0}
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {kelasList.length === 0 ? (
+              {availableKelasList.length === 0 ? (
                 <option value="">Belum ada kelas terjadwal</option>
               ) : (
-                kelasList.map((k) => (
+                availableKelasList.map((k) => (
                   <option key={k.id_kelas} value={k.id_kelas}>
                     Kelas {k.nama_kelas}
                   </option>
@@ -301,41 +383,113 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
             />
           </div>
         ) : (
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              {isEditMode ? 'Ganti Lampiran Berkas (Opsional)' : 'Lampiran Berkas Materi'}
-            </label>
-            <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 text-center bg-slate-50 hover:bg-blue-50/30 transition-colors cursor-pointer">
-              <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-              <p className="text-xs font-semibold text-slate-700">
-                {isEditMode
-                  ? 'Pilih berkas baru jika ingin mengganti dokumen sebelumnya'
-                  : 'Pilih berkas dari komputer atau seret ke sini'}
-              </p>
-              <input
-                type="file"
-                accept=".pdf,.docx,.pptx,.mp4"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    const f = e.target.files[0];
-                    setSelectedFile(f);
-                    setSimulatedFileName(f.name);
-                    const mb = Math.max(0.1, Number((f.size / (1024 * 1024)).toFixed(1)));
-                    setFileSize(`${mb} MB`);
-                    const ext = f.name.split('.').pop()?.toUpperCase();
-                    if (ext === 'PDF' || ext === 'MP4' || ext === 'PPTX' || ext === 'DOCX') {
-                      setFormatFile(ext as MateriFormat);
-                    }
-                  }
-                }}
-                className="mt-2 text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
-              />
-            </div>
-            {simulatedFileName && (
-              <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Berkas terpilih: {simulatedFileName} ({fileSize})
-              </p>
+          <div className="space-y-3">
+            {isEditMode && initialData && (
+              <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Berkas Lampiran Aktif Saat Ini
+                  </span>
+                  <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    Tersimpan Aman
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                      {getFormatBadgeIcon(initialData.format_file)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">
+                        {getExistingFileName(initialData)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Format: {initialData.format_file} • Ukuran: {initialData.file_size || '3.5 MB'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {initialData.file_url && initialData.file_url.startsWith('http') && (
+                    <a
+                      href={initialData.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-900 hover:text-blue-950 px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100/80 transition-colors shrink-0"
+                    >
+                      <span>Lihat Berkas</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Berkas di atas adalah dokumen materi yang sedang digunakan siswa saat ini. Biarkan kolom di bawah kosong jika tidak ingin mengubah berkas.
+                </p>
+              </div>
             )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                {isEditMode ? 'Ganti dengan Berkas Baru (Opsional)' : 'Lampiran Berkas Materi *'}
+              </label>
+
+              {selectedFile ? (
+                <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      {getFormatBadgeIcon(formatFile)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-blue-950 truncate">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-[11px] text-blue-700 font-medium">
+                        Berkas baru terpilih • {fileSize}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelNewFile}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2.5 py-1.5 rounded-lg hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
+                    title="Batalkan penggantian dan tetap gunakan berkas lama"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Batal Ganti</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 text-center bg-slate-50 hover:bg-blue-50/30 transition-colors cursor-pointer">
+                  <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                  <p className="text-xs font-semibold text-slate-700">
+                    {isEditMode
+                      ? 'Pilih berkas baru dari komputer jika ingin menimpa berkas lama'
+                      : 'Pilih berkas dari komputer atau seret ke sini'}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.pptx,.mp4"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const f = e.target.files[0];
+                        setSelectedFile(f);
+                        setSimulatedFileName(f.name);
+                        const mb = Math.max(0.1, Number((f.size / (1024 * 1024)).toFixed(1)));
+                        setFileSize(`${mb} MB`);
+                        const ext = f.name.split('.').pop()?.toUpperCase();
+                        if (ext === 'PDF' || ext === 'MP4' || ext === 'PPTX' || ext === 'DOCX') {
+                          setFormatFile(ext as MateriFormat);
+                        }
+                      }
+                    }}
+                    className="mt-2 text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -350,7 +504,7 @@ export const UploadMateriModal: React.FC<UploadMateriModalProps> = ({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || kelasList.length === 0}
+            disabled={isSubmitting || availableKelasList.length === 0}
             className="px-5 py-2 rounded-xl bg-[#142d72] hover:bg-[#1a388f] text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             {isSubmitting ? (
