@@ -102,6 +102,7 @@ export default function WaliKelasDashboardPage() {
           `/laporan/kelas/${encodeURIComponent(kelasId)}`
         );
         if (resLaporan?.success && Array.isArray(resLaporan.data)) {
+          console.log("DATA LAPORAN DARI API:", resLaporan.data);
           const filled = resLaporan.data.filter(
             (l: any) => l.catatan_wali && l.catatan_wali.trim() !== ""
           ).length;
@@ -112,8 +113,8 @@ export default function WaliKelasDashboardPage() {
               nama: l.nama || "-",
               nis: l.nis || "",
               nisn: l.nisn || "",
-              nilai_pengetahuan: l.nilai_pengetahuan,
-              nilai_keterampilan: l.nilai_keterampilan,
+              nilai_pengetahuan: l.pengetahuan ?? null,
+              nilai_keterampilan: l.keterampilan ?? null,
               rata_rata: l.rata_rata,
               catatan_wali: l.catatan_wali || "",
               status_laporan: l.status_laporan || "Draf",
@@ -216,6 +217,17 @@ export default function WaliKelasDashboardPage() {
 
     return persentase < 80;
   }).length;
+
+  
+  const jumlahRaporDisahkan = laporanList.filter(
+    (laporan) => laporan.status_laporan === "DisahkanKurikulum"
+  ).length;
+
+  const totalRapor = laporanList.length;
+
+  const semuaRaporDisahkan =
+    totalRapor > 0 && jumlahRaporDisahkan === totalRapor;
+
   
   const tanggalHariIni = new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Jakarta",
@@ -260,6 +272,7 @@ export default function WaliKelasDashboardPage() {
         siswaList={siswaList}
         presensiList={presensiList}
         laporanList={laporanList}
+        progresNilai={progresNilai}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -465,11 +478,31 @@ export default function WaliKelasDashboardPage() {
               <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-bold text-slate-800">Pengesahan Kurikulum</div>
-                  <div className="text-[11px] text-slate-500">Menunggu penyelesaian nilai seluruh guru</div>
+                  
+                  <div className="text-[11px] text-slate-500">
+                    {totalRapor > 0
+                      ? `${jumlahRaporDisahkan} dari ${totalRapor} rapor siswa telah disahkan Kurikulum`
+                      : "Belum ada data rapor siswa"}
+                  </div>
+
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 font-semibold text-[10px]">
-                  Terkunci
+                
+                <span
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                    semuaRaporDisahkan
+                      ? "bg-green-100 text-green-800"
+                      : jumlahRaporDisahkan > 0
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-slate-200 text-slate-700"
+                  }`}
+                >
+                  {semuaRaporDisahkan
+                    ? "Selesai"
+                    : jumlahRaporDisahkan > 0
+                    ? "Sebagian Disahkan"
+                    : "Belum Disahkan"}
                 </span>
+
               </div>
             </div>
 
