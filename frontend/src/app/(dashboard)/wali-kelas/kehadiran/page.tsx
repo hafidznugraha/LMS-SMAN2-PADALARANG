@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/button";
 
 interface AbsensiItem {
   siswa_id: string;
+  nama_siswa?: string;
+  nisn?: string;
   tanggal: string;
   status: string;
+  catatan?: string | null;
 }
 
 export default function KehadiranKelasPage() {
@@ -28,6 +31,9 @@ export default function KehadiranKelasPage() {
   const daftarTanggal = [
     ...new Set(dataAbsensi.map((item) => item.tanggal)),
   ].sort((a, b) => b.localeCompare(a));
+  const absensiTanggalTerpilih = dataAbsensi.filter(
+  (item) => item.tanggal === tanggalAbsensi
+  );
   useEffect(() => {
   const rekap = {
     hadir: 0,
@@ -95,7 +101,7 @@ export default function KehadiranKelasPage() {
             .reverse()[0];
 
           setTanggalAbsensi(tanggalTerbaru || "");
-      
+          
         } else {
           setDataAbsensi([]);
         }
@@ -198,6 +204,61 @@ export default function KehadiranKelasPage() {
           </div>
           </div>
         )}
+        <div className="mt-8">
+          <h3 className="text-lg font-bold text-slate-800 mb-4">
+            Detail Kehadiran Siswa
+          </h3>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="px-4 py-3">No</th>
+                  <th className="px-4 py-3">NISN</th>
+                  <th className="px-4 py-3">Nama Siswa</th>
+                  <th className="px-4 py-3">Status Kehadiran</th>
+                  <th className="px-4 py-3">Keterangan</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-200">
+                {absensiTanggalTerpilih.map((item, index) => (
+                  <tr key={`${item.siswa_id}-${item.tanggal}`}>
+                    <td className="px-4 py-3">{index + 1}</td>
+                    <td className="px-4 py-3">{item.nisn || "-"}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {item.nama_siswa || "-"}
+                    </td>
+                   <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                          item.status.toLowerCase() === "hadir"
+                            ? "bg-green-100 text-green-700"
+                            : item.status.toLowerCase() === "sakit"
+                            ? "bg-blue-100 text-blue-700"
+                            : item.status.toLowerCase() === "izin"
+                            ? "bg-amber-100 text-amber-700"
+                            : item.status.toLowerCase() === "alpa" ||
+                              item.status.toLowerCase() === "alfa"
+                            ? "bg-red-100 text-red-700"
+                            : item.status.toLowerCase() === "terlambat"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {item.catatan || "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
       </div>
     </div>
   );
