@@ -27,6 +27,8 @@ export interface Kelas {
   tingkat: number;
   jurusan: string;
   wali_guru_id?: string;
+  total_siswa?: number;
+  jumlah_siswa?: number;
   wali_guru?: Guru;
 }
 

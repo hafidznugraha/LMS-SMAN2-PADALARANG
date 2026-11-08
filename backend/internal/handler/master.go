@@ -27,8 +27,18 @@ func (h *MasterHandler) GetKelasList(c *fiber.Ctx) error {
 			Message: "Layanan database tidak tersedia",
 		})
 	}
+
+	var activeTA model.TahunAjaran
+	tahunAjaranStr := "2026/2027"
+	if err := db.Where("is_aktif = ?", true).First(&activeTA).Error; err == nil && activeTA.Tahun != "" {
+		tahunAjaranStr = activeTA.Tahun
+	}
+
 	var list []model.Kelas
-	if err := db.Preload("WaliGuru.User").Order("tingkat asc, nama_kelas asc").Find(&list).Error; err != nil {
+	if err := db.Select("kelas.*, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS total_siswa, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS jumlah_siswa, ? AS tahun_ajaran", tahunAjaranStr).
+		Preload("WaliGuru.User").
+		Order("tingkat asc, nama_kelas asc").
+		Find(&list).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal mengambil data kelas",

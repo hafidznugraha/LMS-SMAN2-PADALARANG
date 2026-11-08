@@ -12,6 +12,9 @@ export interface Kelas {
   nama_kelas: string;
   tingkat: number;
   jurusan: string;
+  total_siswa?: number;
+  jumlah_siswa?: number;
+  tahun_ajaran?: string;
 }
 
 export interface Siswa {

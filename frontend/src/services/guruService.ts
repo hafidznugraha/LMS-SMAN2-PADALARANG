@@ -23,14 +23,26 @@ interface ApiResponse<T> {
 
 export async function getKelasGuru(): Promise<Kelas[]> {
   try {
-    const res = await fetchAPI<ApiResponse<Array<{ id: string; nama_kelas: string; tingkat: number; jurusan: string }>>>('/guru/kelas');
+    const res = await fetchAPI<
+      ApiResponse<
+        Array<{
+          id: string;
+          nama_kelas: string;
+          tingkat: number;
+          jurusan: string;
+          total_siswa?: number;
+          jumlah_siswa?: number;
+          tahun_ajaran?: string;
+        }>
+      >
+    >('/guru/kelas');
     if (res?.success && Array.isArray(res.data)) {
       return res.data.map((k) => ({
         id_kelas: k.id,
         nama_kelas: k.nama_kelas,
         tingkat: k.tingkat === 10 ? 'X' : k.tingkat === 11 ? 'XI' : 'XII',
-        tahun_ajaran: '2026/2027',
-        jumlah_siswa: 32,
+        tahun_ajaran: k.tahun_ajaran || '2026/2027',
+        jumlah_siswa: Number(k.total_siswa ?? k.jumlah_siswa ?? 0),
       }));
     }
     return [];
@@ -402,7 +414,7 @@ export async function getJadwalGuru(params?: { guru_id?: string; kelas_id?: stri
         nama_mapel: j.mapel?.nama_mapel || 'Mata Pelajaran',
         id_kelas: j.kelas_id,
         nama_kelas: j.kelas?.nama_kelas || 'Kelas',
-        jumlah_siswa: 0,
+        jumlah_siswa: Number((j.kelas as { total_siswa?: number; jumlah_siswa?: number })?.total_siswa ?? (j.kelas as { total_siswa?: number; jumlah_siswa?: number })?.jumlah_siswa ?? 0),
         hari: j.hari,
         jam_mulai: j.jam_mulai,
         jam_selesai: j.jam_selesai,

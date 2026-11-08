@@ -55,8 +55,8 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
   const sakitCount = classAttendance.filter((a) => a.status_kehadiran === 'Sakit').length;
   const izinCount = classAttendance.filter((a) => a.status_kehadiran === 'Izin').length;
   const alfaCount = classAttendance.filter((a) => a.status_kehadiran === 'Alfa').length;
-  const total = classAttendance.length || 1;
-  const kehadiranPersen = Math.round((hadirCount / total) * 100);
+  const total = classAttendance.length;
+  const kehadiranPersen = total > 0 ? Math.round((hadirCount / total) * 100) : 0;
 
   const handleVerify = () => {
     onVerifyAbsensi(selectedKelasId);

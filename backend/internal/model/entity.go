@@ -36,9 +36,12 @@ type Kelas struct {
 	NamaKelas  string     `gorm:"size:20;unique;not null" json:"nama_kelas"`
 	Tingkat    int        `gorm:"not null" json:"tingkat"`
 	Jurusan    string     `gorm:"size:20;not null" json:"jurusan"`
-	WaliGuruID *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"wali_guru_id,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"`
-	WaliGuru   *Guru      `gorm:"foreignKey:WaliGuruID" json:"wali_guru,omitempty"`
+	WaliGuruID  *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"wali_guru_id,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	TotalSiswa  int        `gorm:"->;column:total_siswa" json:"total_siswa"`
+	JumlahSiswa int        `gorm:"->;column:jumlah_siswa" json:"jumlah_siswa"`
+	TahunAjaran string     `gorm:"->;column:tahun_ajaran" json:"tahun_ajaran,omitempty"`
+	WaliGuru    *Guru      `gorm:"foreignKey:WaliGuruID" json:"wali_guru,omitempty"`
 }
 
 func (Kelas) TableName() string {
