@@ -34,6 +34,7 @@ export default function SiswaDashboardPage() {
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
   const namaHariIni = days[new Date().getDay()];
   const { data: jadwalData } = useSiswaJadwal(namaHariIni);
+  const { items: notifItems, markAsRead: markNotifRead } = useNotifikasi();
 
   if (isLoading) return <DashboardSkeleton />;
 
@@ -56,7 +57,6 @@ export default function SiswaDashboardPage() {
     : "";
   const jamAbsen = data.absen_hari_ini.waktu_masuk?.slice(0, 5);
   const jadwalHariIni = Array.isArray(jadwalData?.items) ? jadwalData.items : [];
-  const { items: notifItems, markAsRead: markNotifRead } = useNotifikasi();
   const unreadMateriNotif = notifItems.find(
     (n) => !n.is_read && n.tipe?.toLowerCase() === "materi"
   );
