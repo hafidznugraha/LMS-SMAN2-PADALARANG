@@ -269,7 +269,7 @@ export default function WaliKelasDashboardPage() {
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-slate-500">
-                Data presensi direkapitulasi secara otomatis dari validasi guru pengampu mata pelajaran.
+                Data presensi harian siswa yang dikelola dan divalidasi oleh Anda selaku Wali Kelas.
               </span>
               <Link
                 href="/wali-kelas/kehadiran"

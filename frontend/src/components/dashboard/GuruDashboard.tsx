@@ -25,7 +25,7 @@ interface GuruDashboardProps {
   totalTugasCount?: number;
   onOpenUploadMateri: () => void;
   onOpenCreateTugas: () => void;
-  onOpenAbsensiKelas: (kelasId: string) => void;
+  onOpenAbsensiKelas?: (kelasId: string) => void;
   onOpenPenilaianTugas: (tugasId: string) => void;
   onNavigateTab: (tab: ActiveTab) => void;
   onOpenBranchInfo: () => void;
@@ -192,8 +192,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
 
         {/* Card 4: Kehadiran Siswa Hari Ini (Green) */}
         <div 
-          onClick={() => onNavigateTab('absensi')}
-          className="bg-[#059669] text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden cursor-pointer"
+          className="bg-[#059669] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden"
         >
           <div className="flex justify-between items-start">
             <div>
@@ -265,10 +264,10 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
                   </div>
 
                   <button
-                    onClick={() => onOpenAbsensiKelas(jadwal.id_kelas)}
+                    onClick={() => onNavigateTab('materi')}
                     className="self-start sm:self-center px-4 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
                   >
-                    Absensi Kelas
+                    Bahan Ajar
                   </button>
                 </div>
               ))}

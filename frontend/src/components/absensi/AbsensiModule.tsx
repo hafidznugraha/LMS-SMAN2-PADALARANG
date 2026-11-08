@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   UserCheck, 
   Calendar, 
@@ -11,18 +12,25 @@ import {
   Check, 
   X,
   FileSpreadsheet,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 import { Absensi, StatusKehadiran, Kelas } from '../../types/lms';
 
 interface AbsensiModuleProps {
   absensiList: Absensi[];
   kelasList: Kelas[];
-  onUpdateStatusKehadiran: (idAbsensi: string, newStatus: StatusKehadiran, keterangan?: string) => void;
+  onUpdateStatusKehadiran: (idAbsensi: string, newStatus: StatusKehadiran, keterangan?: string, item?: Absensi) => void;
   onVerifyAbsensi: (kelasId: string) => void;
   initialKelasId?: string;
   onKelasChange?: (kelasId: string) => void;
   onDateChange?: (tanggal: string) => void;
+  title?: string;
+  subtitle?: string;
+  showBackButton?: boolean;
+  backButtonHref?: string;
+  backButtonLabel?: string;
+  isLockedToSingleClass?: boolean;
 }
 
 export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
@@ -33,6 +41,12 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
   initialKelasId,
   onKelasChange,
   onDateChange,
+  title,
+  subtitle,
+  showBackButton,
+  backButtonHref,
+  backButtonLabel,
+  isLockedToSingleClass,
 }) => {
   const [selectedKelasId, setSelectedKelasId] = useState<string>(initialKelasId || kelasList[0]?.id_kelas || '');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -78,25 +92,39 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
     }
   };
 
+  const isSingleClass = isLockedToSingleClass || kelasList.length <= 1;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Modul Presensi & Validasi Absensi Siswa
+            {title || 'Modul Presensi & Validasi Absensi Siswa'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Validasi kehadiran siswa terintegrasi secara langsung dengan sistem
+            {subtitle || 'Validasi kehadiran siswa terintegrasi secara langsung dengan sistem'}
           </p>
         </div>
 
-        <button
-          onClick={handleVerify}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all shadow-sm cursor-pointer self-start sm:self-auto"
-        >
-          <Save className="w-4 h-4" />
-          <span>Verifikasi & Simpan Presensi</span>
-        </button>
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          {showBackButton && backButtonHref && (
+            <Link
+              href={backButtonHref}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-sm font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{backButtonLabel || 'Kembali'}</span>
+            </Link>
+          )}
+
+          <button
+            onClick={handleVerify}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all shadow-sm cursor-pointer"
+          >
+            <Save className="w-4 h-4" />
+            <span>Verifikasi & Simpan Presensi</span>
+          </button>
+        </div>
       </div>
 
       {toastMessage && (
@@ -115,19 +143,30 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[140px]">
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Pilih Rombongan Belajar:
+              Rombongan Belajar:
             </label>
-            <select
-              value={selectedKelasId}
-              onChange={(e) => handleSelectKelas(e.target.value)}
-              className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-            >
-              {kelasList.map((k) => (
-                <option key={k.id_kelas} value={k.id_kelas}>
-                  Kelas {k.nama_kelas} ({k.jumlah_siswa} Siswa)
-                </option>
-              ))}
-            </select>
+            {isSingleClass ? (
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="text-xs font-bold text-slate-800">
+                  Kelas {currentKelas?.nama_kelas || 'Binaan'} ({currentKelas?.jumlah_siswa ?? total} Siswa)
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+                  Kelas Binaan
+                </span>
+              </div>
+            ) : (
+              <select
+                value={selectedKelasId}
+                onChange={(e) => handleSelectKelas(e.target.value)}
+                className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              >
+                {kelasList.map((k) => (
+                  <option key={k.id_kelas} value={k.id_kelas}>
+                    Kelas {k.nama_kelas} ({k.jumlah_siswa} Siswa)
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="w-36">
@@ -223,7 +262,7 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
                         return (
                           <button
                             key={status}
-                            onClick={() => onUpdateStatusKehadiran(item.id_absensi, status)}
+                            onClick={() => onUpdateStatusKehadiran(item.id_absensi, status, undefined, item)}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                               isCurrent
                                 ? status === 'Hadir'

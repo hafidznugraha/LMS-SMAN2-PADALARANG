@@ -1,26 +1,21 @@
-"use client";
+'use client';
 
-import { getStoredUser, AuthUser } from "@/lib/auth";
-import { fetchAPI } from "@/lib/api";
-import React, { useState, useEffect } from "react";
-import { UserCheck, Calendar, ArrowLeft, Loader2, Clock, CheckCircle2 } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-
-interface AbsensiItem {
-  id: string;
-  id_absensi: string;
-  nama_siswa: string;
-  nis: string;
-  status_kehadiran: string;
-  waktu: string;
-  keterangan: string;
-}
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { getStoredUser, AuthUser } from '@/lib/auth';
+import { fetchAPI } from '@/lib/api';
+import { getAbsensiGuru, updateAbsensiSiswaGuru } from '@/services/guruService';
+import { Absensi, Kelas, StatusKehadiran } from '@/types/lms';
+import { AbsensiModule } from '@/components/absensi/AbsensiModule';
+import { ShieldAlert, ArrowLeft, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function KehadiranKelasPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [totalSiswa, setTotalSiswa] = useState<number>(0);
-  const [absensiList, setAbsensiList] = useState<AbsensiItem[]>([]);
+  const [absensiList, setAbsensiList] = useState<Absensi[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -30,171 +25,163 @@ export default function KehadiranKelasPage() {
     }
   }, []);
 
-  const kelas = currentUser?.extra?.kelas_binaan?.[0];
-  const namaKelas = kelas?.nama_kelas || "X IPS 2";
-  const kelasIdBinaan = kelas?.id || "";
+  const isWali = Boolean(
+    currentUser?.extra?.is_wali_kelas ||
+      (currentUser?.extra?.kelas_binaan && currentUser.extra.kelas_binaan.length > 0) ||
+      currentUser?.role === 'wali_kelas'
+  );
+
+  const kelasBinaan = currentUser?.extra?.kelas_binaan?.[0];
+  const namaKelas = kelasBinaan?.nama_kelas || 'X IPS 2';
+  const kelasIdBinaan = kelasBinaan?.id || '';
+
+  const fetchAbsensi = useCallback(async (kelasId: string, tanggal: string) => {
+    if (!kelasId) return;
+    try {
+      const data = await getAbsensiGuru(kelasId, tanggal);
+      setAbsensiList(data);
+    } catch (err) {
+      console.warn('Gagal memuat data presensi:', err);
+      toast.error('Gagal memuat data presensi kelas');
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchKehadiranData = async () => {
+    const initData = async () => {
+      if (!kelasIdBinaan) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
-
-        const [siswaRes, absensiRes] = await Promise.all([
+        const [siswaRes, absData] = await Promise.all([
           fetchAPI<{ success: boolean; data: any[] }>(
             `/master/siswa?kelas_id=${encodeURIComponent(kelasIdBinaan)}`
           ),
-          fetchAPI<{ success: boolean; data: AbsensiItem[] }>(
-            `/guru/absensi?kelas_id=${encodeURIComponent(kelasIdBinaan)}`
-          ),
+          getAbsensiGuru(kelasIdBinaan, selectedDate),
         ]);
 
-        if (siswaRes.success && Array.isArray(siswaRes.data)) {
+        if (siswaRes?.success && Array.isArray(siswaRes.data)) {
           setTotalSiswa(siswaRes.data.length);
         } else {
-          setTotalSiswa(0);
+          setTotalSiswa(absData.length);
         }
 
-        if (absensiRes.success && Array.isArray(absensiRes.data)) {
-          setAbsensiList(absensiRes.data);
-        } else {
-          setAbsensiList([]);
-        }
+        setAbsensiList(absData);
       } catch (err) {
-        console.error("Gagal memuat data kehadiran:", err);
-        setTotalSiswa(0);
-        setAbsensiList([]);
+        console.error('Gagal inisialisasi data kehadiran:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    if (kelasIdBinaan) {
-      fetchKehadiranData();
-    } else {
-      setTotalSiswa(0);
-      setAbsensiList([]);
-      setLoading(false);
+    if (currentUser) {
+      initData();
     }
-  }, [kelasIdBinaan]);
+  }, [currentUser, kelasIdBinaan, selectedDate]);
 
-  const hadirCount = absensiList.filter((a) => a.status_kehadiran.toLowerCase() === "hadir").length;
-  const sakitCount = absensiList.filter((a) => a.status_kehadiran.toLowerCase() === "sakit").length;
-  const izinCount = absensiList.filter((a) => a.status_kehadiran.toLowerCase() === "izin").length;
-  const alfaCount = absensiList.filter(
-    (a) => a.status_kehadiran.toLowerCase() === "alfa" || a.status_kehadiran.toLowerCase() === "alpa"
-  ).length;
+  const handleDateChange = async (newDate: string) => {
+    setSelectedDate(newDate);
+    if (kelasIdBinaan) {
+      await fetchAbsensi(kelasIdBinaan, newDate);
+    }
+  };
 
-  const displayTotal = totalSiswa > 0 ? totalSiswa : absensiList.length;
+  const handleUpdateStatus = async (
+    idAbsen: string,
+    status: StatusKehadiran,
+    keterangan = '',
+    item?: Absensi
+  ) => {
+    setAbsensiList((prev) =>
+      prev.map((a) => (a.id_absensi === idAbsen ? { ...a, status_kehadiran: status, keterangan } : a))
+    );
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <UserCheck className="w-6 h-6 text-emerald-600" />
-            Kehadiran Kelas Binaan: {namaKelas}
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Rekapitulasi presensi harian siswa berdasarkan validasi guru pengampu mata pelajaran.
-          </p>
+    try {
+      const res = await updateAbsensiSiswaGuru(idAbsen, status, keterangan, {
+        siswa_id: item?.id_siswa,
+        kelas_id: kelasIdBinaan,
+        tanggal: selectedDate,
+      });
+
+      if (res?.success) {
+        toast.success(`Status presensi diperbarui: ${status}`);
+      }
+    } catch (err) {
+      console.warn('Gagal update status absensi:', err);
+      toast.error('Gagal menyimpan perubahan ke server');
+    }
+  };
+
+  const handleVerifyAbsensi = (kelasId: string) => {
+    setAbsensiList((prev) =>
+      prev.map((a) => (a.id_kelas === kelasId ? { ...a, diverifikasi_oleh_guru: true } : a))
+    );
+    toast.success(`Presensi harian ${namaKelas} berhasil diverifikasi oleh Wali Kelas`);
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400 gap-2 text-xs">
+        <Loader2 className="w-5 h-5 animate-spin text-blue-900" />
+        <span>Memuat data pengguna...</span>
+      </div>
+    );
+  }
+
+  if (!isWali || !kelasIdBinaan) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-8 text-center space-y-4 max-w-lg mx-auto mt-12 shadow-sm">
+        <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+          <ShieldAlert className="w-6 h-6" />
         </div>
-        <Link href="/wali-kelas">
-          <Button variant="secondary" size="sm" className="gap-1.5">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Ringkasan</span>
+        <h2 className="text-lg font-bold text-slate-900">Akses Khusus Wali Kelas</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Halaman validasi presensi harian ini dikhususkan bagi Pendidik yang mengemban tugas tambahan sebagai
+          Wali Kelas untuk memvalidasi rombongan belajar binaannya.
+        </p>
+        <Link href="/guru">
+          <Button variant="primary" size="sm" className="bg-[#142d72] text-white">
+            Kembali ke Dashboard Guru
           </Button>
         </Link>
       </div>
+    );
+  }
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-            <Calendar className="w-4 h-4 text-blue-900" />
-            <span>Rekapitulasi Kehadiran Hari Ini</span>
-          </div>
-          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-            Total Siswa Terdaftar: {loading ? "..." : displayTotal} Orang
-          </span>
-        </div>
+  const singleKelasList: Kelas[] = [
+    {
+      id_kelas: kelasIdBinaan,
+      nama_kelas: namaKelas,
+      tingkat: kelasBinaan?.tingkat === 10 ? 'X' : kelasBinaan?.tingkat === 11 ? 'XI' : 'XII',
+      tahun_ajaran: '2026/2027',
+      jumlah_siswa: totalSiswa,
+    },
+  ];
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-slate-400 gap-2 text-xs">
-            <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-            <span>Memuat data presensi dari server...</span>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-                <div className="text-2xl font-bold text-emerald-800">{hadirCount}</div>
-                <div className="text-xs font-semibold text-emerald-700 mt-1">Hadir (H)</div>
-              </div>
-              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
-                <div className="text-2xl font-bold text-blue-800">{sakitCount}</div>
-                <div className="text-xs font-semibold text-blue-700 mt-1">Sakit (S)</div>
-              </div>
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
-                <div className="text-2xl font-bold text-amber-800">{izinCount}</div>
-                <div className="text-xs font-semibold text-amber-700 mt-1">Izin (I)</div>
-              </div>
-              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200">
-                <div className="text-2xl font-bold text-rose-800">{alfaCount}</div>
-                <div className="text-xs font-semibold text-rose-700 mt-1">Alfa (A)</div>
-              </div>
-            </div>
-
-            {absensiList.length > 0 && (
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 mt-4">
-                <table className="w-full text-left text-xs text-slate-600">
-                  <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
-                    <tr>
-                      <th className="py-3 px-4">Nama Siswa</th>
-                      <th className="py-3 px-4">NIS</th>
-                      <th className="py-3 px-4">Waktu</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Keterangan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {absensiList.map((item) => {
-                      const st = item.status_kehadiran.toLowerCase();
-                      const badgeClass =
-                        st === "hadir"
-                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                          : st === "sakit"
-                          ? "bg-blue-100 text-blue-700 border-blue-200"
-                          : st === "izin"
-                          ? "bg-amber-100 text-amber-700 border-amber-200"
-                          : "bg-rose-100 text-rose-700 border-rose-200";
-
-                      return (
-                        <tr key={item.id_absensi || item.nis} className="hover:bg-slate-50/50">
-                          <td className="py-3 px-4 font-semibold text-slate-800">{item.nama_siswa}</td>
-                          <td className="py-3 px-4 font-mono text-slate-500">{item.nis || "-"}</td>
-                          <td className="py-3 px-4 flex items-center gap-1 text-slate-500">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{item.waktu || "-"}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}`}
-                            >
-                              {item.status_kehadiran}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-500 truncate max-w-xs">
-                            {item.keterangan || "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
+  if (loading && absensiList.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400 gap-2 text-xs">
+        <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+        <span>Memuat data presensi rombel {namaKelas}...</span>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <AbsensiModule
+      absensiList={absensiList}
+      kelasList={singleKelasList}
+      initialKelasId={kelasIdBinaan}
+      title={`Kehadiran Kelas Binaan: ${namaKelas}`}
+      subtitle={`Validasi kehadiran harian siswa rombel ${namaKelas} terintegrasi secara langsung dengan sistem`}
+      showBackButton={true}
+      backButtonHref="/wali-kelas"
+      backButtonLabel="Kembali ke Ringkasan"
+      isLockedToSingleClass={true}
+      onDateChange={handleDateChange}
+      onUpdateStatusKehadiran={handleUpdateStatus}
+      onVerifyAbsensi={handleVerifyAbsensi}
+    />
   );
 }

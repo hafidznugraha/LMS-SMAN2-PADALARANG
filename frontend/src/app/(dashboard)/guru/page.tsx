@@ -22,7 +22,6 @@ import { getStoredUser, AuthUser } from '@/lib/auth';
 
 import { MateriModule } from '@/components/materi/MateriModule';
 import { TugasModule } from '@/components/tugas/TugasModule';
-import { AbsensiModule } from '@/components/absensi/AbsensiModule';
 import { NilaiModule } from '@/components/nilai/NilaiModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
 import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
@@ -37,8 +36,6 @@ import {
   getTugasGuru,
   getTugasSubmissions,
   gradeSubmissionGuru,
-  getAbsensiGuru,
-  updateAbsensiSiswaGuru,
   getNilaiGuru,
   updateNilaiGuru,
   getJadwalGuru,
@@ -48,8 +45,6 @@ import {
   Materi,
   TugasKuis,
   PengumpulanTugas,
-  Absensi,
-  StatusKehadiran,
   NilaiSiswa,
   Kelas,
   JadwalPelajaran,
@@ -57,13 +52,12 @@ import {
 
 export default function GuruDashboardPage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'materi' | 'tugas' | 'absensi' | 'nilai'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'materi' | 'tugas' | 'nilai'>('dashboard');
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [tugasList, setTugasList] = useState<TugasKuis[]>([]);
   const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>([]);
-  const [absensiList, setAbsensiList] = useState<Absensi[]>([]);
   const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>([]);
   const [jadwalList, setJadwalList] = useState<JadwalPelajaran[]>([]);
 
@@ -120,11 +114,7 @@ export default function GuruDashboardPage() {
       setSelectedKelasId(targetKelas);
 
       if (targetKelas) {
-        const [absData, nilData] = await Promise.all([
-          getAbsensiGuru(targetKelas),
-          getNilaiGuru(targetKelas, mapelId, guruId),
-        ]);
-        setAbsensiList(absData);
+        const nilData = await getNilaiGuru(targetKelas, mapelId, guruId);
         setNilaiList(nilData);
       }
     } catch (err) {
@@ -138,16 +128,6 @@ export default function GuruDashboardPage() {
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
-
-  const handleKelasChangeForAbsensi = async (kId: string) => {
-    setSelectedKelasId(kId);
-    try {
-      const data = await getAbsensiGuru(kId);
-      setAbsensiList(data);
-    } catch (err) {
-      console.warn(err);
-    }
-  };
 
   const handleKelasChangeForNilai = async (kId: string) => {
     setSelectedKelasId(kId);
@@ -273,21 +253,6 @@ export default function GuruDashboardPage() {
     }
   };
 
-  // Handler Update Kehadiran
-  const handleUpdateStatusKehadiran = async (idAbsen: string, status: StatusKehadiran, catatan = '') => {
-    setAbsensiList((prev) =>
-      prev.map((a) => (a.id_absensi === idAbsen ? { ...a, status_kehadiran: status, keterangan: catatan } : a))
-    );
-    try {
-      const res = await updateAbsensiSiswaGuru(idAbsen, status, catatan);
-      if (res?.success) {
-        toast.success(`Status kehadiran diperbarui: ${status}`);
-      }
-    } catch (err) {
-      console.warn(err);
-      toast.error('Gagal memperbarui status absensi');
-    }
-  };
 
   // Handler Update Nilai
   const handleUpdateNilai = async (updated: NilaiSiswa) => {
@@ -517,18 +482,29 @@ export default function GuruDashboardPage() {
                       </div>
 
                       <div className="flex items-center gap-2 sm:self-center">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="text-xs cursor-pointer"
-                          onClick={() => {
-                            setSelectedKelasId(j.id_kelas);
-                            handleKelasChangeForAbsensi(j.id_kelas);
-                            setActiveView('absensi');
-                          }}
-                        >
-                          Absensi Kelas
-                        </Button>
+                        {isWali && j.nama_kelas === namaKelasBinaan ? (
+                          <Link href="/wali-kelas/kehadiran">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="text-xs cursor-pointer border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-semibold"
+                            >
+                              Kehadiran Rombel
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="text-xs cursor-pointer border-slate-300 text-slate-700 hover:bg-slate-50"
+                            onClick={() => {
+                              setSelectedKelasId(j.id_kelas);
+                              setActiveView('materi');
+                            }}
+                          >
+                            Bahan Ajar
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -649,27 +625,6 @@ export default function GuruDashboardPage() {
         />
       )}
 
-      {activeView === 'absensi' && (
-        <AbsensiModule
-          absensiList={absensiList}
-          kelasList={kelasList}
-          initialKelasId={selectedKelasId}
-          onKelasChange={handleKelasChangeForAbsensi}
-          onDateChange={async (dateVal) => {
-            if (selectedKelasId) {
-              const data = await getAbsensiGuru(selectedKelasId, dateVal);
-              setAbsensiList(data);
-            }
-          }}
-          onUpdateStatusKehadiran={handleUpdateStatusKehadiran}
-          onVerifyAbsensi={() => {
-            setAbsensiList((prev) =>
-              prev.map((a) => (a.id_kelas === selectedKelasId ? { ...a, diverifikasi_oleh_guru: true } : a))
-            );
-            toast.success('Presensi kelas berhasil diverifikasi');
-          }}
-        />
-      )}
 
       {activeView === 'nilai' && (
         <NilaiModule

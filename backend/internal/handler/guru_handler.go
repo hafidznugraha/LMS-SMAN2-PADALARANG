@@ -1161,14 +1161,14 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 
 	if req.AbsensiID != "" {
 		if absenUUID, err := uuid.Parse(req.AbsensiID); err == nil {
-			errUpdate := db.Model(&model.Absensi{}).
+			resUpdate := db.Model(&model.Absensi{}).
 				Where("id = ?", absenUUID).
 				Updates(map[string]interface{}{
 					"status":  statusClean,
 					"catatan": req.Catatan,
-				}).Error
+				})
 
-			if errUpdate == nil {
+			if resUpdate.Error == nil && resUpdate.RowsAffected > 0 {
 				return c.JSON(model.APIResponse{
 					Success: true,
 					Message: "Status presensi berhasil diperbarui di Supabase",

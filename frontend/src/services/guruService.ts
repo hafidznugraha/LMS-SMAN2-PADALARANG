@@ -333,12 +333,20 @@ export async function getAbsensiGuru(kelasId: string, tanggal?: string): Promise
   }
 }
 
-export async function updateAbsensiSiswaGuru(absensiId: string, status: string, catatan = ''): Promise<ApiResponse<unknown>> {
+export async function updateAbsensiSiswaGuru(
+  absensiId: string,
+  status: string,
+  catatan = '',
+  extra?: { siswa_id?: string; kelas_id?: string; tanggal?: string }
+): Promise<ApiResponse<unknown>> {
   return await fetchAPI<ApiResponse<unknown>>(`/guru/absensi/${absensiId}`, {
     method: 'PUT',
     body: JSON.stringify({
       status: status.toLowerCase(),
       catatan,
+      siswa_id: extra?.siswa_id,
+      kelas_id: extra?.kelas_id,
+      tanggal: extra?.tanggal,
     }),
   });
 }

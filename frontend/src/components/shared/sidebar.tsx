@@ -65,7 +65,6 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
       { href: "/guru", label: "Dashboard", icon: LayoutDashboard },
       { href: "/guru/materi", label: "Materi", icon: BookOpen },
       { href: "/guru/tugas", label: "Tugas", icon: ClipboardList },
-      { href: "/guru/absensi", label: "Absensi", icon: UserCheck },
       { href: "/guru/nilai", label: "Nilai", icon: Award },
     ],
     wali_kelas: [

@@ -11,7 +11,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 
-export type ActiveTab = 'dashboard' | 'materi' | 'tugas' | 'absensi' | 'nilai' | 'jadwal';
+export type ActiveTab = 'dashboard' | 'materi' | 'tugas' | 'nilai' | 'jadwal';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -30,7 +30,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard' as ActiveTab, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'materi' as ActiveTab, label: 'Materi', icon: BookOpen },
     { id: 'tugas' as ActiveTab, label: 'Tugas', icon: ClipboardList },
-    { id: 'absensi' as ActiveTab, label: 'Absensi', icon: UserCheck },
     { id: 'nilai' as ActiveTab, label: 'Nilai', icon: Award },
     { id: 'jadwal' as ActiveTab, label: 'Jadwal KBM', icon: Calendar },
   ];
