@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ClipboardList, 
   Plus, 
@@ -11,23 +11,26 @@ import {
   FileText, 
   Send, 
   Eye, 
-  Award,
-  BookOpen,
-  X,
-  FileCheck2,
-  ExternalLink,
-  Edit3,
-  Trash2,
-  Lock,
-  ArrowLeft,
-  Users,
-  GraduationCap,
-  LayoutGrid,
-  Mail,
-  Copy,
-  ArrowUpDown,
-  Loader2,
+  Award, 
+  BookOpen, 
+  X, 
+  FileCheck2, 
+  ExternalLink, 
+  Edit3, 
+  Trash2, 
+  Lock, 
+  ArrowLeft, 
+  Users, 
+  GraduationCap, 
+  LayoutGrid, 
+  Mail, 
+  Copy, 
+  ArrowUpDown, 
+  Loader2, 
   ShieldCheck,
+  MoreVertical,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
@@ -176,6 +179,62 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   const [inputFeedback, setInputFeedback] = useState('');
 
   const [viewRubrikTugas, setViewRubrikTugas] = useState<TugasKuis | null>(null);
+  const [expandedTugasId, setExpandedTugasId] = useState<string | null>(activeTugasId || null);
+  const [openMenuTugasId, setOpenMenuTugasId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTugasId) {
+      setExpandedTugasId(activeTugasId);
+    }
+  }, [activeTugasId]);
+
+  const formatClassroomDeadline = (dateStr?: string | null): string => {
+    if (!dateStr) return 'Tidak ada tenggat';
+    try {
+      const d = new Date(dateStr);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      if (isNaN(d.getTime())) {
+        const parts = dateStr.split(/[- :T]/);
+        if (parts.length >= 5) {
+          const monthIndex = parseInt(parts[1], 10) - 1;
+          const day = parseInt(parts[2], 10);
+          const hour = parts[3];
+          const min = parts[4];
+          return `Tenggat: ${day} ${months[monthIndex] || ''}, ${hour}.${min}`;
+        }
+        return `Tenggat: ${dateStr}`;
+      }
+      const day = d.getDate();
+      const month = months[d.getMonth()];
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `Tenggat: ${day} ${month}, ${hours}.${minutes}`;
+    } catch {
+      return `Tenggat: ${dateStr}`;
+    }
+  };
+
+  const formatClassroomPosted = (dateStr?: string | null): string => {
+    if (!dateStr) return 'Diposting hari ini';
+    try {
+      const d = new Date(dateStr);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      if (isNaN(d.getTime())) return 'Diposting baru saja';
+      const day = d.getDate();
+      const month = months[d.getMonth()];
+      return `Diposting ${day} ${month}`;
+    } catch {
+      return 'Diposting baru saja';
+    }
+  };
+
+  const formatInstructionHtml = (content?: string): string => {
+    if (!content) return '';
+    if (/<[a-z][\s\S]*>/i.test(content)) {
+      return content;
+    }
+    return content.replace(/\n/g, '<br />');
+  };
 
   const filteredTugas = tugasList.filter((t) => {
     const matchesWorkspace =
@@ -190,6 +249,20 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
         .includes(searchQuery.toLowerCase());
     return matchesWorkspace && matchesJenis && matchesSearch && !t.deleted_at;
   });
+
+  const groupedTugas = useMemo(() => {
+    const groups: { [key: string]: TugasKuis[] } = {};
+    filteredTugas.forEach((t) => {
+      const topicName =
+        (t as unknown as { topik?: string }).topik ||
+        (t.jenis === 'Proyek' ? 'Proyek Praktikum' : 'Tugas Terstruktur');
+      if (!groups[topicName]) {
+        groups[topicName] = [];
+      }
+      groups[topicName].push(t);
+    });
+    return groups;
+  }, [filteredTugas]);
 
   const handleOpenGrading = (tugas: TugasKuis) => {
     setSelectedTugasForGrading(tugas);
@@ -715,97 +788,303 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredTugas.map((tugas) => {
-                    return (
-                      <div
-                        key={tugas.id_tugas_kuis}
-                        className="bg-white border border-slate-200 hover:border-blue-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-bold">
-                                {tugas.nama_kelas}
-                              </span>
-                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                                {tugas.jenis}
-                              </span>
-                            </div>
+                <div className="space-y-6">
+                  {/* Backdrop untuk menutup menu dropdown opsi tugas */}
+                  {openMenuTugasId && (
+                    <div
+                      className="fixed inset-0 z-20 bg-transparent"
+                      onClick={() => setOpenMenuTugasId(null)}
+                    />
+                  )}
 
-                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                              tugas.jumlah_mengumpulkan >= tugas.total_siswa * 0.8
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              {tugas.jumlah_mengumpulkan}/{tugas.total_siswa} Mengumpulkan
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3 className="text-base font-bold text-slate-900">{tugas.judul}</h3>
-                            <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                              {tugas.instruksi}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
-                            <span className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              Tenggat: {tugas.tenggat_waktu} WIB
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <FileText className="w-3.5 h-3.5 text-slate-400" />
-                              Format: {tugas.format_file}
-                            </span>
-                          </div>
+                  {Object.entries(groupedTugas).map(([topicTitle, tasks]) => (
+                    <div key={topicTitle} className="space-y-3">
+                      {/* Header Topik Google Classroom */}
+                      <div className="flex items-center justify-between border-b-2 border-blue-600 pb-2 pt-1">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-5 h-5 text-blue-600" />
+                          <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                            {topicTitle}
+                          </h3>
                         </div>
-
-                        <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => setViewRubrikTugas(tugas)}
-                              className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors"
-                              title="Lihat Rubrik"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Rubrik</span>
-                            </button>
-
-                            {onEditTugas && (
-                              <button
-                                onClick={() => onEditTugas(tugas)}
-                                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-colors"
-                                title="Edit Tugas"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                <span>Edit</span>
-                              </button>
-                            )}
-
-                            {onDeleteTugas && (
-                              <button
-                                onClick={() => onDeleteTugas(tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '', tugas.judul)}
-                                className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-rose-50 border border-rose-200 transition-colors"
-                                title="Hapus Tugas"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Hapus</span>
-                              </button>
-                            )}
-                          </div>
-
-                          <button
-                            onClick={() => handleOpenGrading(tugas)}
-                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                          >
-                            <Award className="w-3.5 h-3.5" />
-                            <span>Lembar Penilaian Siswa</span>
-                          </button>
-                        </div>
+                        <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                          {tasks.length} tugas
+                        </span>
                       </div>
-                    );
-                  })}
+
+                      {/* Daftar Baris Tugas (Google Classroom Style Accordion) */}
+                      <div className="space-y-2">
+                        {tasks.map((tugas) => {
+                          const tId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '';
+                          const isExpanded = expandedTugasId === tId;
+                          const isMenuOpen = openMenuTugasId === tId;
+                          const deadlineText = formatClassroomDeadline(
+                            tugas.tenggat_waktu || (tugas as unknown as { deadline?: string }).deadline
+                          );
+                          const postedText = formatClassroomPosted(
+                            (tugas as unknown as { created_at?: string; tanggal_unggah?: string }).created_at ||
+                              (tugas as unknown as { created_at?: string; tanggal_unggah?: string }).tanggal_unggah
+                          );
+                          const totalSiswa = tugas.total_siswa || selectedWorkspaceKelas.jumlah_siswa || 0;
+                          const diserahkan = tugas.jumlah_mengumpulkan || 0;
+                          const ditugaskan = Math.max(0, totalSiswa - diserahkan);
+                          const instruksiHtml = formatInstructionHtml(
+                            tugas.instruksi || (tugas as unknown as { deskripsi?: string }).deskripsi
+                          );
+
+                          return (
+                            <div
+                              key={tId}
+                              className={`bg-white rounded-2xl transition-all duration-300 ease-in-out overflow-hidden ${
+                                isExpanded
+                                  ? 'border-2 border-blue-600 shadow-sm my-3'
+                                  : 'border border-slate-200/90 hover:border-blue-400 hover:bg-slate-50/70 shadow-2xs my-1.5'
+                              }`}
+                            >
+                              {/* Header Accordion: selalu tampil, klik untuk toggle buka/tutup */}
+                              <div
+                                onClick={() => setExpandedTugasId(isExpanded ? null : tId)}
+                                className={`px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer select-none transition-colors ${
+                                  isExpanded ? 'bg-slate-50/50 hover:bg-slate-50' : 'hover:bg-slate-50/70'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                                  <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                    <ClipboardList className="w-5 h-5" />
+                                  </div>
+                                  <h4
+                                    className={`truncate transition-colors ${
+                                      isExpanded
+                                        ? 'text-base font-bold text-slate-900'
+                                        : 'text-sm font-semibold text-slate-800 hover:text-blue-600'
+                                    }`}
+                                  >
+                                    {tugas.judul}
+                                  </h4>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                                  <span className="text-xs text-slate-500 font-normal">
+                                    {deadlineText}
+                                  </span>
+
+                                  {/* Indikator Panah Accordion yang berputar halus */}
+                                  <ChevronDown
+                                    className={`w-4 h-4 text-slate-400 transition-transform duration-300 ease-in-out ${
+                                      isExpanded ? 'rotate-180 text-blue-600' : ''
+                                    }`}
+                                  />
+
+                                  {/* Menu Opsi Tiga Titik */}
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuTugasId(isMenuOpen ? null : tId);
+                                      }}
+                                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                                      title="Opsi Tugas"
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </button>
+
+                                    {isMenuOpen && (
+                                      <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="absolute right-0 top-8 z-30 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 animate-dropdown-enter"
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenMenuTugasId(null);
+                                            handleOpenGrading(tugas);
+                                          }}
+                                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <Award className="w-3.5 h-3.5 text-blue-600" />
+                                          <span>Tinjau Nilai Siswa</span>
+                                        </button>
+                                        {onEditTugas && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setOpenMenuTugasId(null);
+                                              onEditTugas(tugas);
+                                            }}
+                                            className="w-full px-3.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                          >
+                                            <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+                                            <span>Edit Tugas</span>
+                                          </button>
+                                        )}
+                                        {onDeleteTugas && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setOpenMenuTugasId(null);
+                                              onDeleteTugas(tId, tugas.judul);
+                                            }}
+                                            className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Hapus Tugas</span>
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenMenuTugasId(null);
+                                            navigator.clipboard.writeText(tugas.judul);
+                                            toast.success('Judul tugas disalin');
+                                          }}
+                                          className="w-full px-3.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <Copy className="w-3.5 h-3.5 text-slate-500" />
+                                          <span>Salin Judul</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Badan Accordion (Animasi Buka-Tutup Halus dengan CSS Grid) */}
+                              <div
+                                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                                  isExpanded
+                                    ? 'grid-rows-[1fr] opacity-100 border-t border-slate-100'
+                                    : 'grid-rows-[0fr] opacity-0 border-t-0'
+                                }`}
+                              >
+                                <div className="overflow-hidden">
+                                  <div className="px-5 sm:px-6 pb-6 pt-3 space-y-4">
+                                    {/* Meta Bar: Tanggal Unggah & Metrik Google Classroom */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1 pb-1">
+                                      <span className="text-xs text-slate-500 font-medium">
+                                        {postedText}
+                                      </span>
+
+                                      {/* Metrik Angka Google Classroom: Diserahkan | Ditugaskan */}
+                                      <div className="flex items-center gap-6 self-end sm:self-auto">
+                                        <div className="text-center min-w-[70px]">
+                                          <p className="text-3xl font-light text-slate-800 leading-tight">
+                                            {diserahkan}
+                                          </p>
+                                          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                            Diserahkan
+                                          </p>
+                                        </div>
+                                        <div className="h-8 w-px bg-slate-200" />
+                                        <div className="text-center min-w-[70px]">
+                                          <p className="text-3xl font-light text-slate-800 leading-tight">
+                                            {ditugaskan}
+                                          </p>
+                                          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                            Ditugaskan
+                                          </p>
+                                        </div>
+                                        {tugas.jumlah_dinilai > 0 && (
+                                          <>
+                                            <div className="h-8 w-px bg-slate-200" />
+                                            <div className="text-center min-w-[70px]">
+                                              <p className="text-3xl font-light text-emerald-700 leading-tight">
+                                                {tugas.jumlah_dinilai}
+                                              </p>
+                                              <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                                Dinilai
+                                              </p>
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Garis Pembatas Halus */}
+                                    <div className="border-t border-slate-200" />
+
+                                    {/* Deskripsi & Petunjuk Lengkap (Render HTML WYSIWYG) */}
+                                    <div className="text-sm text-slate-800 leading-relaxed font-sans space-y-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline">
+                                      {instruksiHtml ? (
+                                        <div dangerouslySetInnerHTML={{ __html: instruksiHtml }} />
+                                      ) : (
+                                        <p className="text-slate-400 italic">
+                                          Tidak ada petunjuk khusus untuk tugas ini.
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {/* Format Berkas & Rubrik Badges */}
+                                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                                      {tugas.format_file && (
+                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-700 rounded-lg text-xs font-medium border border-slate-200">
+                                          <FileText className="w-3.5 h-3.5 text-slate-500" />
+                                          <span>
+                                            Format pengumpulan:{' '}
+                                            <span className="font-semibold uppercase">
+                                              {tugas.format_file}
+                                            </span>
+                                          </span>
+                                        </div>
+                                      )}
+                                      {tugas.rubrik_penilaian && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setViewRubrikTugas(tugas);
+                                          }}
+                                          className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold border border-blue-200 transition-colors cursor-pointer"
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                          <span>Kriteria Rubrik Penilaian</span>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Baris Tindakan Bawah */}
+                                    <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2">
+                                        {onEditTugas && (
+                                          <button
+                                            type="button"
+                                            onClick={() => onEditTugas(tugas)}
+                                            className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                          >
+                                            <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                                            <span>Edit</span>
+                                          </button>
+                                        )}
+                                        {onDeleteTugas && (
+                                          <button
+                                            type="button"
+                                            onClick={() => onDeleteTugas(tId, tugas.judul)}
+                                            className="px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Hapus</span>
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenGrading(tugas)}
+                                        className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs hover:shadow transition-all cursor-pointer"
+                                      >
+                                        <Award className="w-4 h-4" />
+                                        <span>Lembar Penilaian Siswa</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
