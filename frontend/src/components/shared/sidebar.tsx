@@ -109,7 +109,14 @@ export function Sidebar({ role = "siswa", className, onCloseMobile }: SidebarPro
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {activeLinks.map((item) => {
-          const isActive = pathname === item.href;
+          const isRootPath =
+            item.href === "/guru" ||
+            item.href === "/admin" ||
+            item.href === "/siswa" ||
+            item.href === "/wali-kelas";
+          const isActive = isRootPath
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
 
           return (
