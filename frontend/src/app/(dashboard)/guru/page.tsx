@@ -70,6 +70,7 @@ export default function GuruDashboardPage() {
   const [isBranchInfoOpen, setIsBranchInfoOpen] = useState(false);
   const [selectedTugasId, setSelectedTugasId] = useState<string | null>(null);
   const [selectedKelasId, setSelectedKelasId] = useState<string>('');
+  const [activeWorkspaceKelasTugas, setActiveWorkspaceKelasTugas] = useState<Kelas | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const teacherName = currentUser?.nama_lengkap || 'Pendidik';
@@ -610,9 +611,18 @@ export default function GuruDashboardPage() {
           tugasList={tugasList}
           submissionsList={submissionsList}
           kelasList={kelasList}
+          namaMapel={currentBidangStudi}
+          activeKelasId={activeWorkspaceKelasTugas?.id_kelas}
+          onSelectKelas={setActiveWorkspaceKelasTugas}
           activeTugasId={selectedTugasId}
           onClearActiveTugas={() => setSelectedTugasId(null)}
-          onOpenCreateTugas={() => setIsCreateTugasOpen(true)}
+          onOpenCreateTugas={(targetKelasId) => {
+            if (targetKelasId) {
+              const match = kelasList.find((k) => k.id_kelas === targetKelasId);
+              if (match) setActiveWorkspaceKelasTugas(match);
+            }
+            setIsCreateTugasOpen(true);
+          }}
           onOpenGrading={handleOpenGrading}
           onSaveNilaiSubmission={handleSaveNilaiSubmission}
         />
@@ -659,6 +669,7 @@ export default function GuruDashboardPage() {
         kelasList={kelasList}
         currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveTugas}
+        lockedKelasId={activeWorkspaceKelasTugas?.id_kelas}
       />
 
       <BranchCollabInfoModal

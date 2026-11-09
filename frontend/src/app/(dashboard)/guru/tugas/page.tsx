@@ -24,6 +24,7 @@ export default function TugasPage() {
   const [selectedTugasForEdit, setSelectedTugasForEdit] = useState<TugasKuis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentBidangStudi, setCurrentBidangStudi] = useState('Informatika');
+  const [activeWorkspaceKelas, setActiveWorkspaceKelas] = useState<Kelas | null>(null);
   const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -69,8 +70,14 @@ export default function TugasPage() {
     }
   };
 
-  const handleOpenCreateTugas = () => {
+  const handleOpenCreateTugas = (targetKelasId?: string) => {
     setSelectedTugasForEdit(null);
+    if (targetKelasId) {
+      const match = kelasList.find((k) => k.id_kelas === targetKelasId);
+      if (match) {
+        setActiveWorkspaceKelas(match);
+      }
+    }
     setIsModalOpen(true);
   };
 
@@ -205,6 +212,9 @@ export default function TugasPage() {
         tugasList={tugasList}
         submissionsList={submissionsList}
         kelasList={kelasList}
+        namaMapel={currentBidangStudi}
+        activeKelasId={activeWorkspaceKelas?.id_kelas}
+        onSelectKelas={setActiveWorkspaceKelas}
         onOpenCreateTugas={handleOpenCreateTugas}
         onEditTugas={handleEditTugas}
         onDeleteTugas={handleDeleteTugas}
@@ -222,6 +232,7 @@ export default function TugasPage() {
         currentBidangStudi={currentBidangStudi}
         onSaveTugas={handleSaveTugas}
         initialData={selectedTugasForEdit}
+        lockedKelasId={activeWorkspaceKelas?.id_kelas}
       />
 
       <ConfirmModal
