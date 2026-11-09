@@ -461,6 +461,7 @@ export async function getJadwalGuru(params?: { guru_id?: string; kelas_id?: stri
 export interface PengajarItem {
   id: string;
   nama_lengkap: string;
+  gelar?: string;
   nip: string;
   email: string;
   peran: string;

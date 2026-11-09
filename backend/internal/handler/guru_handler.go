@@ -1775,10 +1775,22 @@ func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
 type AnggotaPengajarItem struct {
 	ID          string `json:"id"`
 	NamaLengkap string `json:"nama_lengkap"`
+	Gelar       string `json:"gelar"`
 	NIP         string `json:"nip"`
 	Email       string `json:"email"`
 	Peran       string `json:"peran"`
 	Mapel       string `json:"mapel"`
+}
+
+func formatNamaGuruGelar(nama, gelar string) string {
+	nama = strings.TrimSpace(nama)
+	gelar = strings.TrimSpace(gelar)
+	gelar = strings.TrimPrefix(gelar, ",")
+	gelar = strings.TrimSpace(gelar)
+	if gelar != "" && !strings.Contains(strings.ToLower(nama), strings.ToLower(gelar)) {
+		return fmt.Sprintf("%s, %s", nama, gelar)
+	}
+	return nama
 }
 
 type AnggotaSiswaItem struct {
@@ -1871,6 +1883,7 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 	type JadwalPengajarRow struct {
 		ID          uuid.UUID `json:"id"`
 		NamaLengkap string    `json:"nama_lengkap"`
+		Gelar       string    `json:"gelar"`
 		NIP         string    `json:"nip"`
 		Email       string    `json:"email"`
 		NamaMapel   string    `json:"nama_mapel"`
@@ -1878,7 +1891,7 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 	var jadwalPengajar []JadwalPengajarRow
 
 	querySQL := `
-		SELECT DISTINCT g.id, u.nama_lengkap, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
+		SELECT DISTINCT g.id, u.nama_lengkap, COALESCE(g.gelar, '') as gelar, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
 		FROM jadwal_pelajaran jp
 		JOIN guru g ON g.id = jp.guru_id
 		JOIN users u ON u.id = g.user_id
@@ -1910,7 +1923,8 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		jp := jadwalPengajar[0]
 		pengajarList = append(pengajarList, AnggotaPengajarItem{
 			ID:          jp.ID.String(),
-			NamaLengkap: jp.NamaLengkap,
+			NamaLengkap: formatNamaGuruGelar(jp.NamaLengkap, jp.Gelar),
+			Gelar:       jp.Gelar,
 			NIP:         jp.NIP,
 			Email:       jp.Email,
 			Peran:       "Guru Pengampu",
@@ -1922,13 +1936,14 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 			type SingleGuruRow struct {
 				ID          uuid.UUID `json:"id"`
 				NamaLengkap string    `json:"nama_lengkap"`
+				Gelar       string    `json:"gelar"`
 				NIP         string    `json:"nip"`
 				Email       string    `json:"email"`
 				NamaMapel   string    `json:"nama_mapel"`
 			}
 			var sg SingleGuruRow
 			if err := db.Raw(`
-				SELECT g.id, u.nama_lengkap, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
+				SELECT g.id, u.nama_lengkap, COALESCE(g.gelar, '') as gelar, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
 				FROM guru g
 				JOIN users u ON u.id = g.user_id
 				LEFT JOIN mata_pelajaran m ON m.id = g.mapel_id
@@ -1936,7 +1951,8 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 			`, gUUID).Scan(&sg).Error; err == nil && sg.ID != uuid.Nil {
 				pengajarList = append(pengajarList, AnggotaPengajarItem{
 					ID:          sg.ID.String(),
-					NamaLengkap: sg.NamaLengkap,
+					NamaLengkap: formatNamaGuruGelar(sg.NamaLengkap, sg.Gelar),
+					Gelar:       sg.Gelar,
 					NIP:         sg.NIP,
 					Email:       sg.Email,
 					Peran:       "Guru Pengampu",
@@ -1950,13 +1966,14 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		type DefaultGuruRow struct {
 			ID          uuid.UUID `json:"id"`
 			NamaLengkap string    `json:"nama_lengkap"`
+			Gelar       string    `json:"gelar"`
 			NIP         string    `json:"nip"`
 			Email       string    `json:"email"`
 			NamaMapel   string    `json:"nama_mapel"`
 		}
 		var defGuru DefaultGuruRow
 		if err := db.Raw(`
-			SELECT g.id, u.nama_lengkap, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
+			SELECT g.id, u.nama_lengkap, COALESCE(g.gelar, '') as gelar, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
 			FROM guru g
 			JOIN users u ON u.id = g.user_id
 			LEFT JOIN mata_pelajaran m ON m.id = g.mapel_id
@@ -1964,7 +1981,8 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		`).Scan(&defGuru).Error; err == nil && defGuru.ID != uuid.Nil {
 			pengajarList = append(pengajarList, AnggotaPengajarItem{
 				ID:          defGuru.ID.String(),
-				NamaLengkap: defGuru.NamaLengkap,
+				NamaLengkap: formatNamaGuruGelar(defGuru.NamaLengkap, defGuru.Gelar),
+				Gelar:       defGuru.Gelar,
 				NIP:         defGuru.NIP,
 				Email:       defGuru.Email,
 				Peran:       "Guru Pengampu",

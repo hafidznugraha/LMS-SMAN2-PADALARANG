@@ -247,47 +247,70 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
     return acc + Math.max(0, (t.jumlah_mengumpulkan || 0) - (t.jumlah_dinilai || 0));
   }, 0);
 
+  const formatGuruNameWithGelar = (name: string, gelar?: string) => {
+    const cleanName = (name || '').trim();
+    const cleanGelar = (gelar || '').replace(/^,+/, '').trim();
+    if (cleanGelar && !cleanName.toLowerCase().includes(cleanGelar.toLowerCase())) {
+      return `${cleanName}, ${cleanGelar}`;
+    }
+    return cleanName;
+  };
+
+  const userGelar =
+    (currentUser?.extra?.gelar as string) ||
+    (currentUser?.extra?.guru as { gelar?: string })?.gelar ||
+    '';
+
   const rawPengajarList = anggotaData?.pengajar || [];
-  // Tepat 1 guru pengampu dari mata pelajaran ruang kelas ini
+  // Tepat 1 guru pengampu dari mata pelajaran ruang kelas ini beserta gelarnya
   const pengajarList: PengajarItem[] = (() => {
-    if (rawPengajarList.length === 0) {
-      return [
-        {
-          id: effectiveGuruId || 'current-guru',
-          nama_lengkap: currentUser?.nama_lengkap || 'Pendidik',
-          nip: (currentUser?.extra?.nip as string) || '-',
-          email: currentUser?.email || '',
-          peran: 'Guru Pengampu',
-          mapel: namaMapel || 'Mata Pelajaran',
-        },
-      ];
-    }
+    let matchedGuru: PengajarItem | null = null;
 
-    // 1. Cocokkan dengan guru yang sedang aktif
-    const matchCurrentGuru = rawPengajarList.find(
-      (p) =>
-        (effectiveGuruId && p.id === effectiveGuruId) ||
-        (currentUser?.email && p.email === currentUser.email) ||
-        (currentUser?.nama_lengkap && p.nama_lengkap.toLowerCase().includes(currentUser.nama_lengkap.toLowerCase()))
-    );
-    if (matchCurrentGuru) {
-      return [matchCurrentGuru];
-    }
+    if (rawPengajarList.length > 0) {
+      // 1. Cocokkan dengan guru yang sedang aktif
+      matchedGuru =
+        rawPengajarList.find(
+          (p) =>
+            (effectiveGuruId && p.id === effectiveGuruId) ||
+            (currentUser?.email && p.email === currentUser.email) ||
+            (currentUser?.nama_lengkap &&
+              p.nama_lengkap.toLowerCase().includes(currentUser.nama_lengkap.toLowerCase()))
+        ) || null;
 
-    // 2. Cocokkan berdasarkan nama mapel yang sedang dibuka
-    if (namaMapel) {
-      const matchMapel = rawPengajarList.find(
-        (p) =>
-          p.mapel.toLowerCase().includes(namaMapel.toLowerCase()) ||
-          namaMapel.toLowerCase().includes(p.mapel.toLowerCase())
-      );
-      if (matchMapel) {
-        return [matchMapel];
+      // 2. Cocokkan berdasarkan nama mapel yang sedang dibuka
+      if (!matchedGuru && namaMapel) {
+        matchedGuru =
+          rawPengajarList.find(
+            (p) =>
+              p.mapel.toLowerCase().includes(namaMapel.toLowerCase()) ||
+              namaMapel.toLowerCase().includes(p.mapel.toLowerCase())
+          ) || null;
+      }
+
+      if (!matchedGuru) {
+        matchedGuru = rawPengajarList[0];
       }
     }
 
-    // 3. Fallback: ambil pengajar pertama
-    return [rawPengajarList[0]];
+    if (!matchedGuru) {
+      matchedGuru = {
+        id: effectiveGuruId || 'current-guru',
+        nama_lengkap: currentUser?.nama_lengkap || 'Pendidik',
+        gelar: userGelar,
+        nip: (currentUser?.extra?.nip as string) || '-',
+        email: currentUser?.email || '',
+        peran: 'Guru Pengampu',
+        mapel: namaMapel || 'Mata Pelajaran',
+      };
+    }
+
+    const effectiveGelar = matchedGuru.gelar || userGelar;
+    return [
+      {
+        ...matchedGuru,
+        nama_lengkap: formatGuruNameWithGelar(matchedGuru.nama_lengkap, effectiveGelar),
+      },
+    ];
   })();
 
   const rawSiswaList: SiswaItem[] = anggotaData?.siswa || [];
@@ -383,9 +406,6 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                   <GraduationCap className="w-7 h-7 text-[#1E3A8A]" />
                   Ruang Kelas & Penugasan Akademik
                 </h1>
-                <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-[#1E3A8A] rounded-full border border-blue-200">
-                  Google Classroom Mode
-                </span>
               </div>
               <p className="text-sm text-slate-600">
                 Pilih ruang kelas di bawah untuk mengelola materi, menerbitkan tugas terstruktur, dan memeriksa lembar pengumpulan siswa secara terisolasi.
@@ -846,16 +866,6 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                               </div>
                             </div>
                           </div>
-
-                          {guru.email && (
-                            <a
-                              href={`mailto:${guru.email}`}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
-                              title={`Kirim email ke ${guru.nama_lengkap}`}
-                            >
-                              <Mail className="w-4 h-4" />
-                            </a>
-                          )}
                         </div>
                       ))}
                     </div>
