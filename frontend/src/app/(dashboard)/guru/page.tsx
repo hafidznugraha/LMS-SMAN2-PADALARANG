@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { MetricCard } from '@/components/ui/metric-card';
 import { Button } from '@/components/ui/button';
 import { getStoredUser, AuthUser } from '@/lib/auth';
+import { formatNamaWithGelar } from '@/lib/utils';
 
 import { MateriModule } from '@/components/materi/MateriModule';
 import { TugasModule } from '@/components/tugas/TugasModule';
@@ -74,7 +75,10 @@ export default function GuruDashboardPage() {
   const [activeWorkspaceKelasTugas, setActiveWorkspaceKelasTugas] = useState<Kelas | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const teacherName = currentUser?.nama_lengkap || 'Pendidik';
+  const teacherGelar = (currentUser?.extra?.gelar as string) || '';
+  const teacherName = currentUser?.nama_lengkap
+    ? formatNamaWithGelar(currentUser.nama_lengkap, teacherGelar)
+    : 'Pendidik';
   const currentBidangStudi =
     currentUser?.extra?.mapel?.nama_mapel ||
     (currentUser?.extra?.mapel_nama as string) ||

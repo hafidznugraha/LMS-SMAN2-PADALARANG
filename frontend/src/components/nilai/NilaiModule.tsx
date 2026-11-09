@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { getStoredUser } from '@/lib/auth';
 import { fetchAPI } from '@/lib/api';
+import { formatNamaWithGelar } from '@/lib/utils';
 import { NilaiSiswa, Kelas } from '../../types/lms';
 
 interface KonfigurasiPenilaianData {
@@ -199,7 +200,10 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     }
 
     const user = getStoredUser();
-    const teacherName = user?.nama_lengkap || 'Guru Pengampu';
+    const userGelar = (user?.extra?.gelar as string) || '';
+    const teacherName = user?.nama_lengkap
+      ? formatNamaWithGelar(user.nama_lengkap, userGelar)
+      : 'Guru Pengampu';
     const teacherNip = (user?.extra?.nip as string) || (user?.extra?.nomor_identitas as string) || '-';
 
     const tanggalUnduh = new Date().toLocaleDateString('id-ID', {

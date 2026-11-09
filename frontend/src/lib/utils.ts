@@ -54,3 +54,18 @@ export function sapaan(date = new Date()) {
   if (jam < 18) return "Selamat Sore";
   return "Selamat Malam";
 }
+
+/**
+ * Memformat nama guru lengkap beserta gelar akademis secara cerdas tanpa duplikasi
+ * Contoh: ("Euis", "S.Pd") -> "Euis, S.Pd"
+ *         ("Dr. Siti Aminah, M.Pd", "M.Pd") -> "Dr. Siti Aminah, M.Pd"
+ */
+export function formatNamaWithGelar(nama: string, gelar?: string): string {
+  const cleanName = (nama || "").trim();
+  const cleanGelar = (gelar || "").replace(/^,+/, "").trim();
+  if (cleanGelar && !cleanName.toLowerCase().includes(cleanGelar.toLowerCase())) {
+    return `${cleanName}, ${cleanGelar}`;
+  }
+  return cleanName;
+}
+

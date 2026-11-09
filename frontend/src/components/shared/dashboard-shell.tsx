@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "@/components/shared/sidebar";
 import { Topbar } from "@/components/shared/topbar";
-import { getStoredUser } from "@/lib/auth";
+import { getStoredUser, AuthUser } from "@/lib/auth";
+import { fetchAPI } from "@/lib/api";
+import { formatNamaWithGelar } from "@/lib/utils";
 import { UserRole } from "@/types";
 
 interface DashboardShellProps {
@@ -32,9 +34,33 @@ export function DashboardShell({ role, children }: DashboardShellProps) {
   useEffect(() => {
     const user = getStoredUser();
     if (user?.nama_lengkap) {
-      setUserName(user.nama_lengkap);
+      const isGuruRole = role === "guru" || role === "wali_kelas" || user.role === "guru" || user.role === "wali_kelas";
+      const initialGelar = (user.extra?.gelar as string) || "";
+      const formatted = isGuruRole
+        ? formatNamaWithGelar(user.nama_lengkap, initialGelar)
+        : user.nama_lengkap;
+      setUserName(formatted);
     }
-  }, []);
+
+    // Selalu sinkronkan profil terbaru dari backend /auth/me untuk mendapatkan gelar terbaru
+    if (role === "guru" || role === "wali_kelas" || user?.role === "guru" || user?.role === "wali_kelas") {
+      fetchAPI<{ success: boolean; data?: AuthUser }>("/auth/me")
+        .then((res) => {
+          if (res?.success && res.data) {
+            const profile = res.data;
+            const freshGelar = (profile.extra?.gelar as string) || "";
+            const formatted = formatNamaWithGelar(profile.nama_lengkap, freshGelar);
+            setUserName(formatted);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("lms_user", JSON.stringify(profile));
+            }
+          }
+        })
+        .catch(() => {
+          // Abaikan kegagalan jaringan, state lokal sudah terisi
+        });
+    }
+  }, [role]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

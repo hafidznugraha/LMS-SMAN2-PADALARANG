@@ -17,6 +17,7 @@ import {
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
 import { getStoredUser, getStoredToken, AuthUser } from "@/lib/auth";
+import { formatNamaWithGelar } from "@/lib/utils";
 import { getApiBaseUrl, fetchAPI } from "@/lib/api";
 import {
   RekapRombelModal,
@@ -50,7 +51,10 @@ export default function WaliKelasDashboardPage() {
     setCurrentUser(getStoredUser());
   }, []);
 
-  const teacherName = currentUser?.nama_lengkap || "Guru Pembina";
+  const teacherGelar = (currentUser?.extra?.gelar as string) || "";
+  const teacherName = currentUser?.nama_lengkap
+    ? formatNamaWithGelar(currentUser.nama_lengkap, teacherGelar)
+    : "Guru Pembina";
   const teacherNip = (currentUser?.extra as any)?.nip || "1234292722091345";
   const kelas = currentUser?.extra?.kelas_binaan?.[0];
   const namaKelas = kelas?.nama_kelas || "X IPS 2";
