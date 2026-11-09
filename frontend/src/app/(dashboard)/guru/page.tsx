@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   ClipboardCheck,
@@ -24,7 +25,6 @@ import { MateriModule } from '@/components/materi/MateriModule';
 import { TugasModule } from '@/components/tugas/TugasModule';
 import { NilaiModule } from '@/components/nilai/NilaiModule';
 import { UploadMateriModal } from '@/components/modals/UploadMateriModal';
-import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
 import { BranchCollabInfoModal } from '@/components/modals/BranchCollabInfoModal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { downloadMateriFile } from '@/lib/pdfHelper';
@@ -51,6 +51,7 @@ import {
 } from '@/types/lms';
 
 export default function GuruDashboardPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'materi' | 'tugas' | 'nilai'>('dashboard');
 
@@ -70,6 +71,7 @@ export default function GuruDashboardPage() {
   const [isBranchInfoOpen, setIsBranchInfoOpen] = useState(false);
   const [selectedTugasId, setSelectedTugasId] = useState<string | null>(null);
   const [selectedKelasId, setSelectedKelasId] = useState<string>('');
+  const [activeWorkspaceKelasTugas, setActiveWorkspaceKelasTugas] = useState<Kelas | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const teacherName = currentUser?.nama_lengkap || 'Pendidik';
@@ -360,7 +362,7 @@ export default function GuruDashboardPage() {
                 variant="primary"
                 size="sm"
                 className="gap-1.5 cursor-pointer bg-[#142d72] text-white hover:bg-blue-900"
-                onClick={() => setIsCreateTugasOpen(true)}
+                onClick={() => router.push('/guru/tugas/buat')}
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Buat Tugas Baru</span>
@@ -610,9 +612,23 @@ export default function GuruDashboardPage() {
           tugasList={tugasList}
           submissionsList={submissionsList}
           kelasList={kelasList}
+          namaMapel={currentBidangStudi}
+          activeKelasId={activeWorkspaceKelasTugas?.id_kelas}
+          onSelectKelas={setActiveWorkspaceKelasTugas}
           activeTugasId={selectedTugasId}
           onClearActiveTugas={() => setSelectedTugasId(null)}
-          onOpenCreateTugas={() => setIsCreateTugasOpen(true)}
+          onOpenCreateTugas={(targetKelasId) => {
+            if (targetKelasId) {
+              const match = kelasList.find((k) => k.id_kelas === targetKelasId);
+              if (match) setActiveWorkspaceKelasTugas(match);
+            }
+            router.push(targetKelasId ? `/guru/tugas/buat?kelasId=${targetKelasId}` : '/guru/tugas/buat');
+          }}
+          onEditTugas={(tugas) => {
+            const tId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '';
+            const kId = tugas.id_kelas || activeWorkspaceKelasTugas?.id_kelas || '';
+            router.push(`/guru/tugas/buat?kelasId=${kId}&editId=${tId}`);
+          }}
           onOpenGrading={handleOpenGrading}
           onSaveNilaiSubmission={handleSaveNilaiSubmission}
         />
@@ -651,14 +667,6 @@ export default function GuruDashboardPage() {
         cancelText="Batal"
         variant="danger"
         isLoading={isDeletingMateri}
-      />
-
-      <CreateTugasModal
-        isOpen={isCreateTugasOpen}
-        onClose={() => setIsCreateTugasOpen(false)}
-        kelasList={kelasList}
-        currentBidangStudi={currentBidangStudi}
-        onSaveTugas={handleSaveTugas}
       />
 
       <BranchCollabInfoModal

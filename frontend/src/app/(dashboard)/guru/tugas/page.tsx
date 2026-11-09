@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasModule } from '@/components/tugas/TugasModule';
-import { CreateTugasModal } from '@/components/modals/CreateTugasModal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { getStoredUser } from '@/lib/auth';
 import {
@@ -16,14 +16,17 @@ import {
 } from '@/services/guruService';
 import { TugasKuis, PengumpulanTugas, Kelas } from '@/types/lms';
 
-export default function TugasPage() {
+function TugasPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlKelasId = searchParams.get('kelasId');
+
   const [tugasList, setTugasList] = useState<TugasKuis[]>([]);
   const [submissionsList, setSubmissionsList] = useState<PengumpulanTugas[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTugasForEdit, setSelectedTugasForEdit] = useState<TugasKuis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentBidangStudi, setCurrentBidangStudi] = useState('Informatika');
+  const [activeWorkspaceKelas, setActiveWorkspaceKelas] = useState<Kelas | null>(null);
   const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -57,6 +60,24 @@ export default function TugasPage() {
     loadInitialData();
   }, [loadInitialData]);
 
+  useEffect(() => {
+    if (urlKelasId && kelasList.length > 0) {
+      const match = kelasList.find((k) => k.id_kelas === urlKelasId);
+      if (match) {
+        setActiveWorkspaceKelas(match);
+      }
+    }
+  }, [urlKelasId, kelasList]);
+
+  const handleSelectWorkspace = (kelas: Kelas | null) => {
+    setActiveWorkspaceKelas(kelas);
+    if (kelas) {
+      router.replace(`/guru/tugas?kelasId=${kelas.id_kelas}`, { scroll: false });
+    } else {
+      router.replace('/guru/tugas', { scroll: false });
+    }
+  };
+
   const handleOpenGrading = async (tugas: TugasKuis) => {
     const tugasId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id;
     if (!tugasId) return;
@@ -69,14 +90,19 @@ export default function TugasPage() {
     }
   };
 
-  const handleOpenCreateTugas = () => {
-    setSelectedTugasForEdit(null);
-    setIsModalOpen(true);
+  const handleOpenCreateTugas = (targetKelasId?: string) => {
+    const kId =
+      targetKelasId ||
+      activeWorkspaceKelas?.id_kelas ||
+      (kelasList[0]?.id_kelas ?? '');
+    router.push(kId ? `/guru/tugas/buat?kelasId=${kId}` : '/guru/tugas/buat');
   };
 
   const handleEditTugas = (tugas: TugasKuis) => {
-    setSelectedTugasForEdit(tugas);
-    setIsModalOpen(true);
+    const tugasId =
+      tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '';
+    const kId = tugas.id_kelas || activeWorkspaceKelas?.id_kelas || '';
+    router.push(`/guru/tugas/buat?kelasId=${kId}&editId=${tugasId}`);
   };
 
   const handleDeleteTugas = (tugasId: string, judul?: string) => {
@@ -205,23 +231,14 @@ export default function TugasPage() {
         tugasList={tugasList}
         submissionsList={submissionsList}
         kelasList={kelasList}
+        namaMapel={currentBidangStudi}
+        activeKelasId={activeWorkspaceKelas?.id_kelas}
+        onSelectKelas={handleSelectWorkspace}
         onOpenCreateTugas={handleOpenCreateTugas}
         onEditTugas={handleEditTugas}
         onDeleteTugas={handleDeleteTugas}
         onSaveNilaiSubmission={handleSaveNilai}
         onOpenGrading={handleOpenGrading}
-      />
-
-      <CreateTugasModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedTugasForEdit(null);
-        }}
-        kelasList={kelasList}
-        currentBidangStudi={currentBidangStudi}
-        onSaveTugas={handleSaveTugas}
-        initialData={selectedTugasForEdit}
       />
 
       <ConfirmModal
@@ -240,5 +257,20 @@ export default function TugasPage() {
         isLoading={isDeleting}
       />
     </div>
+  );
+}
+
+export default function TugasPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[#142d72]" />
+          <p className="text-sm font-semibold">Memuat Modul Tugas & Penilaian...</p>
+        </div>
+      }
+    >
+      <TugasPageContent />
+    </Suspense>
   );
 }

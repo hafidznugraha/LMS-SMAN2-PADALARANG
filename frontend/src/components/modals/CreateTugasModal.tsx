@@ -13,6 +13,7 @@ import {
   FileArchive,
   Presentation,
   AlertCircle,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, JenisPenugasan, Kelas } from '../../types/lms';
@@ -26,6 +27,7 @@ interface CreateTugasModalProps {
   currentBidangStudi: string;
   onSaveTugas: (savedTugas: TugasKuis) => void;
   initialData?: TugasKuis | null;
+  lockedKelasId?: string;
 }
 
 interface FormatOption {
@@ -174,10 +176,11 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
   currentBidangStudi,
   onSaveTugas,
   initialData,
+  lockedKelasId,
 }) => {
   const isEditMode = !!initialData;
   const [judul, setJudul] = useState('');
-  const [idKelas, setIdKelas] = useState(kelasList[0]?.id_kelas || '');
+  const [idKelas, setIdKelas] = useState(lockedKelasId || kelasList[0]?.id_kelas || '');
   const [jenis, setJenis] = useState<JenisPenugasan>('Tugas');
   const [tenggatWaktu, setTenggatWaktu] = useState(getDefaultDeadline);
   const [selectedFormatIds, setSelectedFormatIds] = useState<string[]>(['pdf', 'word']);
@@ -219,6 +222,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
       setIdKelas(
         initialData.id_kelas ||
         (initialData as unknown as { kelas_id?: string }).kelas_id ||
+        lockedKelasId ||
         kelasList[0]?.id_kelas ||
         ''
       );
@@ -243,7 +247,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
       );
     } else {
       setJudul('');
-      setIdKelas(kelasList[0]?.id_kelas || '');
+      setIdKelas(lockedKelasId || kelasList[0]?.id_kelas || '');
       setJenis('Tugas');
       setTenggatWaktu(getDefaultDeadline());
       setSelectedFormatIds(['pdf', 'word']);
@@ -252,7 +256,7 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
         '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
       );
     }
-  }, [initialData, kelasList, isOpen]);
+  }, [initialData, kelasList, isOpen, lockedKelasId]);
 
   if (!isOpen) return null;
 
@@ -408,22 +412,36 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Target Kelas *
             </label>
-            <select
-              value={idKelas}
-              onChange={(e) => setIdKelas(e.target.value)}
-              disabled={kelasList.length === 0}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {kelasList.length === 0 ? (
-                <option value="">Belum ada kelas terjadwal</option>
-              ) : (
-                kelasList.map((k) => (
-                  <option key={k.id_kelas} value={k.id_kelas}>
-                    Kelas {k.nama_kelas}
-                  </option>
-                ))
-              )}
-            </select>
+            {lockedKelasId ? (
+              <div className="flex items-center justify-between px-3 py-2 bg-blue-50/90 border border-blue-200 rounded-xl">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Lock className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                  <span className="text-xs font-bold text-blue-950 truncate">
+                    Kelas {kelasList.find((k) => k.id_kelas === idKelas)?.nama_kelas || idKelas}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 shrink-0 ml-1">
+                  Terkunci
+                </span>
+              </div>
+            ) : (
+              <select
+                value={idKelas}
+                onChange={(e) => setIdKelas(e.target.value)}
+                disabled={kelasList.length === 0}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {kelasList.length === 0 ? (
+                  <option value="">Belum ada kelas terjadwal</option>
+                ) : (
+                  kelasList.map((k) => (
+                    <option key={k.id_kelas} value={k.id_kelas}>
+                      Kelas {k.nama_kelas}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
 
           <div>

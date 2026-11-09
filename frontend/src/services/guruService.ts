@@ -457,3 +457,59 @@ export async function getJadwalGuru(params?: { guru_id?: string; kelas_id?: stri
     return [];
   }
 }
+
+export interface PengajarItem {
+  id: string;
+  nama_lengkap: string;
+  gelar?: string;
+  nip: string;
+  email: string;
+  peran: string;
+  mapel: string;
+}
+
+export interface SiswaItem {
+  id: string;
+  user_id: string;
+  nama_lengkap: string;
+  nis: string;
+  nisn: string;
+  email: string;
+  jenis_kelamin: string;
+}
+
+export interface AnggotaKelasData {
+  pengajar: PengajarItem[];
+  siswa: SiswaItem[];
+  total_siswa: number;
+  nama_kelas?: string;
+}
+
+export async function getAnggotaKelas(
+  kelasId: string,
+  params?: { guru_id?: string; mapel?: string }
+): Promise<AnggotaKelasData | null> {
+  try {
+    const sp = new URLSearchParams();
+    if (params?.guru_id) sp.append('guru_id', params.guru_id);
+    if (params?.mapel) sp.append('mapel', params.mapel);
+    const qs = sp.toString() ? `?${sp.toString()}` : '';
+
+    const res = await fetchAPI<ApiResponse<AnggotaKelasData>>(
+      `/guru/kelas/${encodeURIComponent(kelasId)}/anggota${qs}`
+    );
+    if (res?.success && res.data) {
+      return res.data;
+    }
+    const fallbackRes = await fetchAPI<ApiResponse<AnggotaKelasData>>(
+      `/guru/anggota-kelas?kelas_id=${encodeURIComponent(kelasId)}${params?.guru_id ? `&guru_id=${encodeURIComponent(params.guru_id)}` : ''}`
+    );
+    if (fallbackRes?.success && fallbackRes.data) {
+      return fallbackRes.data;
+    }
+    return null;
+  } catch (err) {
+    console.error('Gagal mengambil data anggota kelas:', err);
+    return null;
+  }
+}
