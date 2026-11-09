@@ -1585,6 +1585,8 @@ func (h *GuruHandler) GetNilaiList(c *fiber.Ctx) error {
 
 	callerGuruUUID, hasCaller := h.getCallerGuruID(c)
 
+	cfgPenilaian := service.GetKonfigurasiPenilaian(db)
+
 	results := make([]NilaiSiswaResponse, 0, len(students))
 	for _, st := range students {
 		var nilaiList []model.Nilai
@@ -1634,15 +1636,7 @@ func (h *GuruHandler) GetNilaiList(c *fiber.Ctx) error {
 			}
 		}
 
-		finalScore := math.Round((0.3*tugas+0.2*uh+0.25*uts+0.25*uas)*10) / 10
-		skorHuruf := "D"
-		if finalScore >= 85 {
-			skorHuruf = "A"
-		} else if finalScore >= 75 {
-			skorHuruf = "B"
-		} else if finalScore >= 60 {
-			skorHuruf = "C"
-		}
+		finalScore, skorHuruf := service.HitungNilaiDanPredikat(tugas, uh, uts, uas, cfgPenilaian)
 
 		if firstID == uuid.Nil {
 			firstID = uuid.New()
@@ -1737,15 +1731,10 @@ func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
 		}
 	}
 
+	cfgPenilaian := service.GetKonfigurasiPenilaian(db)
+
 	saveOrUpdate := func(jp model.JenisPenilaian, skor float64) {
-		skorHuruf := "D"
-		if skor >= 85 {
-			skorHuruf = "A"
-		} else if skor >= 75 {
-			skorHuruf = "B"
-		} else if skor >= 60 {
-			skorHuruf = "C"
-		}
+		skorHuruf := service.TentukanPredikat(skor, cfgPenilaian)
 
 		var existing model.Nilai
 		if err := db.Where("siswa_id = ? AND mapel_id = ? AND jenis_penilaian = ?", siswaUUID, mapelUUID, jp).First(&existing).Error; err == nil {

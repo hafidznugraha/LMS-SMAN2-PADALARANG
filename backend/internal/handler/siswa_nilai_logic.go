@@ -6,23 +6,19 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/repository"
+	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/service"
 )
 
 func bulat1(x float64) float64 {
 	return math.Round(x*10) / 10
 }
 
-// predikatAngka memakai ambang yang sama dengan leger rapor.
+// predikatAngka mengonversi rata-rata angka ke predikat huruf secara dinamis mengacu konfigurasi Kurikulum.
 func predikatAngka(avg float64) string {
-	switch {
-	case avg >= 85:
-		return "A"
-	case avg >= 75:
-		return "B"
-	case avg >= 65:
-		return "C"
-	}
-	return "D"
+	cfg := service.GetKonfigurasiPenilaian(repository.GetDB())
+	return service.TentukanPredikat(avg, cfg)
 }
 
 // rentangSemester mengubah ("2026/2027","Ganjil") menjadi [1 Jul 2026, 1 Jan 2027)

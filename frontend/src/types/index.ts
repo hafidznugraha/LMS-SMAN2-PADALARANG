@@ -157,6 +157,21 @@ export interface RombelLegerSummary {
   status_rombel: StatusLaporan;
 }
 
+export interface KonfigurasiPenilaian {
+  id?: string;
+  kkm_default: number;
+  bobot_tugas: number;
+  bobot_uh: number;
+  bobot_uts: number;
+  bobot_uas: number;
+  batas_predikat_a: number;
+  batas_predikat_b: number;
+  batas_predikat_c: number;
+  is_aktif?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface PengaturanSekolah {
   id: string;
   nama_sekolah: string;
@@ -178,6 +193,14 @@ export interface PengaturanSekolah {
   jam_pulang: string;
   status_sinkronisasi_dapodik: string;
   terakhir_sinkron?: string;
+  kkm_default?: number;
+  bobot_tugas?: number;
+  bobot_uh?: number;
+  bobot_uts?: number;
+  bobot_uas?: number;
+  batas_predikat_a?: number;
+  batas_predikat_b?: number;
+  batas_predikat_c?: number;
   created_at?: string;
   updated_at?: string;
 }

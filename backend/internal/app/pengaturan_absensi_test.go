@@ -111,4 +111,51 @@ func TestPengaturanAndAbsensiEndpointsAuth(t *testing.T) {
 			t.Errorf("Kurikulum tidak boleh ditolak 401/403, status: %d", resp.StatusCode)
 		}
 	})
+
+	t.Run("Update konfigurasi penilaian dengan total bobot tidak 100 persen harus ditolak 400", func(t *testing.T) {
+		bTugas := 40.0
+		bUH := 20.0
+		bUTS := 20.0
+		bUAS := 10.0 // total 90.0
+		payload, _ := json.Marshal(model.UpdatePengaturanRequest{
+			BobotTugas: &bTugas,
+			BobotUH:    &bUH,
+			BobotUTS:   &bUTS,
+			BobotUAS:   &bUAS,
+		})
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/pengaturan", bytes.NewReader(payload))
+		req.Header.Set("Authorization", "Bearer "+kurikulumToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request: %v", err)
+		}
+		// status can be 400 if DB is connected or 503 if DB is nil in unit test env without DB
+		if resp.StatusCode != http.StatusBadRequest && resp.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("Harusnya status 400 Bad Request atau 503 (tanpa DB), didapat: %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("Update konfigurasi penilaian dengan ambang batas predikat tidak menurun harus ditolak 400", func(t *testing.T) {
+		bA := 70.0
+		bB := 80.0 // A < B (invalid!)
+		bC := 60.0
+		payload, _ := json.Marshal(model.UpdatePengaturanRequest{
+			BatasPredikatA: &bA,
+			BatasPredikatB: &bB,
+			BatasPredikatC: &bC,
+		})
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/pengaturan", bytes.NewReader(payload))
+		req.Header.Set("Authorization", "Bearer "+kurikulumToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Gagal request: %v", err)
+		}
+		if resp.StatusCode != http.StatusBadRequest && resp.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("Harusnya status 400 Bad Request atau 503 (tanpa DB), didapat: %d", resp.StatusCode)
+		}
+	})
 }

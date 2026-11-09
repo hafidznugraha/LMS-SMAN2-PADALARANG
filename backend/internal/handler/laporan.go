@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/repository"
+	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/service"
 	"gorm.io/gorm"
 )
 
@@ -235,6 +236,7 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 
 	var allMapel []model.MataPelajaran
 	db.Find(&allMapel)
+	cfg := service.GetKonfigurasiPenilaian(db)
 
 	var kepsek model.PejabatSekolah
 	kepsekNama := ""
@@ -310,15 +312,7 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 
 		predikatVal := lap.PredikatAkhir
 		if predikatVal == "" {
-			if rataRataVal >= 85 {
-				predikatVal = "A"
-			} else if rataRataVal >= 75 {
-				predikatVal = "B"
-			} else if rataRataVal >= 65 {
-				predikatVal = "C"
-			} else {
-				predikatVal = "D"
-			}
+			predikatVal = service.TentukanPredikat(rataRataVal, cfg)
 		}
 
 		var disahkanPadaStr *string
@@ -348,15 +342,14 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 				scoreAvg := math.Round((sumScore/float64(len(scores)))*10) / 10
 				pScore := scoreAvg
 				kScore := math.Min(100, scoreAvg+1.5)
-				pred := "B"
-				if scoreAvg >= 85 {
-					pred = "A"
-				} else if scoreAvg < 75 {
-					pred = "C"
-				}
+				pred := service.TentukanPredikat(scoreAvg, cfg)
 				capaian := fmt.Sprintf("Menunjukkan penguasaan kompetensi yang baik pada materi %s.", m.NamaMapel)
 				if pred == "A" {
 					capaian = fmt.Sprintf("Sangat unggul dan teliti dalam menganalisis materi %s.", m.NamaMapel)
+				} else if pred == "C" {
+					capaian = fmt.Sprintf("Cukup menguasai kompetensi dasar materi %s, perlu penguatan latihan mandiri.", m.NamaMapel)
+				} else if pred == "D" {
+					capaian = fmt.Sprintf("Perlu bimbingan dan remedial khusus dalam menguasai kompetensi dasar materi %s.", m.NamaMapel)
 				}
 				mapelDetails = append(mapelDetails, model.NilaiMapelDetail{
 					KodeMapel:    m.KodeMapel,
@@ -489,6 +482,7 @@ func (h *LaporanHandler) GenerateLaporan(c *fiber.Ctx) error {
 		})
 	}
 
+	cfg := service.GetKonfigurasiPenilaian(db)
 	generatedCount := 0
 	for _, s := range listSiswa {
 		var existing model.LaporanAkademik
@@ -514,12 +508,7 @@ func (h *LaporanHandler) GenerateLaporan(c *fiber.Ctx) error {
 			kVal = math.Min(100, rVal+1.0)
 		}
 
-		predikat := "B"
-		if rVal >= 85 {
-			predikat = "A"
-		} else if rVal < 75 {
-			predikat = "C"
-		}
+		predikat := service.TentukanPredikat(rVal, cfg)
 
 		deskripsi := fmt.Sprintf("Telah menuntaskan kompetensi pembelajaran semester %s tahun ajaran %s dengan predikat %s.", req.Semester, req.TahunAjaran, predikat)
 		catatanWali := "Menunjukkan dedikasi dan kesungguhan belajar yang baik, pertahankan konsistensi akademik."

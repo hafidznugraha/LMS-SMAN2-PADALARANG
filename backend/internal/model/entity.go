@@ -422,8 +422,35 @@ type PengaturanSekolah struct {
 	JamPulang                 string     `json:"jam_pulang"`
 	StatusSinkronisasiDapodik string     `json:"status_sinkronisasi_dapodik"`
 	TerakhirSinkron           *time.Time `json:"terakhir_sinkron"`
+	KKMDefault                float64    `json:"kkm_default"`
+	BobotTugas                float64    `json:"bobot_tugas"`
+	BobotUH                   float64    `json:"bobot_uh"`
+	BobotUTS                  float64    `json:"bobot_uts"`
+	BobotUAS                  float64    `json:"bobot_uas"`
+	BatasPredikatA            float64    `json:"batas_predikat_a"`
+	BatasPredikatB            float64    `json:"batas_predikat_b"`
+	BatasPredikatC            float64    `json:"batas_predikat_c"`
 	CreatedAt                 time.Time  `json:"created_at"`
 	UpdatedAt                 time.Time  `json:"updated_at"`
+}
+
+type KonfigurasiPenilaian struct {
+	ID             uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	KKMDefault     float64   `gorm:"type:numeric(5,2);not null;default:75.00" json:"kkm_default"`
+	BobotTugas     float64   `gorm:"type:numeric(5,2);not null;default:30.00" json:"bobot_tugas"`
+	BobotUH        float64   `gorm:"type:numeric(5,2);not null;default:20.00" json:"bobot_uh"`
+	BobotUTS       float64   `gorm:"type:numeric(5,2);not null;default:25.00" json:"bobot_uts"`
+	BobotUAS       float64   `gorm:"type:numeric(5,2);not null;default:25.00" json:"bobot_uas"`
+	BatasPredikatA float64   `gorm:"type:numeric(5,2);not null;default:85.00" json:"batas_predikat_a"`
+	BatasPredikatB float64   `gorm:"type:numeric(5,2);not null;default:75.00" json:"batas_predikat_b"`
+	BatasPredikatC float64   `gorm:"type:numeric(5,2);not null;default:65.00" json:"batas_predikat_c"`
+	IsAktif        bool      `gorm:"not null;default:true" json:"is_aktif"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func (KonfigurasiPenilaian) TableName() string {
+	return "konfigurasi_penilaian"
 }
 
 type ProfilSekolah struct {
@@ -516,7 +543,15 @@ type UpdatePengaturanRequest struct {
 	TahunAjaranAktif   string `json:"tahun_ajaran_aktif"`
 	SemesterAktif      string `json:"semester_aktif"`
 	TenggatKunciRaport string `json:"tenggat_kunci_raport"`
-	DurasiKBMMenit     int    `json:"durasi_kbm_menit"`
-	JamMasuk           string `json:"jam_masuk"`
-	JamPulang          string `json:"jam_pulang"`
+	DurasiKBMMenit     int      `json:"durasi_kbm_menit"`
+	JamMasuk           string   `json:"jam_masuk"`
+	JamPulang          string   `json:"jam_pulang"`
+	KKMDefault         *float64 `json:"kkm_default"`
+	BobotTugas         *float64 `json:"bobot_tugas"`
+	BobotUH            *float64 `json:"bobot_uh"`
+	BobotUTS           *float64 `json:"bobot_uts"`
+	BobotUAS           *float64 `json:"bobot_uas"`
+	BatasPredikatA     *float64 `json:"batas_predikat_a"`
+	BatasPredikatB     *float64 `json:"batas_predikat_b"`
+	BatasPredikatC     *float64 `json:"batas_predikat_c"`
 }

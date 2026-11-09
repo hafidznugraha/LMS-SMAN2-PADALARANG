@@ -15,7 +15,30 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getStoredUser } from '@/lib/auth';
+import { fetchAPI } from '@/lib/api';
 import { NilaiSiswa, Kelas } from '../../types/lms';
+
+interface KonfigurasiPenilaianData {
+  kkm_default: number;
+  bobot_tugas: number;
+  bobot_uh: number;
+  bobot_uts: number;
+  bobot_uas: number;
+  batas_predikat_a: number;
+  batas_predikat_b: number;
+  batas_predikat_c: number;
+}
+
+const DEFAULT_CONFIG: KonfigurasiPenilaianData = {
+  kkm_default: 75,
+  bobot_tugas: 30,
+  bobot_uh: 20,
+  bobot_uts: 25,
+  bobot_uas: 25,
+  batas_predikat_a: 85,
+  batas_predikat_b: 75,
+  batas_predikat_c: 65,
+};
 
 function escapeHtml(str: unknown): string {
   if (str === null || str === undefined) return '';
@@ -33,6 +56,7 @@ interface NilaiModuleProps {
   onUpdateNilai: (updated: NilaiSiswa) => void;
   onKelasChange?: (kelasId: string) => void;
   namaMapel?: string;
+  konfigurasi?: KonfigurasiPenilaianData;
 }
 
 export const NilaiModule: React.FC<NilaiModuleProps> = ({
@@ -41,6 +65,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
   onUpdateNilai,
   onKelasChange,
   namaMapel,
+  konfigurasi,
 }) => {
   const [selectedKelasId, setSelectedKelasId] = useState(kelasList[0]?.id_kelas || '');
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,6 +76,38 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
   const [uasVal, setUasVal] = useState<number>(0);
   const [feedbackVal, setFeedbackVal] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [cfg, setCfg] = useState<KonfigurasiPenilaianData>(konfigurasi || DEFAULT_CONFIG);
+
+  useEffect(() => {
+    if (konfigurasi) {
+      setCfg(konfigurasi);
+      return;
+    }
+    let isMounted = true;
+    async function loadConfig() {
+      try {
+        const res = await fetchAPI<{ data: any }>('/pengaturan');
+        if (res && res.data && isMounted) {
+          setCfg({
+            kkm_default: res.data.kkm_default !== undefined && res.data.kkm_default !== null ? Number(res.data.kkm_default) : 75,
+            bobot_tugas: res.data.bobot_tugas !== undefined && res.data.bobot_tugas !== null ? Number(res.data.bobot_tugas) : 30,
+            bobot_uh: res.data.bobot_uh !== undefined && res.data.bobot_uh !== null ? Number(res.data.bobot_uh) : 20,
+            bobot_uts: res.data.bobot_uts !== undefined && res.data.bobot_uts !== null ? Number(res.data.bobot_uts) : 25,
+            bobot_uas: res.data.bobot_uas !== undefined && res.data.bobot_uas !== null ? Number(res.data.bobot_uas) : 25,
+            batas_predikat_a: res.data.batas_predikat_a !== undefined && res.data.batas_predikat_a !== null ? Number(res.data.batas_predikat_a) : 85,
+            batas_predikat_b: res.data.batas_predikat_b !== undefined && res.data.batas_predikat_b !== null ? Number(res.data.batas_predikat_b) : 75,
+            batas_predikat_c: res.data.batas_predikat_c !== undefined && res.data.batas_predikat_c !== null ? Number(res.data.batas_predikat_c) : 65,
+          });
+        }
+      } catch {
+        // Fallback default
+      }
+    }
+    loadConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, [konfigurasi]);
 
   useEffect(() => {
     if (!selectedKelasId && kelasList.length > 0) {
@@ -89,10 +146,15 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     setFeedbackVal(student.feedback || '');
   };
 
+  const calculateFinalScore = (tugas: number, uh: number, uts: number, uas: number): number => {
+    const raw = (tugas * cfg.bobot_tugas + uh * cfg.bobot_uh + uts * cfg.bobot_uts + uas * cfg.bobot_uas) / 100;
+    return Number(raw.toFixed(1));
+  };
+
   const calculateHuruf = (finalScore: number): 'A' | 'B' | 'C' | 'D' => {
-    if (finalScore >= 88) return 'A';
-    if (finalScore >= 78) return 'B';
-    if (finalScore >= 68) return 'C';
+    if (finalScore >= cfg.batas_predikat_a) return 'A';
+    if (finalScore >= cfg.batas_predikat_b) return 'B';
+    if (finalScore >= cfg.batas_predikat_c) return 'C';
     return 'D';
   };
 
@@ -100,9 +162,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
     e.preventDefault();
     if (!editingStudent) return;
 
-    const calculatedFinal = Number(
-      (tugasVal * 0.3 + uhVal * 0.2 + utsVal * 0.25 + uasVal * 0.25).toFixed(1)
-    );
+    const calculatedFinal = calculateFinalScore(tugasVal, uhVal, utsVal, uasVal);
     const calculatedHuruf = calculateHuruf(calculatedFinal);
 
     const updated: NilaiSiswa = {
@@ -162,7 +222,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
 
     const rowsHtml = exportList
       .map((g, idx) => {
-        const isTuntas = g.nilai_akhir >= 75;
+        const isTuntas = g.nilai_akhir >= cfg.kkm_default;
         const statusClass = isTuntas ? 'status-tuntas' : 'status-remedial';
         const statusText = isTuntas ? 'TUNTAS' : 'REMEDIAL';
         const badgeClass =
@@ -341,7 +401,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
       <td class="meta-label">Guru Pengampu</td>
       <td class="meta-val">${escapeHtml(teacherName)}</td>
       <td class="meta-label">Batas KKM</td>
-      <td class="meta-val bold">75.00</td>
+      <td class="meta-val bold">${cfg.kkm_default.toFixed(2)}</td>
     </tr>
     <tr>
       <td class="meta-label">NIP Guru</td>
@@ -362,10 +422,10 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
       <td colspan="4" class="section-header">II. RINGKASAN REKAPITULASI PREDIKAT KELAS</td>
     </tr>
     <tr>
-      <td class="meta-label" style="text-align: center;">Predikat A (&ge; 88)</td>
-      <td class="meta-label" style="text-align: center;">Predikat B (78 - 87)</td>
-      <td class="meta-label" style="text-align: center;">Predikat C (68 - 77)</td>
-      <td class="meta-label" style="text-align: center;">Predikat D (&lt; 68)</td>
+      <td class="meta-label" style="text-align: center;">Predikat A (&ge; ${cfg.batas_predikat_a})</td>
+      <td class="meta-label" style="text-align: center;">Predikat B (${cfg.batas_predikat_b} - ${(cfg.batas_predikat_a - 0.1).toFixed(1)})</td>
+      <td class="meta-label" style="text-align: center;">Predikat C (${cfg.batas_predikat_c} - ${(cfg.batas_predikat_b - 0.1).toFixed(1)})</td>
+      <td class="meta-label" style="text-align: center;">Predikat D (&lt; ${cfg.batas_predikat_c})</td>
     </tr>
     <tr>
       <td class="meta-val badge-a" style="text-align: center; font-size: 11pt;">${countAExp} Siswa</td>
@@ -390,10 +450,10 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
       <th class="th-col" rowspan="2" style="width: 240px;">Catatan Kompetensi / Feedback</th>
     </tr>
     <tr>
-      <th class="th-col-sub" style="width: 80px;">Tugas (30%)</th>
-      <th class="th-col-sub" style="width: 80px;">UH (20%)</th>
-      <th class="th-col-sub" style="width: 80px;">UTS (25%)</th>
-      <th class="th-col-sub" style="width: 80px;">UAS (25%)</th>
+      <th class="th-col-sub" style="width: 80px;">Tugas (${cfg.bobot_tugas}%)</th>
+      <th class="th-col-sub" style="width: 80px;">UH (${cfg.bobot_uh}%)</th>
+      <th class="th-col-sub" style="width: 80px;">UTS (${cfg.bobot_uts}%)</th>
+      <th class="th-col-sub" style="width: 80px;">UAS (${cfg.bobot_uas}%)</th>
     </tr>
     ${rowsHtml}
     <tr class="footer-row">
@@ -403,7 +463,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
       <td class="num-format bold">${avgUTS}</td>
       <td class="num-format bold">${avgUAS}</td>
       <td class="num-format bold" style="color: #1d4ed8;">${calculatedClassAvg}</td>
-      <td colspan="3" class="text-center italic" style="color: #64748b;">KKM Acuan: 75.00</td>
+      <td colspan="3" class="text-center italic" style="color: #64748b;">KKM Acuan: ${cfg.kkm_default.toFixed(2)}</td>
     </tr>
   </table>
 
@@ -519,7 +579,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
               Rata-Rata Nilai Kelas
             </p>
             <h3 className="text-3xl font-extrabold font-mono mt-0.5 tabular-nums">{classAvg}</h3>
-            <p className="text-[10px] text-blue-100 mt-0.5 font-medium">Batas KKM: 75.00</p>
+            <p className="text-[10px] text-blue-100 mt-0.5 font-medium">Batas KKM: {cfg.kkm_default.toFixed(2)}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
             <Award className="w-5 h-5 text-white" />
@@ -567,10 +627,10 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
               <tr>
                 <th className="py-3 px-4">No</th>
                 <th className="py-3 px-4">Nama Siswa / NIS</th>
-                <th className="py-3 px-3 text-center">Tugas (30%)</th>
-                <th className="py-3 px-3 text-center">UH (20%)</th>
-                <th className="py-3 px-3 text-center">UTS (25%)</th>
-                <th className="py-3 px-3 text-center">UAS (25%)</th>
+                <th className="py-3 px-3 text-center">Tugas ({cfg.bobot_tugas}%)</th>
+                <th className="py-3 px-3 text-center">UH ({cfg.bobot_uh}%)</th>
+                <th className="py-3 px-3 text-center">UTS ({cfg.bobot_uts}%)</th>
+                <th className="py-3 px-3 text-center">UAS ({cfg.bobot_uas}%)</th>
                 <th className="py-3 px-3 text-center font-bold text-slate-900">Nilai Akhir</th>
                 <th className="py-3 px-3 text-center">Predikat</th>
                 <th className="py-3 px-4">Catatan Kompetensi</th>
@@ -653,7 +713,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nilai Tugas (Bobot 30%)
+                  Nilai Tugas (Bobot {cfg.bobot_tugas}%)
                 </label>
                 <input
                   type="number"
@@ -669,7 +729,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Ulangan Harian (Bobot 20%)
+                  Ulangan Harian (Bobot {cfg.bobot_uh}%)
                 </label>
                 <input
                   type="number"
@@ -685,7 +745,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  UTS (Bobot 25%)
+                  UTS (Bobot {cfg.bobot_uts}%)
                 </label>
                 <input
                   type="number"
@@ -701,7 +761,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  UAS (Bobot 25%)
+                  UAS (Bobot {cfg.bobot_uas}%)
                 </label>
                 <input
                   type="number"
@@ -719,8 +779,8 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs font-semibold text-blue-900">
               <span>Proyeksi Nilai Akhir Otomatis:</span>
               <span className="text-base font-bold font-mono text-blue-700">
-                {(tugasVal * 0.3 + uhVal * 0.2 + utsVal * 0.25 + uasVal * 0.25).toFixed(1)}{' '}
-                (Predikat {calculateHuruf(tugasVal * 0.3 + uhVal * 0.2 + utsVal * 0.25 + uasVal * 0.25)})
+                {calculateFinalScore(tugasVal, uhVal, utsVal, uasVal).toFixed(1)}{' '}
+                (Predikat {calculateHuruf(calculateFinalScore(tugasVal, uhVal, utsVal, uasVal))})
               </span>
             </div>
 

@@ -18,6 +18,9 @@ import {
   MapPin,
   School,
   Lock,
+  Award,
+  Sliders,
+  Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,7 +29,7 @@ import { fetchAPI } from "@/lib/api";
 import { PengaturanSekolah } from "@/types";
 
 export default function PengaturanSekolahPage() {
-  const [activeTab, setActiveTab] = useState<"akademik" | "profil" | "pejabat" | "kbm" | "dapodik">("akademik");
+  const [activeTab, setActiveTab] = useState<"akademik" | "profil" | "pejabat" | "kbm" | "penilaian" | "dapodik">("akademik");
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [syncingDapodik, setSyncingDapodik] = useState<boolean>(false);
@@ -53,6 +56,14 @@ export default function PengaturanSekolahPage() {
     jam_pulang: "15:30",
     status_sinkronisasi_dapodik: "Terhubung",
     terakhir_sinkron: "",
+    kkm_default: 75,
+    bobot_tugas: 30,
+    bobot_uh: 20,
+    bobot_uts: 25,
+    bobot_uas: 25,
+    batas_predikat_a: 85,
+    batas_predikat_b: 75,
+    batas_predikat_c: 65,
   });
 
   const loadData = async () => {
@@ -75,6 +86,14 @@ export default function PengaturanSekolahPage() {
           tenggat_kunci_raport: formattedDeadline,
           jam_masuk: formattedMasuk,
           jam_pulang: formattedPulang,
+          kkm_default: item.kkm_default !== undefined && item.kkm_default !== null ? Number(item.kkm_default) : 75,
+          bobot_tugas: item.bobot_tugas !== undefined && item.bobot_tugas !== null ? Number(item.bobot_tugas) : 30,
+          bobot_uh: item.bobot_uh !== undefined && item.bobot_uh !== null ? Number(item.bobot_uh) : 20,
+          bobot_uts: item.bobot_uts !== undefined && item.bobot_uts !== null ? Number(item.bobot_uts) : 25,
+          bobot_uas: item.bobot_uas !== undefined && item.bobot_uas !== null ? Number(item.bobot_uas) : 25,
+          batas_predikat_a: item.batas_predikat_a !== undefined && item.batas_predikat_a !== null ? Number(item.batas_predikat_a) : 85,
+          batas_predikat_b: item.batas_predikat_b !== undefined && item.batas_predikat_b !== null ? Number(item.batas_predikat_b) : 75,
+          batas_predikat_c: item.batas_predikat_c !== undefined && item.batas_predikat_c !== null ? Number(item.batas_predikat_c) : 65,
         });
       }
     } catch {
@@ -97,6 +116,31 @@ export default function PengaturanSekolahPage() {
 
   const handleSave = async () => {
     try {
+      const kkm = Number(formData.kkm_default ?? 75);
+      const bobotTugas = Number(formData.bobot_tugas ?? 30);
+      const bobotUH = Number(formData.bobot_uh ?? 20);
+      const bobotUTS = Number(formData.bobot_uts ?? 25);
+      const bobotUAS = Number(formData.bobot_uas ?? 25);
+      const batasA = Number(formData.batas_predikat_a ?? 85);
+      const batasB = Number(formData.batas_predikat_b ?? 75);
+      const batasC = Number(formData.batas_predikat_c ?? 65);
+
+      if (kkm < 0 || kkm > 100) {
+        toast.error("Nilai KKM Default harus berada dalam rentang 0 - 100");
+        return;
+      }
+
+      const totalBobot = bobotTugas + bobotUH + bobotUTS + bobotUAS;
+      if (Math.abs(totalBobot - 100) > 0.01) {
+        toast.error(`Total bobot asesmen harus tepat bernilai 100% (saat ini ${totalBobot.toFixed(1)}%)`);
+        return;
+      }
+
+      if (batasA <= batasB || batasB <= batasC) {
+        toast.error("Ambang batas predikat tidak valid. Urutan harus Batas A > Batas B > Batas C");
+        return;
+      }
+
       setSaving(true);
       const payload = {
         nama_sekolah: formData.nama_sekolah,
@@ -116,6 +160,14 @@ export default function PengaturanSekolahPage() {
         durasi_kbm_menit: Number(formData.durasi_kbm_menit),
         jam_masuk: formData.jam_masuk.length === 5 ? formData.jam_masuk + ":00" : formData.jam_masuk,
         jam_pulang: formData.jam_pulang.length === 5 ? formData.jam_pulang + ":00" : formData.jam_pulang,
+        kkm_default: kkm,
+        bobot_tugas: bobotTugas,
+        bobot_uh: bobotUH,
+        bobot_uts: bobotUTS,
+        bobot_uas: bobotUAS,
+        batas_predikat_a: batasA,
+        batas_predikat_b: batasB,
+        batas_predikat_c: batasC,
       };
 
       const res = await fetchAPI<{ data: PengaturanSekolah }>("/pengaturan", {
@@ -297,6 +349,18 @@ export default function PengaturanSekolahPage() {
         >
           <Clock className="w-4 h-4" />
           <span>Jadwal & Sesi KBM</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("penilaian")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "penilaian"
+              ? "bg-[#1E3A8A] text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <Award className="w-4 h-4" />
+          <span>Standar Penilaian & KKM</span>
         </button>
 
         <button
@@ -657,6 +721,314 @@ export default function PengaturanSekolahPage() {
           </div>
         )}
 
+        {activeTab === "penilaian" && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-[#1E3A8A]" />
+                  Standar Penilaian & KKM (Konfigurasi Kurikulum)
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Atur acuan batas KKM, pembobotan komponen asesmen (Tugas, UH, UTS, UAS), serta rentang predikat huruf (A, B, C, D) dinamis.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    kkm_default: 75,
+                    bobot_tugas: 30,
+                    bobot_uh: 20,
+                    bobot_uts: 25,
+                    bobot_uas: 25,
+                    batas_predikat_a: 85,
+                    batas_predikat_b: 75,
+                    batas_predikat_c: 65,
+                  }));
+                  toast.info("Standar penilaian diatur ulang ke acuan default SMAN 2 Padalarang");
+                }}
+                className="text-xs font-semibold text-blue-700 hover:text-blue-900 underline self-start sm:self-auto cursor-pointer"
+              >
+                Reset ke Standar Default
+              </button>
+            </div>
+
+            {/* KKM Section */}
+            <div className="p-5 border border-slate-200 rounded-2xl bg-white space-y-4">
+              <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
+                <ShieldCheck className="w-4 h-4 text-[#1E3A8A]" />
+                <span>Kriteria Ketuntasan Minimal (KKM) Satuan Pendidikan</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Batas Nilai KKM <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={formData.kkm_default ?? 75}
+                      onChange={(e) => handleChange("kkm_default", Number(e.target.value))}
+                      className="w-full h-11 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-800 focus:bg-white font-mono"
+                    />
+                    <span className="text-sm font-bold text-slate-600 shrink-0">Poin</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Standar resmi kelulusan kompetensi SMAN 2 Padalarang</p>
+                </div>
+
+                <div className="md:col-span-2 p-4 bg-blue-50/70 border border-blue-200/60 rounded-xl text-xs text-blue-950 space-y-1.5">
+                  <p className="font-bold flex items-center gap-1.5 text-blue-900">
+                    <AlertCircle className="w-4 h-4 text-blue-700 shrink-0" />
+                    Penerapan KKM Terpadu
+                  </p>
+                  <p className="text-slate-600 leading-relaxed">
+                    Nilai KKM yang ditentukan oleh Kurikulum di sini akan dijadikan patokan kelulusan kompetensi pada Modul Guru (indikator tuntas/remedial), Leger Nilai Wali Kelas, Portal Nilai Siswa, serta verifikasi pengesahan Raport Akademik.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bobot Asesmen Section */}
+            <div className="p-5 border border-slate-200 rounded-2xl bg-white space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900">
+                  <Calculator className="w-4 h-4 text-[#1E3A8A]" />
+                  <span>Komposisi Pembobotan Asesmen Pembelajaran</span>
+                </div>
+                <div>
+                  {Math.abs(((formData.bobot_tugas ?? 30) + (formData.bobot_uh ?? 20) + (formData.bobot_uts ?? 25) + (formData.bobot_uas ?? 25)) - 100) < 0.01 ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Total Bobot: 100% (Valid)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Total: {((formData.bobot_tugas ?? 30) + (formData.bobot_uh ?? 20) + (formData.bobot_uts ?? 25) + (formData.bobot_uas ?? 25)).toFixed(1)}% (Harus 100%)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Tugas & Portofolio <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={formData.bobot_tugas ?? 30}
+                      onChange={(e) => handleChange("bobot_tugas", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 font-mono focus:ring-2 focus:ring-blue-800 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-slate-600">%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Tugas mandiri & kelompok</p>
+                </div>
+
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Ulangan Harian (UH) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={formData.bobot_uh ?? 20}
+                      onChange={(e) => handleChange("bobot_uh", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 font-mono focus:ring-2 focus:ring-blue-800 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-slate-600">%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Formatif & kuis periodik</p>
+                </div>
+
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <label className="text-xs font-semibold text-slate-700">
+                    UTS (Tengah Semester) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={formData.bobot_uts ?? 25}
+                      onChange={(e) => handleChange("bobot_uts", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 font-mono focus:ring-2 focus:ring-blue-800 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-slate-600">%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Sumatif tengah semester</p>
+                </div>
+
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <label className="text-xs font-semibold text-slate-700">
+                    UAS (Akhir Semester) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={formData.bobot_uas ?? 25}
+                      onChange={(e) => handleChange("bobot_uas", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 font-mono focus:ring-2 focus:ring-blue-800 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-slate-600">%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Sumatif akhir semester</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-600 flex items-center justify-between">
+                <span className="font-medium">Formula Nilai Akhir Mata Pelajaran:</span>
+                <code className="font-mono text-xs font-bold text-slate-800 bg-white px-2.5 py-1 rounded border border-slate-200">
+                  NA = (Tugas×{formData.bobot_tugas ?? 30}% + UH×{formData.bobot_uh ?? 20}% + UTS×{formData.bobot_uts ?? 25}% + UAS×{formData.bobot_uas ?? 25}%)
+                </code>
+              </div>
+            </div>
+
+            {/* Predikat Rentang Section */}
+            <div className="p-5 border border-slate-200 rounded-2xl bg-white space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900">
+                  <Sliders className="w-4 h-4 text-[#1E3A8A]" />
+                  <span>Ambang Batas & Skala Predikat Nilai Huruf</span>
+                </div>
+                {Number(formData.batas_predikat_a ?? 85) > Number(formData.batas_predikat_b ?? 75) &&
+                Number(formData.batas_predikat_b ?? 75) > Number(formData.batas_predikat_c ?? 65) ? (
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Skala Hierarkis Valid (A &gt; B &gt; C)
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                    Hierarki Tidak Valid: Wajib A &gt; B &gt; C
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200">
+                  <label className="text-xs font-bold text-emerald-900">
+                    Batas Minimal Predikat A (Sangat Baik) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={formData.batas_predikat_a ?? 85}
+                      onChange={(e) => handleChange("batas_predikat_a", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-emerald-300 rounded-lg text-sm font-bold text-emerald-900 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-emerald-800">Skor</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700">Nilai ≥ {formData.batas_predikat_a ?? 85} mendapat predikat A</p>
+                </div>
+
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-blue-50/50 border border-blue-200">
+                  <label className="text-xs font-bold text-blue-900">
+                    Batas Minimal Predikat B (Baik) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={formData.batas_predikat_b ?? 75}
+                      onChange={(e) => handleChange("batas_predikat_b", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-blue-300 rounded-lg text-sm font-bold text-blue-900 font-mono focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-blue-800">Skor</span>
+                  </div>
+                  <p className="text-[11px] text-blue-700">Nilai ≥ {formData.batas_predikat_b ?? 75} mendapat predikat B</p>
+                </div>
+
+                <div className="space-y-1.5 p-3.5 rounded-xl bg-amber-50/50 border border-amber-200">
+                  <label className="text-xs font-bold text-amber-900">
+                    Batas Minimal Predikat C (Cukup) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={formData.batas_predikat_c ?? 65}
+                      onChange={(e) => handleChange("batas_predikat_c", Number(e.target.value))}
+                      className="w-full h-10 px-3 bg-white border border-amber-300 rounded-lg text-sm font-bold text-amber-900 font-mono focus:ring-2 focus:ring-amber-600 focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-amber-800">Skor</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700">Nilai ≥ {formData.batas_predikat_c ?? 65} mendapat predikat C</p>
+                </div>
+              </div>
+
+              {/* Dynamic Predicate Interval Visualization */}
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-slate-700 mb-2.5">Pratinjau Rentang Predikat Akademik Kurikulum:</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 text-center space-y-1">
+                    <span className="inline-block px-2.5 py-0.5 bg-emerald-600 text-white font-bold text-xs rounded-full">
+                      Predikat A
+                    </span>
+                    <p className="text-base font-extrabold text-emerald-900 font-mono">
+                      ≥ {formData.batas_predikat_a ?? 85}
+                    </p>
+                    <p className="text-[11px] font-medium text-emerald-700">Sangat Baik (Istimewa)</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/70 text-center space-y-1">
+                    <span className="inline-block px-2.5 py-0.5 bg-blue-600 text-white font-bold text-xs rounded-full">
+                      Predikat B
+                    </span>
+                    <p className="text-base font-extrabold text-blue-900 font-mono">
+                      {formData.batas_predikat_b ?? 75} - {(Number(formData.batas_predikat_a ?? 85) - 0.1).toFixed(1)}
+                    </p>
+                    <p className="text-[11px] font-medium text-blue-700">Baik (Memuaskan)</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 text-center space-y-1">
+                    <span className="inline-block px-2.5 py-0.5 bg-amber-600 text-white font-bold text-xs rounded-full">
+                      Predikat C
+                    </span>
+                    <p className="text-base font-extrabold text-amber-900 font-mono">
+                      {formData.batas_predikat_c ?? 65} - {(Number(formData.batas_predikat_b ?? 75) - 0.1).toFixed(1)}
+                    </p>
+                    <p className="text-[11px] font-medium text-amber-700">Cukup (Kriteria Minimal)</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/70 text-center space-y-1">
+                    <span className="inline-block px-2.5 py-0.5 bg-rose-600 text-white font-bold text-xs rounded-full">
+                      Predikat D
+                    </span>
+                    <p className="text-base font-extrabold text-rose-900 font-mono">
+                      &lt; {formData.batas_predikat_c ?? 65}
+                    </p>
+                    <p className="text-[11px] font-medium text-rose-700">Kurang (Wajib Remedial)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "dapodik" && (
           <div className="space-y-6">
             <div className="border-b border-slate-100 pb-4">
@@ -702,7 +1074,7 @@ export default function PengaturanSekolahPage() {
         onClose={() => setShowConfirmModal(false)}
         onConfirm={handleSave}
         title="Simpan Konfigurasi Sekolah?"
-        message="Perubahan pada Tahun Ajaran, Semester, maupun Jam KBM akan langsung diterapkan ke seluruh sistem LMS SMAN 2 Padalarang."
+        message="Perubahan pada Tahun Ajaran, Semester, Jam KBM, maupun Standar Penilaian Kurikulum akan langsung diterapkan ke seluruh sistem LMS SMAN 2 Padalarang."
         confirmText="Ya, Simpan Perubahan"
         variant="primary"
       />

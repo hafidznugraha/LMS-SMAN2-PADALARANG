@@ -8,6 +8,7 @@ import (
 
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/repository"
+	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/service"
 )
 
 type PengaturanHandler struct {
@@ -76,6 +77,16 @@ func (h *PengaturanHandler) loadPengaturanConfig(db *gorm.DB) model.PengaturanSe
 		config.StatusSinkronisasiDapodik = dapodikLog.Status
 		config.TerakhirSinkron = &dapodikLog.TerakhirSinkron
 	}
+
+	cfgPenilaian := service.GetKonfigurasiPenilaian(db)
+	config.KKMDefault = cfgPenilaian.KKMDefault
+	config.BobotTugas = cfgPenilaian.BobotTugas
+	config.BobotUH = cfgPenilaian.BobotUH
+	config.BobotUTS = cfgPenilaian.BobotUTS
+	config.BobotUAS = cfgPenilaian.BobotUAS
+	config.BatasPredikatA = cfgPenilaian.BatasPredikatA
+	config.BatasPredikatB = cfgPenilaian.BatasPredikatB
+	config.BatasPredikatC = cfgPenilaian.BatasPredikatC
 
 	return config
 }
@@ -214,6 +225,53 @@ func (h *PengaturanHandler) UpdatePengaturan(c *fiber.Ctx) error {
 		}
 		kbm.UpdatedAt = now
 		_ = db.Save(&kbm).Error
+	}
+
+	// Tangani pembaruan konfigurasi penilaian oleh Kurikulum
+	if req.KKMDefault != nil || req.BobotTugas != nil || req.BobotUH != nil ||
+		req.BobotUTS != nil || req.BobotUAS != nil || req.BatasPredikatA != nil ||
+		req.BatasPredikatB != nil || req.BatasPredikatC != nil {
+
+		cfgPenilaian := service.GetKonfigurasiPenilaian(db)
+		if req.KKMDefault != nil {
+			cfgPenilaian.KKMDefault = *req.KKMDefault
+		}
+		if req.BobotTugas != nil {
+			cfgPenilaian.BobotTugas = *req.BobotTugas
+		}
+		if req.BobotUH != nil {
+			cfgPenilaian.BobotUH = *req.BobotUH
+		}
+		if req.BobotUTS != nil {
+			cfgPenilaian.BobotUTS = *req.BobotUTS
+		}
+		if req.BobotUAS != nil {
+			cfgPenilaian.BobotUAS = *req.BobotUAS
+		}
+		if req.BatasPredikatA != nil {
+			cfgPenilaian.BatasPredikatA = *req.BatasPredikatA
+		}
+		if req.BatasPredikatB != nil {
+			cfgPenilaian.BatasPredikatB = *req.BatasPredikatB
+		}
+		if req.BatasPredikatC != nil {
+			cfgPenilaian.BatasPredikatC = *req.BatasPredikatC
+		}
+
+		if errVal := service.ValidasiKonfigurasiPenilaian(cfgPenilaian); errVal != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+				Success: false,
+				Message: errVal.Error(),
+			})
+		}
+
+		cfgPenilaian.UpdatedAt = now
+		cfgPenilaian.IsAktif = true
+		if cfgPenilaian.ID == [16]byte{} {
+			_ = db.Create(&cfgPenilaian).Error
+		} else {
+			_ = db.Save(&cfgPenilaian).Error
+		}
 	}
 
 	config := h.loadPengaturanConfig(db)

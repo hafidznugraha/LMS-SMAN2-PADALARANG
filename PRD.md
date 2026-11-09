@@ -117,9 +117,10 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 
 ### Modul 6: Penilaian Akademik
 - **FR-NIL-01 (Input Nilai Mata Pelajaran)**: Guru dapat menginput nilai berdasarkan kategori asesmen: Tugas, Ulangan Harian, Ujian Tengah Semester (UTS), dan Ujian Akhir Semester (UAS).
-- **FR-NIL-02 (Perhitungan Rata-Rata Otomatis)**: Sistem menghitung bobot nilai pengetahuan dan keterampilan secara terprogram berdasarkan rumus kurikulum sekolah.
+- **FR-NIL-02 (Perhitungan Rata-Rata Otomatis & Terbobot Dinamis)**: Sistem menghitung bobot nilai (Tugas, UH, UTS, UAS) secara terprogram berdasarkan persentase bobot dinamis yang ditentukan oleh Kurikulum (`konfigurasi_penilaian`).
 - **FR-NIL-03 (Pembaruan & Penghapusan Nilai)**: Guru dapat mengoreksi data nilai sebelum periode penilaian dikunci (*locked*) oleh Kurikulum.
 - **FR-NIL-04 (Transparansi Siswa)**: Siswa dapat melihat riwayat nilai transparan beserta skor huruf (A/B/C/D) dan catatan guru.
+- **FR-NIL-05 (Standarisasi Penilaian Kurikulum & Konversi Predikat Dinamis)**: Kurikulum dapat mengatur batas KKM sekolah, rasio pembobotan komponen asesmen (harus tepat 100%), dan ambang batas predikat huruf (A, B, C, D) melalui menu Pengaturan Sekolah (`/admin/pengaturan`) tanpa hardcode. Seluruh modul (Guru, Siswa, Wali Kelas Leger, dan Rapor) mengonsumsi konfigurasi ini secara terpusat.
 
 ### Modul 7: Laporan Akademik (Leger & Rapor) & Sistem Notifikasi
 - **FR-LAP-01 (Generasi Leger Nilai Otomatis)**: Sistem mengompilasi seluruh nilai mata pelajaran dan rekap presensi menjadi draf laporan akademik siswa secara terotomatisasi.
@@ -581,6 +582,21 @@ erDiagram
         text keterangan
         datetime terakhir_sinkron
     }
+
+    KONFIGURASI_PENILAIAN {
+        uuid id PK
+        numeric kkm_default
+        numeric bobot_tugas
+        numeric bobot_uh
+        numeric bobot_uts
+        numeric bobot_uas
+        numeric batas_predikat_a
+        numeric batas_predikat_b
+        numeric batas_predikat_c
+        boolean is_aktif
+        timestamptz created_at
+        timestamptz updated_at
+    }
 ```
 
 ---
@@ -789,7 +805,24 @@ Catatan rekam jejak (*audit trail*) pertukaran data dan verifikasi sinkronisasi 
 - `terakhir_sinkron` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**. Stempel waktu audit sinkronisasi.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-> **Catatan Arsitektur:** Relasi penugasan wali kelas dimodelkan secara langsung pada tabel `kelas` (`wali_guru_id`) dengan *unique constraint* `uq_kelas_wali_guru`, menjamin 1 guru hanya membina 1 rombel tanpa memerlukan tabel perantara redundan `wali_kelas`. Tabel monolitik `pengaturan_sekolah` juga telah sepenuhnya dinormalisasi ke 5 tabel terdedikasi (Tabel 15 s.d. 19).
+#### 20. Tabel `konfigurasi_penilaian`
+Menyimpan parameter standar penilaian akademik satuan pendidikan yang dikelola oleh Kurikulum untuk mengeliminasi nilai statis (*zero hardcode*).
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `kkm_default` : `NUMERIC(5,2)` - **Not Null**, default: `75.00`, `CHECK (kkm_default >= 0 AND kkm_default <= 100)`. Batas KKM minimal kelulusan kompetensi.
+- `bobot_tugas` : `NUMERIC(5,2)` - **Not Null**, default: `30.00`. Bobot persentase tugas/portofolio.
+- `bobot_uh` : `NUMERIC(5,2)` - **Not Null**, default: `20.00`. Bobot persentase ulangan harian.
+- `bobot_uts` : `NUMERIC(5,2)` - **Not Null**, default: `25.00`. Bobot persentase ujian tengah semester.
+- `bobot_uas` : `NUMERIC(5,2)` - **Not Null**, default: `25.00`. Bobot persentase ujian akhir semester.
+- `batas_predikat_a` : `NUMERIC(5,2)` - **Not Null**, default: `85.00`. Skor minimal untuk predikat A (Sangat Baik).
+- `batas_predikat_b` : `NUMERIC(5,2)` - **Not Null**, default: `75.00`. Skor minimal untuk predikat B (Baik).
+- `batas_predikat_c` : `NUMERIC(5,2)` - **Not Null**, default: `65.00`. Skor minimal untuk predikat C (Cukup). Nilai di bawah ini otomatis predikat D.
+- `is_aktif` : `BOOLEAN` - **Default: true**. Status konfigurasi yang sedang digunakan sistem.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `CONSTRAINT chk_total_bobot_100` : `CHECK ((bobot_tugas + bobot_uh + bobot_uts + bobot_uas) = 100.00)`.
+- `CONSTRAINT chk_urutan_predikat` : `CHECK (batas_predikat_a > batas_predikat_b AND batas_predikat_b > batas_predikat_c)`.
+
+> **Catatan Arsitektur:** Relasi penugasan wali kelas dimodelkan secara langsung pada tabel `kelas` (`wali_guru_id`) dengan *unique constraint* `uq_kelas_wali_guru`, menjamin 1 guru hanya membina 1 rombel tanpa memerlukan tabel perantara redundan `wali_kelas`. Tabel monolitik `pengaturan_sekolah` juga telah sepenuhnya dinormalisasi ke 6 tabel terdedikasi (Tabel 15 s.d. 20).
 
 ### 5.3 Kebijakan Audit Trail & Soft Deletion (`deleted_at`)
 Seluruh tabel transaksional dan master (`users`, `siswa`, `guru`, `materi`, `tugas_kuis`, `absensi`, `nilai`, `laporan_akademik`, `jadwal_pelajaran`) dilengkapi dengan kolom `deleted_at TIMESTAMPTZ NULL`. GORM secara otomatis menyaring data aktif melalui klausa `WHERE deleted_at IS NULL`, menjamin kepatuhan audit sehingga histori nilai dan presensi tetap terjaga secara konsisten.
