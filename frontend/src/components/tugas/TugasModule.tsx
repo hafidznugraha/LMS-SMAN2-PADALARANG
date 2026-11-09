@@ -23,9 +23,16 @@ import {
   Users,
   GraduationCap,
   LayoutGrid,
+  Mail,
+  Copy,
+  ArrowUpDown,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
+import { getAnggotaKelas, AnggotaKelasData, PengajarItem, SiswaItem } from '@/services/guruService';
+import { getStoredUser } from '@/lib/auth';
 
 interface TugasModuleProps {
   tugasList: TugasKuis[];
@@ -69,14 +76,57 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
     return null;
   });
 
+  const [activeClassTab, setActiveClassTab] = useState<'tugas' | 'orang'>('tugas');
+  const [anggotaData, setAnggotaData] = useState<AnggotaKelasData | null>(null);
+  const [isLoadingAnggota, setIsLoadingAnggota] = useState(false);
+  const [selectedSiswaIds, setSelectedSiswaIds] = useState<string[]>([]);
+  const [siswaSearchQuery, setSiswaSearchQuery] = useState('');
+  const [siswaSortAsc, setSiswaSortAsc] = useState(true);
+
+  const currentUser = getStoredUser();
+  const effectiveGuruId =
+    (currentUser?.extra?.guru_id as string) || (currentUser?.id as string) || '';
+
   const handleSelectWorkspace = (kelas: Kelas | null) => {
     setSelectedWorkspaceKelas(kelas);
     setSearchQuery('');
     setSelectedJenis('ALL');
+    setActiveClassTab('tugas');
+    setSelectedSiswaIds([]);
+    setSiswaSearchQuery('');
     if (onSelectKelas) {
       onSelectKelas(kelas);
     }
   };
+
+  useEffect(() => {
+    if (!selectedWorkspaceKelas) {
+      setAnggotaData(null);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingAnggota(true);
+    getAnggotaKelas(selectedWorkspaceKelas.id_kelas, {
+      guru_id: effectiveGuruId,
+      mapel: namaMapel,
+    })
+      .then((data) => {
+        if (isMounted && data) {
+          setAnggotaData(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching anggota kelas:', err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingAnggota(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedWorkspaceKelas, effectiveGuruId, namaMapel]);
 
   useEffect(() => {
     if (activeKelasId) {
@@ -196,6 +246,122 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
   const totalPerluDinilai = tugasList.filter((t) => !t.deleted_at).reduce((acc, t) => {
     return acc + Math.max(0, (t.jumlah_mengumpulkan || 0) - (t.jumlah_dinilai || 0));
   }, 0);
+
+  const rawPengajarList = anggotaData?.pengajar || [];
+  // Tepat 1 guru pengampu dari mata pelajaran ruang kelas ini
+  const pengajarList: PengajarItem[] = (() => {
+    if (rawPengajarList.length === 0) {
+      return [
+        {
+          id: effectiveGuruId || 'current-guru',
+          nama_lengkap: currentUser?.nama_lengkap || 'Pendidik',
+          nip: (currentUser?.extra?.nip as string) || '-',
+          email: currentUser?.email || '',
+          peran: 'Guru Pengampu',
+          mapel: namaMapel || 'Mata Pelajaran',
+        },
+      ];
+    }
+
+    // 1. Cocokkan dengan guru yang sedang aktif
+    const matchCurrentGuru = rawPengajarList.find(
+      (p) =>
+        (effectiveGuruId && p.id === effectiveGuruId) ||
+        (currentUser?.email && p.email === currentUser.email) ||
+        (currentUser?.nama_lengkap && p.nama_lengkap.toLowerCase().includes(currentUser.nama_lengkap.toLowerCase()))
+    );
+    if (matchCurrentGuru) {
+      return [matchCurrentGuru];
+    }
+
+    // 2. Cocokkan berdasarkan nama mapel yang sedang dibuka
+    if (namaMapel) {
+      const matchMapel = rawPengajarList.find(
+        (p) =>
+          p.mapel.toLowerCase().includes(namaMapel.toLowerCase()) ||
+          namaMapel.toLowerCase().includes(p.mapel.toLowerCase())
+      );
+      if (matchMapel) {
+        return [matchMapel];
+      }
+    }
+
+    // 3. Fallback: ambil pengajar pertama
+    return [rawPengajarList[0]];
+  })();
+
+  const rawSiswaList: SiswaItem[] = anggotaData?.siswa || [];
+  const filteredSiswaList = rawSiswaList
+    .filter((s) => {
+      if (!siswaSearchQuery.trim()) return true;
+      const q = siswaSearchQuery.toLowerCase();
+      return (
+        s.nama_lengkap.toLowerCase().includes(q) ||
+        s.nis.toLowerCase().includes(q) ||
+        s.nisn.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      const cmp = a.nama_lengkap.localeCompare(b.nama_lengkap);
+      return siswaSortAsc ? cmp : -cmp;
+    });
+
+  const isAllSiswaSelected =
+    filteredSiswaList.length > 0 &&
+    filteredSiswaList.every((s) => selectedSiswaIds.includes(s.id));
+
+  const toggleSelectAllSiswa = () => {
+    if (isAllSiswaSelected) {
+      setSelectedSiswaIds([]);
+    } else {
+      setSelectedSiswaIds(filteredSiswaList.map((s) => s.id));
+    }
+  };
+
+  const toggleSelectSiswa = (id: string) => {
+    setSelectedSiswaIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleCopySelectedNis = () => {
+    const selectedSiswa = rawSiswaList.filter((s) => selectedSiswaIds.includes(s.id));
+    if (selectedSiswa.length === 0) {
+      toast.error('Pilih setidaknya satu siswa');
+      return;
+    }
+    const text = selectedSiswa.map((s) => `${s.nama_lengkap}: ${s.nis || '-'}`).join('\n');
+    navigator.clipboard.writeText(text);
+    toast.success(`${selectedSiswa.length} data NIS siswa berhasil disalin ke clipboard`);
+  };
+
+  const handleCopySingleNis = (nis: string, nama: string) => {
+    if (!nis) {
+      toast.error('Siswa belum memiliki NIS');
+      return;
+    }
+    navigator.clipboard.writeText(nis);
+    toast.success(`NIS ${nama} (${nis}) berhasil disalin ke clipboard`);
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const avatarColorPalettes = [
+    'bg-blue-600',
+    'bg-purple-600',
+    'bg-emerald-600',
+    'bg-rose-600',
+    'bg-amber-600',
+    'bg-cyan-600',
+    'bg-indigo-600',
+    'bg-teal-600',
+    'bg-pink-600',
+  ];
 
   return (
     <div className="space-y-6">
@@ -412,158 +578,441 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
             </div>
           </div>
 
-          {/* Search & Filter inside this Class */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3">
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder={`Cari tugas di Kelas ${selectedWorkspaceKelas.nama_kelas}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+          {/* ============================================================
+              NAVIGATION TABS (GOOGLE CLASSROOM STYLE)
+              ============================================================ */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs px-6 pt-2">
+            <div className="flex items-center gap-4 border-b border-slate-100">
+              <button
+                type="button"
+                onClick={() => setActiveClassTab('tugas')}
+                className={`flex items-center gap-2 py-3 px-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+                  activeClassTab === 'tugas'
+                    ? 'border-blue-600 text-blue-600 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>Tugas Kelas</span>
+                <span
+                  className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold ${
+                    activeClassTab === 'tugas'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {filteredTugas.length}
+                </span>
+              </button>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-                  {(['ALL', 'Tugas', 'Proyek'] as const).map((jenis) => (
-                    <button
-                      key={jenis}
-                      onClick={() => setSelectedJenis(jenis)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        selectedJenis === jenis
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {jenis === 'ALL' ? 'Semua Tipe' : jenis}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveClassTab('orang')}
+                className={`flex items-center gap-2 py-3 px-3 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+                  activeClassTab === 'orang'
+                    ? 'border-blue-600 text-blue-600 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Orang</span>
+                <span
+                  className={`ml-1 text-xs px-2 py-0.5 rounded-full font-bold ${
+                    activeClassTab === 'orang'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {anggotaData?.total_siswa ?? selectedWorkspaceKelas.jumlah_siswa ?? 0}
+                </span>
+              </button>
             </div>
           </div>
 
-          {/* List of Tasks in this Class */}
-          {filteredTugas.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-4">
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
-                <ClipboardList className="w-7 h-7" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900">
-                  Belum Ada Tugas di Kelas {selectedWorkspaceKelas.nama_kelas}
-                </h3>
-                <p className="text-xs text-slate-500 max-w-sm">
-                  {searchQuery || selectedJenis !== 'ALL'
-                    ? 'Tidak ada penugasan yang sesuai dengan filter pencarian.'
-                    : 'Terbitkan tugas terstruktur atau proyek praktikum pertama untuk kelas ini.'}
-                </p>
-              </div>
-              {!searchQuery && selectedJenis === 'ALL' && (
-                <button
-                  onClick={() => onOpenCreateTugas(selectedWorkspaceKelas.id_kelas)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Terbitkan Tugas Pertama</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredTugas.map((tugas) => {
-                return (
-                  <div
-                    key={tugas.id_tugas_kuis}
-                    className="bg-white border border-slate-200 hover:border-blue-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-bold">
-                            {tugas.nama_kelas}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                            {tugas.jenis}
-                          </span>
-                        </div>
+          {/* ============================================================
+              TAB 1: TUGAS KELAS
+              ============================================================ */}
+          {activeClassTab === 'tugas' && (
+            <div className="space-y-6">
+              {/* Search & Filter inside this Class */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs space-y-3">
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder={`Cari tugas di Kelas ${selectedWorkspaceKelas.nama_kelas}...`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
 
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          tugas.jumlah_mengumpulkan >= tugas.total_siswa * 0.8
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {tugas.jumlah_mengumpulkan}/{tugas.total_siswa} Mengumpulkan
-                        </span>
-                      </div>
-
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900">{tugas.judul}</h3>
-                        <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                          {tugas.instruksi}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          Tenggat: {tugas.tenggat_waktu} WIB
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-slate-400" />
-                          Format: {tugas.format_file}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+                      {(['ALL', 'Tugas', 'Proyek'] as const).map((jenis) => (
                         <button
-                          onClick={() => setViewRubrikTugas(tugas)}
-                          className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors"
-                          title="Lihat Rubrik"
+                          key={jenis}
+                          onClick={() => setSelectedJenis(jenis)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            selectedJenis === jenis
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Rubrik</span>
+                          {jenis === 'ALL' ? 'Semua Tipe' : jenis}
                         </button>
-
-                        {onEditTugas && (
-                          <button
-                            onClick={() => onEditTugas(tugas)}
-                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-colors"
-                            title="Edit Tugas"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-
-                        {onDeleteTugas && (
-                          <button
-                            onClick={() => onDeleteTugas(tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '', tugas.judul)}
-                            className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-rose-50 border border-rose-200 transition-colors"
-                            title="Hapus Tugas"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Hapus</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={() => handleOpenGrading(tugas)}
-                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                      >
-                        <Award className="w-3.5 h-3.5" />
-                        <span>Lembar Penilaian Siswa</span>
-                      </button>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
+
+              {/* List of Tasks in this Class */}
+              {filteredTugas.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-4">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                    <ClipboardList className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Belum Ada Tugas di Kelas {selectedWorkspaceKelas.nama_kelas}
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-sm">
+                      {searchQuery || selectedJenis !== 'ALL'
+                        ? 'Tidak ada penugasan yang sesuai dengan filter pencarian.'
+                        : 'Terbitkan tugas terstruktur atau proyek praktikum pertama untuk kelas ini.'}
+                    </p>
+                  </div>
+                  {!searchQuery && selectedJenis === 'ALL' && (
+                    <button
+                      onClick={() => onOpenCreateTugas(selectedWorkspaceKelas.id_kelas)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Terbitkan Tugas Pertama</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredTugas.map((tugas) => {
+                    return (
+                      <div
+                        key={tugas.id_tugas_kuis}
+                        className="bg-white border border-slate-200 hover:border-blue-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs font-bold">
+                                {tugas.nama_kelas}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                                {tugas.jenis}
+                              </span>
+                            </div>
+
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              tugas.jumlah_mengumpulkan >= tugas.total_siswa * 0.8
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {tugas.jumlah_mengumpulkan}/{tugas.total_siswa} Mengumpulkan
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900">{tugas.judul}</h3>
+                            <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                              {tugas.instruksi}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1 font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                              Tenggat: {tugas.tenggat_waktu} WIB
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-slate-400" />
+                              Format: {tugas.format_file}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setViewRubrikTugas(tugas)}
+                              className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                              title="Lihat Rubrik"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Rubrik</span>
+                            </button>
+
+                            {onEditTugas && (
+                              <button
+                                onClick={() => onEditTugas(tugas)}
+                                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-blue-50 border border-blue-200 transition-colors"
+                                title="Edit Tugas"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Edit</span>
+                              </button>
+                            )}
+
+                            {onDeleteTugas && (
+                              <button
+                                onClick={() => onDeleteTugas(tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id || '', tugas.judul)}
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer py-1.5 px-2.5 rounded-lg hover:bg-rose-50 border border-rose-200 transition-colors"
+                                title="Hapus Tugas"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Hapus</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => handleOpenGrading(tugas)}
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Award className="w-3.5 h-3.5" />
+                            <span>Lembar Penilaian Siswa</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ============================================================
+              TAB 2: ORANG (GOOGLE CLASSROOM STYLE)
+              ============================================================ */}
+          {activeClassTab === 'orang' && (
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 md:p-8 shadow-xs space-y-10">
+              {isLoadingAnggota ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-3">
+                  <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+                  <p className="text-xs font-semibold">Memuat daftar anggota kelas {selectedWorkspaceKelas.nama_kelas}...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Bagian Pengajar */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b-2 border-blue-600 pb-3">
+                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        Pengajar
+                      </h2>
+                      <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                        {pengajarList.length} Pengajar
+                      </span>
+                    </div>
+
+                    <div className="divide-y divide-slate-100">
+                      {pengajarList.map((guru, gIdx) => (
+                        <div
+                          key={guru.id || gIdx}
+                          className="py-4 px-2 flex items-center justify-between hover:bg-slate-50/80 rounded-xl transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-700 via-indigo-700 to-blue-900 text-white font-bold flex items-center justify-center text-sm shadow-xs ring-2 ring-blue-100">
+                              {getInitials(guru.nama_lengkap)}
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-bold text-slate-900">
+                                {guru.nama_lengkap}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                                  <ShieldCheck className="w-3 h-3 text-blue-600" />
+                                  {guru.peran || 'Guru Pengampu'}
+                                </span>
+                                {guru.mapel && (
+                                  <span className="font-medium text-slate-600">
+                                    • {guru.mapel}
+                                  </span>
+                                )}
+                                {guru.nip && guru.nip !== '-' && (
+                                  <span className="text-slate-400">
+                                    • NIP: {guru.nip}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {guru.email && (
+                            <a
+                              href={`mailto:${guru.email}`}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
+                              title={`Kirim email ke ${guru.nama_lengkap}`}
+                            >
+                              <Mail className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bagian Siswa */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b-2 border-blue-600 pb-3">
+                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        Siswa
+                      </h2>
+                      <span className="text-sm font-bold text-slate-600">
+                        {rawSiswaList.length} siswa
+                      </span>
+                    </div>
+
+                    {/* Toolbar Siswa */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600 select-none hover:text-slate-900">
+                          <input
+                            type="checkbox"
+                            checked={isAllSiswaSelected}
+                            onChange={toggleSelectAllSiswa}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Pilih Semua</span>
+                        </label>
+
+                        {selectedSiswaIds.length > 0 && (
+                          <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
+                            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                              {selectedSiswaIds.length} dipilih
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleCopySelectedNis}
+                              className="text-xs font-semibold text-slate-700 hover:text-blue-600 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+                              title="Salin NIS siswa terpilih"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Salin NIS</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pencarian dan Sortir */}
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1 sm:w-56">
+                          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Cari siswa atau NIS..."
+                            value={siswaSearchQuery}
+                            onChange={(e) => setSiswaSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setSiswaSortAsc((prev) => !prev)}
+                          className="px-2.5 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                          title={`Urutkan: ${siswaSortAsc ? 'A ke Z (Klik untuk Z-A)' : 'Z ke A (Klik untuk A-Z)'}`}
+                        >
+                          <ArrowUpDown className="w-3.5 h-3.5" />
+                          <span>{siswaSortAsc ? 'A-Z' : 'Z-A'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Daftar Siswa */}
+                    {filteredSiswaList.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl space-y-2">
+                        <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs font-semibold text-slate-500">
+                          {siswaSearchQuery
+                            ? `Tidak ada siswa yang cocok dengan "${siswaSearchQuery}"`
+                            : 'Belum ada data siswa terdaftar di kelas ini.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {filteredSiswaList.map((siswa, idx) => {
+                          const isChecked = selectedSiswaIds.includes(siswa.id);
+                          const avatarBg = avatarColorPalettes[idx % avatarColorPalettes.length];
+                          return (
+                            <div
+                              key={siswa.id}
+                              className={`py-3.5 px-3 flex items-center justify-between hover:bg-slate-50/80 rounded-xl transition-colors ${
+                                isChecked ? 'bg-blue-50/50' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleSelectSiswa(siswa.id)}
+                                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                                />
+                                <div
+                                  className={`w-9 h-9 rounded-full ${avatarBg} text-white font-bold flex items-center justify-center text-xs shadow-2xs shrink-0`}
+                                >
+                                  {getInitials(siswa.nama_lengkap)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-slate-900 truncate">
+                                    {siswa.nama_lengkap}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                    {siswa.nis && (
+                                      <span className="font-mono text-slate-600">
+                                        NIS: {siswa.nis}
+                                      </span>
+                                    )}
+                                    {siswa.nisn && (
+                                      <span className="text-slate-400 font-mono">
+                                        • NISN: {siswa.nisn}
+                                      </span>
+                                    )}
+                                    {siswa.jenis_kelamin && siswa.jenis_kelamin !== '-' && (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                        {siswa.jenis_kelamin === 'L' || siswa.jenis_kelamin === 'Laki-laki' ? 'L' : 'P'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0 ml-3">
+                                {siswa.email && (
+                                  <a
+                                    href={`mailto:${siswa.email}`}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                    title={`Kirim email ke ${siswa.nama_lengkap} (${siswa.email})`}
+                                  >
+                                    <Mail className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopySingleNis(siswa.nis, siswa.nama_lengkap)}
+                                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Salin NIS"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

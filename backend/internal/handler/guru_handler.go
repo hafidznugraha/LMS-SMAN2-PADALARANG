@@ -1770,3 +1770,257 @@ func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
 		Message: "Nilai siswa berhasil disimpan",
 	})
 }
+
+// 14. GET /api/v1/guru/kelas/:id/anggota atau /api/v1/guru/anggota-kelas?kelas_id=...
+type AnggotaPengajarItem struct {
+	ID          string `json:"id"`
+	NamaLengkap string `json:"nama_lengkap"`
+	NIP         string `json:"nip"`
+	Email       string `json:"email"`
+	Peran       string `json:"peran"`
+	Mapel       string `json:"mapel"`
+}
+
+type AnggotaSiswaItem struct {
+	ID           string `json:"id"`
+	UserID       string `json:"user_id"`
+	NamaLengkap  string `json:"nama_lengkap"`
+	NIS          string `json:"nis"`
+	NISN         string `json:"nisn"`
+	Email        string `json:"email"`
+	JenisKelamin string `json:"jenis_kelamin"`
+}
+
+type AnggotaKelasData struct {
+	Pengajar   []AnggotaPengajarItem `json:"pengajar"`
+	Siswa      []AnggotaSiswaItem    `json:"siswa"`
+	TotalSiswa int                   `json:"total_siswa"`
+	NamaKelas  string                `json:"nama_kelas"`
+}
+
+func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
+	db := repository.GetDB()
+	if db == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(model.APIResponse{
+			Success: false,
+			Message: "Layanan database tidak tersedia",
+		})
+	}
+
+	kelasIDStr := c.Params("id")
+	if kelasIDStr == "" {
+		kelasIDStr = c.Query("kelas_id")
+	}
+
+	if kelasIDStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Parameter kelas_id wajib disertakan",
+		})
+	}
+
+	kelasUUID, err := uuid.Parse(kelasIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format kelas_id tidak valid",
+		})
+	}
+
+	var kelas model.Kelas
+	if err := db.Where("id = ?", kelasUUID).First(&kelas).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Data kelas tidak ditemukan",
+		})
+	}
+
+	// 1. Ambil Pengajar (Hanya guru pengampu mata pelajaran ruang kelas ini)
+	guruIDStr := c.Query("guru_id")
+	mapelIDStr := c.Query("mapel_id")
+	mapelName := strings.TrimSpace(c.Query("mapel"))
+
+	if guruIDStr == "" {
+		authHeader := c.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+			cfg := h.cfg
+			if cfg == nil {
+				cfg = config.LoadConfig()
+			}
+			token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+				return []byte(cfg.JWTSecret), nil
+			})
+			if err == nil && token.Valid {
+				if claims, ok := token.Claims.(jwt.MapClaims); ok {
+					if gid, ok := claims["guru_id"].(string); ok && gid != "" {
+						guruIDStr = gid
+					} else if uid, ok := claims["user_id"].(string); ok && uid != "" {
+						var g model.Guru
+						if err := db.Where("user_id = ?", uid).First(&g).Error; err == nil {
+							guruIDStr = g.ID.String()
+						}
+					}
+				}
+			}
+		}
+	}
+
+	pengajarList := make([]AnggotaPengajarItem, 0)
+
+	type JadwalPengajarRow struct {
+		ID          uuid.UUID `json:"id"`
+		NamaLengkap string    `json:"nama_lengkap"`
+		NIP         string    `json:"nip"`
+		Email       string    `json:"email"`
+		NamaMapel   string    `json:"nama_mapel"`
+	}
+	var jadwalPengajar []JadwalPengajarRow
+
+	querySQL := `
+		SELECT DISTINCT g.id, u.nama_lengkap, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
+		FROM jadwal_pelajaran jp
+		JOIN guru g ON g.id = jp.guru_id
+		JOIN users u ON u.id = g.user_id
+		LEFT JOIN mata_pelajaran m ON m.id = jp.mapel_id
+		WHERE jp.kelas_id = ?
+	`
+	queryArgs := []interface{}{kelasUUID}
+
+	if guruIDStr != "" {
+		if gUUID, err := uuid.Parse(guruIDStr); err == nil {
+			querySQL += " AND jp.guru_id = ?"
+			queryArgs = append(queryArgs, gUUID)
+		}
+	} else if mapelIDStr != "" {
+		if mUUID, err := uuid.Parse(mapelIDStr); err == nil {
+			querySQL += " AND jp.mapel_id = ?"
+			queryArgs = append(queryArgs, mUUID)
+		}
+	} else if mapelName != "" {
+		querySQL += " AND LOWER(m.nama_mapel) LIKE LOWER(?)"
+		queryArgs = append(queryArgs, "%"+mapelName+"%")
+	}
+
+	querySQL += " ORDER BY u.nama_lengkap ASC"
+	db.Raw(querySQL, queryArgs...).Scan(&jadwalPengajar)
+
+	if len(jadwalPengajar) > 0 {
+		// Tepat 1 guru pengampu untuk mata pelajaran ruang kelas ini
+		jp := jadwalPengajar[0]
+		pengajarList = append(pengajarList, AnggotaPengajarItem{
+			ID:          jp.ID.String(),
+			NamaLengkap: jp.NamaLengkap,
+			NIP:         jp.NIP,
+			Email:       jp.Email,
+			Peran:       "Guru Pengampu",
+			Mapel:       jp.NamaMapel,
+		})
+	} else if guruIDStr != "" {
+		// Fallback ke guru spesifik jika jadwal belum lengkap
+		if gUUID, err := uuid.Parse(guruIDStr); err == nil {
+			type SingleGuruRow struct {
+				ID          uuid.UUID `json:"id"`
+				NamaLengkap string    `json:"nama_lengkap"`
+				NIP         string    `json:"nip"`
+				Email       string    `json:"email"`
+				NamaMapel   string    `json:"nama_mapel"`
+			}
+			var sg SingleGuruRow
+			if err := db.Raw(`
+				SELECT g.id, u.nama_lengkap, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
+				FROM guru g
+				JOIN users u ON u.id = g.user_id
+				LEFT JOIN mata_pelajaran m ON m.id = g.mapel_id
+				WHERE g.id = ?
+			`, gUUID).Scan(&sg).Error; err == nil && sg.ID != uuid.Nil {
+				pengajarList = append(pengajarList, AnggotaPengajarItem{
+					ID:          sg.ID.String(),
+					NamaLengkap: sg.NamaLengkap,
+					NIP:         sg.NIP,
+					Email:       sg.Email,
+					Peran:       "Guru Pengampu",
+					Mapel:       sg.NamaMapel,
+				})
+			}
+		}
+	}
+
+	if len(pengajarList) == 0 {
+		type DefaultGuruRow struct {
+			ID          uuid.UUID `json:"id"`
+			NamaLengkap string    `json:"nama_lengkap"`
+			NIP         string    `json:"nip"`
+			Email       string    `json:"email"`
+			NamaMapel   string    `json:"nama_mapel"`
+		}
+		var defGuru DefaultGuruRow
+		if err := db.Raw(`
+			SELECT g.id, u.nama_lengkap, COALESCE(g.nip, '') as nip, COALESCE(u.email, '') as email, COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel
+			FROM guru g
+			JOIN users u ON u.id = g.user_id
+			LEFT JOIN mata_pelajaran m ON m.id = g.mapel_id
+			LIMIT 1
+		`).Scan(&defGuru).Error; err == nil && defGuru.ID != uuid.Nil {
+			pengajarList = append(pengajarList, AnggotaPengajarItem{
+				ID:          defGuru.ID.String(),
+				NamaLengkap: defGuru.NamaLengkap,
+				NIP:         defGuru.NIP,
+				Email:       defGuru.Email,
+				Peran:       "Guru Pengampu",
+				Mapel:       defGuru.NamaMapel,
+			})
+		}
+	}
+
+	// 2. Ambil Siswa
+	type SiswaRow struct {
+		ID           uuid.UUID `json:"id"`
+		UserID       uuid.UUID `json:"user_id"`
+		NamaLengkap  string    `json:"nama_lengkap"`
+		NIS          string    `json:"nis"`
+		NISN         string    `json:"nisn"`
+		Email        string    `json:"email"`
+		JenisKelamin string    `json:"jenis_kelamin"`
+	}
+	var siswaRows []SiswaRow
+	db.Raw(`
+		SELECT 
+			s.id,
+			s.user_id,
+			u.nama_lengkap,
+			COALESCE(s.nis, '') as nis,
+			COALESCE(s.nisn, '') as nisn,
+			COALESCE(u.email, '') as email,
+			COALESCE(s.jenis_kelamin, '-') as jenis_kelamin
+		FROM siswa s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.kelas_id = ?
+		ORDER BY u.nama_lengkap ASC
+	`, kelasUUID).Scan(&siswaRows)
+
+	siswaList := make([]AnggotaSiswaItem, 0)
+	for _, sr := range siswaRows {
+		siswaList = append(siswaList, AnggotaSiswaItem{
+			ID:           sr.ID.String(),
+			UserID:       sr.UserID.String(),
+			NamaLengkap:  sr.NamaLengkap,
+			NIS:          sr.NIS,
+			NISN:         sr.NISN,
+			Email:        sr.Email,
+			JenisKelamin: sr.JenisKelamin,
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Data anggota kelas berhasil dimuat",
+		Data: AnggotaKelasData{
+			Pengajar:   pengajarList,
+			Siswa:      siswaList,
+			TotalSiswa: len(siswaList),
+			NamaKelas:  kelas.NamaKelas,
+		},
+	})
+}
+
