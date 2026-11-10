@@ -343,13 +343,16 @@ func (h *LaporanHandler) GetLaporanByKelas(c *fiber.Ctx) error {
 				pScore := scoreAvg
 				kScore := math.Min(100, scoreAvg+1.5)
 				pred := service.TentukanPredikat(scoreAvg, cfg)
-				capaian := fmt.Sprintf("Menunjukkan penguasaan kompetensi yang baik pada materi %s.", m.NamaMapel)
-				if pred == "A" {
+				var capaian string
+				switch pred {
+				case "A":
 					capaian = fmt.Sprintf("Sangat unggul dan teliti dalam menganalisis materi %s.", m.NamaMapel)
-				} else if pred == "C" {
+				case "C":
 					capaian = fmt.Sprintf("Cukup menguasai kompetensi dasar materi %s, perlu penguatan latihan mandiri.", m.NamaMapel)
-				} else if pred == "D" {
+				case "D":
 					capaian = fmt.Sprintf("Perlu bimbingan dan remedial khusus dalam menguasai kompetensi dasar materi %s.", m.NamaMapel)
+				default:
+					capaian = fmt.Sprintf("Menunjukkan penguasaan kompetensi yang baik pada materi %s.", m.NamaMapel)
 				}
 				mapelDetails = append(mapelDetails, model.NilaiMapelDetail{
 					KodeMapel:    m.KodeMapel,
