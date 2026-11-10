@@ -2,7 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "@/lib/api";
-import type { APIResponse, SiswaPengumpulan, SiswaTugas, KomentarTugas } from "@/types/api";
+import type {
+  APIResponse,
+  SiswaPengumpulan,
+  SiswaTugas,
+  KomentarTugas,
+  SiswaAnggotaKelasData,
+} from "@/types/api";
 
 export function useSiswaTugas(mapelId?: string) {
   const queryParam = mapelId ? `?mapel_id=${encodeURIComponent(mapelId)}` : "";
@@ -102,6 +108,20 @@ export function useDeleteKomentarTugas(tugasId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tugas", tugasId, "komentar"] });
+    },
+  });
+}
+
+export function useSiswaAnggotaKelas(kelasId?: string, mapelId?: string) {
+  return useQuery({
+    queryKey: ["siswa", "anggota-kelas", kelasId ?? "default", mapelId ?? "semua"],
+    queryFn: async () => {
+      const sp = new URLSearchParams();
+      if (kelasId) sp.append("kelas_id", kelasId);
+      if (mapelId) sp.append("mapel_id", mapelId);
+      const qs = sp.toString() ? `?${sp.toString()}` : "";
+      const res = await fetchAPI<APIResponse<SiswaAnggotaKelasData>>(`/siswa/anggota-kelas${qs}`);
+      return res.data ?? null;
     },
   });
 }

@@ -199,6 +199,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	siswa.Put("/notifikasi/:id/read", notifikasiHandler.MarkAsRead)
 	siswa.Get("/tugas", siswaHandler.GetTugasList)
 	siswa.Get("/tugas/:id", siswaHandler.GetTugasDetail)
+	siswa.Get("/anggota-kelas", guruHandler.GetAnggotaKelas)
 	siswa.Post("/tugas/:id/submit", siswaHandler.SubmitTugas)
 	siswa.Put("/submissions/:id", siswaHandler.UpdatePengumpulan)
 	siswa.Get("/absensi", siswaHandler.GetAbsensi)

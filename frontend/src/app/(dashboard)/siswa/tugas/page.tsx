@@ -21,11 +21,13 @@ import {
   Link as LinkIcon,
   FileUp,
   FileCheck2,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSiswaTugas } from "@/hooks/useSiswaTugas";
+import { useSiswaTugas, useSiswaAnggotaKelas } from "@/hooks/useSiswaTugas";
 import { useSiswaJadwal } from "@/hooks/useSiswaJadwal";
-import { cn, formatTanggal, formatNamaWithGelar } from "@/lib/utils";
+import { cn, formatTanggal, formatNamaWithGelar, inisial } from "@/lib/utils";
+import { getStoredUser } from "@/lib/auth";
 import type { SiswaTugas } from "@/types/api";
 
 function sisaWaktu(iso: string) {
@@ -132,11 +134,36 @@ const CARD_THEMES = [
   },
 ];
 
+const AVATAR_BG_COLORS = [
+  "bg-amber-600",
+  "bg-emerald-600",
+  "bg-purple-600",
+  "bg-blue-600",
+  "bg-rose-600",
+  "bg-teal-600",
+  "bg-indigo-600",
+  "bg-cyan-600",
+  "bg-violet-600",
+  "bg-orange-600",
+];
+
+function getAvatarBgColor(name?: string): string {
+  if (!name) return "bg-blue-600";
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % AVATAR_BG_COLORS.length;
+  return AVATAR_BG_COLORS[index];
+}
+
 interface MapelKelasItem {
   mapel_id: string;
+  kelas_id?: string;
   nama_mapel: string;
   kode_mapel: string;
   nama_guru: string;
+  gelar_guru?: string;
   nip_guru?: string;
   jadwal_summary: string;
   ruang?: string;
@@ -169,6 +196,7 @@ export default function SiswaTugasPage() {
   const { data: jadwalData, isLoading: isLoadingJadwal, isError: isErrorJadwal, refetch: refetchJadwal } = useSiswaJadwal();
 
   const [selectedMapelId, setSelectedMapelId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"tugas" | "orang">("tugas");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Group scheduled subjects by mapel_id / nama_mapel according to Kurikulum schedule
@@ -196,9 +224,11 @@ export default function SiswaTugasPage() {
         const namaGuru = formatNamaWithGelar(item.nama_guru || "Guru Pengampu", item.gelar_guru);
         map.set(key, {
           mapel_id: item.mapel_id || "",
+          kelas_id: item.kelas_id,
           nama_mapel: item.nama_mapel,
           kode_mapel: item.kode_mapel || "",
           nama_guru: namaGuru,
+          gelar_guru: item.gelar_guru,
           nip_guru: item.nip_guru,
           jadwal_summary: `${item.hari || "Hari"}, ${(item.jam_mulai || "").slice(0, 5)} - ${(item.jam_selesai || "").slice(0, 5)}`,
           ruang: item.ruang,
@@ -247,6 +277,37 @@ export default function SiswaTugasPage() {
     if (!selectedMapelId) return null;
     return mapelList.find((m) => m.mapel_id === selectedMapelId) || null;
   }, [mapelList, selectedMapelId]);
+
+  // Query class members (teacher & classmates) for the selected subject & class
+  const { data: anggotaData, isLoading: isLoadingAnggota } = useSiswaAnggotaKelas(
+    selectedMapel?.kelas_id,
+    selectedMapel?.mapel_id
+  );
+  const currentUser = useMemo(() => getStoredUser(), []);
+
+  const pengajarList = useMemo(() => {
+    if (anggotaData?.pengajar && anggotaData.pengajar.length > 0) {
+      return anggotaData.pengajar;
+    }
+    if (selectedMapel) {
+      return [
+        {
+          id: "pengajar-default",
+          nama_lengkap: selectedMapel.nama_guru,
+          gelar: selectedMapel.gelar_guru,
+          nip: selectedMapel.nip_guru,
+          email: "",
+          peran: "Guru Pengampu",
+          mapel: selectedMapel.nama_mapel,
+        },
+      ];
+    }
+    return [];
+  }, [anggotaData, selectedMapel]);
+
+  const siswaList = useMemo(() => {
+    return anggotaData?.siswa ?? [];
+  }, [anggotaData]);
 
   // State for expanded accordion tasks in selected subject
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -344,19 +405,64 @@ export default function SiswaTugasPage() {
       {/* 2. JIKA SEDANG MEMBUKA SALAH SATU MAPEL (DETAIL STREAM)   */}
       {/* ======================================================== */}
       {selectedMapel ? (
-        <div className="space-y-5">
-          {/* Tombol Kembali ke Semua Mata Pelajaran */}
-          <button
-            type="button"
-            onClick={() => setSelectedMapelId(null)}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50/80 hover:bg-blue-100 px-3.5 py-2 rounded-xl border border-blue-200 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Semua Mata Pelajaran</span>
-          </button>
+        <div className="space-y-6">
+          {/* Top Bar: Back button & Google Classroom Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMapelId(null);
+                setActiveTab("tugas");
+              }}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50/80 hover:bg-blue-100 px-3.5 py-2 rounded-xl border border-blue-200 transition-colors cursor-pointer w-fit mb-2 sm:mb-3"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Kembali ke Semua Mata Pelajaran</span>
+            </button>
 
-          {/* Banner Mata Pelajaran */}
-          <div className="rounded-2xl p-6 bg-gradient-to-r from-blue-600 via-indigo-700 to-blue-800 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Google Classroom Style Tabs: Tugas kelas | Orang */}
+            <div className="flex items-center gap-8 self-center sm:self-auto px-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab("tugas")}
+                className={cn(
+                  "pb-3 text-sm font-semibold transition-all relative flex items-center gap-2 cursor-pointer",
+                  activeTab === "tugas"
+                    ? "text-blue-600 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>Tugas kelas</span>
+                {activeTab === "tugas" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-blue-600 rounded-full" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("orang")}
+                className={cn(
+                  "pb-3 text-sm font-semibold transition-all relative flex items-center gap-2 cursor-pointer",
+                  activeTab === "orang"
+                    ? "text-blue-600 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                )}
+              >
+                <Users className="w-4 h-4" />
+                <span>Orang</span>
+                {activeTab === "orang" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-blue-600 rounded-full" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* TAB 1: TUGAS KELAS */}
+          {activeTab === "tugas" && (
+            <div className="space-y-5">
+              {/* Banner Mata Pelajaran */}
+              <div className="rounded-2xl p-6 bg-gradient-to-r from-blue-600 via-indigo-700 to-blue-800 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-200 bg-blue-900/50 px-2.5 py-1 rounded-md">
                 {selectedMapel.kode_mapel || "MAPEL"}
@@ -736,7 +842,157 @@ export default function SiswaTugasPage() {
             </div>
           )}
         </div>
-      ) : (
+      )}
+
+      {/* TAB 2: ORANG (GOOGLE CLASSROOM STYLE) */}
+      {activeTab === "orang" && (
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-6 md:p-10 max-w-4xl mx-auto space-y-10">
+          {/* Pengajar Section */}
+          <div className="space-y-4">
+            <div className="border-b border-blue-600 pb-3 flex items-center justify-between">
+              <h3 className="text-2xl font-normal text-blue-700">Pengajar</h3>
+            </div>
+
+            {isLoadingAnggota ? (
+              <div className="py-4 space-y-3">
+                <div className="flex items-center gap-4 animate-pulse">
+                  <div className="w-10 h-10 rounded-full bg-slate-200" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-4 bg-slate-200 rounded w-48" />
+                    <div className="h-3 bg-slate-100 rounded w-32" />
+                  </div>
+                </div>
+              </div>
+            ) : pengajarList.length === 0 ? (
+              <p className="text-sm text-slate-500 py-3">Belum ada pengajar terdaftar.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {pengajarList.map((p, idx) => {
+                  const namaGuruWithGelar = formatNamaWithGelar(p.nama_lengkap, p.gelar);
+                  return (
+                    <div
+                      key={p.id || idx}
+                      className="flex items-center justify-between py-3.5 hover:bg-slate-50/60 px-2 rounded-xl transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-full font-bold text-white flex items-center justify-center text-sm shadow-2xs select-none",
+                            getAvatarBgColor(namaGuruWithGelar)
+                          )}
+                        >
+                          {inisial(namaGuruWithGelar)}
+                        </div>
+                        <div>
+                          <p className="text-sm md:text-base font-medium text-slate-900">
+                            {namaGuruWithGelar}
+                          </p>
+                          {p.email && (
+                            <p className="text-xs text-slate-400 font-normal">{p.email}</p>
+                          )}
+                        </div>
+                      </div>
+                      {p.peran && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
+                          {p.peran}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Teman Sekelas Section */}
+          <div className="space-y-4">
+            <div className="border-b border-blue-600 pb-3 flex items-center justify-between">
+              <h3 className="text-2xl font-normal text-blue-700">Teman Sekelas</h3>
+              <span className="text-sm font-semibold text-slate-600">
+                {isLoadingAnggota ? "Memuat..." : `${anggotaData?.total_siswa ?? siswaList.length} siswa`}
+              </span>
+            </div>
+
+            {isLoadingAnggota ? (
+              <div className="py-4 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center justify-between animate-pulse py-2">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-9 h-9 rounded-full bg-slate-200" />
+                      <div className="h-4 bg-slate-200 rounded w-40" />
+                    </div>
+                    <div className="h-3 bg-slate-100 rounded w-20" />
+                  </div>
+                ))}
+              </div>
+            ) : siswaList.length === 0 ? (
+              <div className="text-center py-10 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-medium text-slate-600">
+                  Belum ada data teman sekelas yang terdaftar untuk kelas ini.
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Siswa lain yang terdaftar dalam rombel ini akan muncul di sini.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {siswaList.map((s, idx) => {
+                  const isCurrentUser =
+                    (currentUser?.id && s.user_id === currentUser.id) ||
+                    (currentUser?.extra?.siswa_id && s.id === currentUser.extra.siswa_id) ||
+                    (currentUser?.nama_lengkap &&
+                      s.nama_lengkap.trim().toLowerCase() === currentUser.nama_lengkap.trim().toLowerCase());
+
+                  return (
+                    <div
+                      key={s.id || idx}
+                      className={cn(
+                        "flex items-center justify-between py-3 px-2 rounded-xl transition-colors",
+                        isCurrentUser ? "bg-blue-50/40 hover:bg-blue-50/70" : "hover:bg-slate-50/60"
+                      )}
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div
+                          className={cn(
+                            "w-9 h-9 rounded-full font-semibold text-white flex items-center justify-center text-xs shadow-2xs select-none",
+                            getAvatarBgColor(s.nama_lengkap)
+                          )}
+                        >
+                          {inisial(s.nama_lengkap)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "text-sm font-medium",
+                              isCurrentUser ? "text-blue-900 font-bold" : "text-slate-900"
+                            )}
+                          >
+                            {s.nama_lengkap}
+                          </span>
+                          {isCurrentUser && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                              Anda
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {s.nis && (
+                        <span className="text-xs font-mono text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-md border border-slate-200/60">
+                          NIS: {s.nis}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : (
         /* ======================================================== */
         /* 3. TAMPILAN UTAMA: GRID KELAS MATA PELAJARAN             */
         /* ======================================================== */
@@ -813,7 +1069,10 @@ export default function SiswaTugasPage() {
                     {/* Top Header Banner Google Classroom */}
                     <div className="relative">
                       <div
-                        onClick={() => setSelectedMapelId(mapel.mapel_id)}
+                        onClick={() => {
+                          setSelectedMapelId(mapel.mapel_id);
+                          setActiveTab("tugas");
+                        }}
                         className={cn(
                           "p-5 pb-6 bg-gradient-to-r text-white cursor-pointer select-none transition-opacity group-hover:opacity-95",
                           theme.gradient
@@ -923,7 +1182,10 @@ export default function SiswaTugasPage() {
 
                       <button
                         type="button"
-                        onClick={() => setSelectedMapelId(mapel.mapel_id)}
+                        onClick={() => {
+                          setSelectedMapelId(mapel.mapel_id);
+                          setActiveTab("tugas");
+                        }}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
                       >
                         <span>Buka Kelas</span>

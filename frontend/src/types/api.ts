@@ -270,3 +270,30 @@ export interface KomentarTugas {
   created_at: string;
   waktu_format?: string;
 }
+
+export interface SiswaAnggotaPengajar {
+  id: string;
+  nama_lengkap: string;
+  gelar?: string;
+  nip?: string;
+  email?: string;
+  peran?: string;
+  mapel?: string;
+}
+
+export interface SiswaAnggotaSiswa {
+  id: string;
+  user_id: string;
+  nama_lengkap: string;
+  nis?: string;
+  nisn?: string;
+  email?: string;
+  jenis_kelamin?: string;
+}
+
+export interface SiswaAnggotaKelasData {
+  pengajar: SiswaAnggotaPengajar[];
+  siswa: SiswaAnggotaSiswa[];
+  total_siswa: number;
+  nama_kelas?: string;
+}

@@ -2147,6 +2147,31 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		kelasIDStr = c.Query("kelas_id")
 	}
 
+	// Jika kelas_id belum diisi, coba deteksi dari token siswa yang sedang login
+	if kelasIDStr == "" {
+		authHeader := c.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+			cfg := h.cfg
+			if cfg == nil {
+				cfg = config.LoadConfig()
+			}
+			token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+				return []byte(cfg.JWTSecret), nil
+			})
+			if err == nil && token.Valid {
+				if claims, ok := token.Claims.(jwt.MapClaims); ok {
+					if uidStr, ok := claims["user_id"].(string); ok && uidStr != "" {
+						var s model.Siswa
+						if err := db.Where("user_id = ?", uidStr).First(&s).Error; err == nil && s.KelasID != nil {
+							kelasIDStr = s.KelasID.String()
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if kelasIDStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
