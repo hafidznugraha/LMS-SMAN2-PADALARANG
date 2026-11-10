@@ -121,6 +121,7 @@ type tugasRow struct {
 	Deskripsi  string     `gorm:"column:deskripsi"`
 	FormatFile   string     `gorm:"column:format_file"`
 	FileLampiran string     `gorm:"column:file_lampiran"`
+	Topik        string     `gorm:"column:topik"`
 	NamaMapel    string     `gorm:"column:nama_mapel"`
 	NamaGuru   string     `gorm:"column:nama_guru"`
 	Deadline   time.Time  `gorm:"column:deadline"`
@@ -156,6 +157,7 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 			COALESCE(t.deskripsi, '') AS deskripsi,
 			COALESCE(t.format_file, 'pdf, docx') AS format_file,
 			COALESCE(t.file_lampiran, '') AS file_lampiran,
+			COALESCE(t.topik, '') AS topik,
 			mp.nama_mapel,
 			u.nama_lengkap AS nama_guru,
 			t.deadline,
@@ -190,6 +192,7 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 			Deskripsi:     r.Deskripsi,
 			FormatFile:    r.FormatFile,
 			FileLampiran:  r.FileLampiran,
+			Topik:         r.Topik,
 			NamaMapel:     r.NamaMapel,
 			NamaGuru:      r.NamaGuru,
 			Deadline:      r.Deadline,

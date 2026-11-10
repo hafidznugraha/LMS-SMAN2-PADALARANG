@@ -79,6 +79,7 @@ export interface TugasKuis {
   nama_kelas: string;
   judul: string;
   instruksi: string;
+  topik?: string;
   jenis: JenisPenugasan;
   tenggat_waktu: string; // ISO datetime string
   format_file: string; // e.g., "pdf,docx,zip"
@@ -88,6 +89,15 @@ export interface TugasKuis {
   jumlah_mengumpulkan: number;
   jumlah_dinilai: number;
   deleted_at?: string | null;
+}
+
+export interface TopikTugas {
+  id: string;
+  kelas_id: string;
+  mapel_id: string;
+  guru_id?: string;
+  nama_topik: string;
+  created_at?: string;
 }
 
 export type StatusKumpul = 'Tepat Waktu' | 'Terlambat' | 'Belum Mengumpulkan';

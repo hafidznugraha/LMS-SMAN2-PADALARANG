@@ -95,6 +95,8 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Post("/tugas/upload", guruHandler.UploadLampiranTugas)
 	guru.Put("/tugas/:id", guruHandler.UpdateTugas)
 	guru.Delete("/tugas/:id", guruHandler.DeleteTugas)
+	guru.Get("/topik", guruHandler.GetTopikList)
+	guru.Post("/topik", guruHandler.CreateTopik)
 	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
 	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
 	guru.Post("/submissions/:id/grade", guruHandler.GradeSubmission)

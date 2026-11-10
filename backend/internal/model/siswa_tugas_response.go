@@ -23,6 +23,7 @@ type SiswaTugasItem struct {
 	Deskripsi     string            `json:"deskripsi"`
 	FormatFile    string            `json:"format_file"`
 	FileLampiran  string            `json:"file_lampiran"`
+	Topik         string            `json:"topik"`
 	NamaMapel     string            `json:"nama_mapel"`
 	NamaGuru      string            `json:"nama_guru"`
 	Deadline      time.Time         `json:"deadline"`

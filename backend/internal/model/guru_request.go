@@ -59,6 +59,7 @@ type CreateTugasRequest struct {
 	Deadline        string `json:"deadline"`
 	TenggatWaktu    string `json:"tenggat_waktu"`
 	FileLampiran    string `json:"file_lampiran"`
+	Topik           string `json:"topik"`
 	FormatFile      string `json:"format_file"`
 	RubrikPenilaian string `json:"rubrik_penilaian"`
 	BobotNilai      int    `json:"bobot_nilai,omitempty"`
@@ -88,6 +89,7 @@ type TugasDetailResponse struct {
 	Deadline           time.Time `json:"deadline"`
 	FormatFile         string    `json:"format_file"`
 	FileLampiran       string    `json:"file_lampiran"`
+	Topik              string    `json:"topik"`
 	RubrikPenilaian    string    `json:"rubrik_penilaian"`
 	TotalSiswa         int       `json:"total_siswa"`
 	JumlahMengumpulkan int       `json:"jumlah_mengumpulkan"`
@@ -136,3 +138,9 @@ type UpdateAbsensiStatusRequest struct {
 }
 
 type UpdateAbsensiGuruRequest = UpdateAbsensiStatusRequest
+
+type CreateTopikRequest struct {
+	KelasID   string `json:"kelas_id"`
+	MapelID   string `json:"mapel_id"`
+	NamaTopik string `json:"nama_topik"`
+}

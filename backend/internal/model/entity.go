@@ -166,6 +166,7 @@ type Tugas struct {
 	Deskripsi   string             `gorm:"type:text" json:"deskripsi"`
 	FormatFile   string             `gorm:"size:100;default:'pdf, docx'" json:"format_file"`
 	FileLampiran string             `gorm:"type:text;default:''" json:"file_lampiran"`
+	Topik        string             `gorm:"size:100;default:''" json:"topik"`
 	Deadline    time.Time          `gorm:"not null" json:"deadline"`
 	CreatedAt   time.Time          `json:"created_at"`
 	Guru        *Guru              `gorm:"foreignKey:GuruID" json:"guru,omitempty"`
@@ -176,6 +177,21 @@ type Tugas struct {
 
 func (Tugas) TableName() string {
 	return "tugas"
+}
+
+type TopikTugas struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	KelasID   uuid.UUID      `gorm:"type:uuid;not null" json:"kelas_id"`
+	MapelID   uuid.UUID      `gorm:"type:uuid;not null" json:"mapel_id"`
+	GuruID    *uuid.UUID     `gorm:"type:uuid" json:"guru_id,omitempty"`
+	NamaTopik string         `gorm:"size:100;not null" json:"nama_topik"`
+	CreatedAt time.Time      `json:"created_at"`
+	Kelas     *Kelas         `gorm:"foreignKey:KelasID" json:"kelas,omitempty"`
+	Mapel     *MataPelajaran `gorm:"foreignKey:MapelID" json:"mapel,omitempty"`
+}
+
+func (TopikTugas) TableName() string {
+	return "topik_tugas"
 }
 
 type PengumpulanTugas struct {

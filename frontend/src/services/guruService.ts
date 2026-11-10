@@ -7,7 +7,8 @@ import {
   Materi, 
   NilaiSiswa, 
   PengumpulanTugas, 
-  TugasKuis 
+  TugasKuis,
+  TopikTugas
 } from '@/types/lms';
 
 export const DEFAULT_GURU_ID = '298257fb-b4aa-4710-afaa-bbfd63abd5c5';
@@ -95,6 +96,7 @@ export async function createTugasGuru(payload: {
   judul: string;
   deskripsi: string;
   instruksi?: string;
+  topik?: string;
   jenis?: string;
   deadline: string;
   tenggat_waktu?: string;
@@ -116,6 +118,7 @@ export async function createTugasGuru(payload: {
     judul: payload.judul,
     deskripsi: payload.deskripsi,
     instruksi: payload.instruksi || payload.deskripsi,
+    topik: payload.topik || '',
     jenis: payload.jenis || 'Tugas',
     deadline: payload.deadline || payload.tenggat_waktu,
     tenggat_waktu: payload.tenggat_waktu || payload.deadline,
@@ -136,6 +139,7 @@ export async function updateTugasGuru(
     judul?: string;
     deskripsi?: string;
     instruksi?: string;
+    topik?: string;
     jenis?: string;
     deadline?: string;
     tenggat_waktu?: string;
@@ -150,6 +154,7 @@ export async function updateTugasGuru(
     judul: payload.judul,
     deskripsi: payload.deskripsi,
     instruksi: payload.instruksi || payload.deskripsi,
+    topik: payload.topik,
     jenis: payload.jenis,
     deadline: payload.deadline || payload.tenggat_waktu,
     tenggat_waktu: payload.tenggat_waktu || payload.deadline,
@@ -163,6 +168,24 @@ export async function updateTugasGuru(
   return await fetchAPI<ApiResponse<TugasKuis>>('/guru/tugas/' + tugasId, {
     method: 'PUT',
     body: JSON.stringify(body),
+  });
+}
+
+export async function getTopikKelas(kelasId: string, mapelId?: string): Promise<ApiResponse<TopikTugas[]>> {
+  const query = new URLSearchParams();
+  if (kelasId) query.set('kelas_id', kelasId);
+  if (mapelId) query.set('mapel_id', mapelId);
+  return await fetchAPI<ApiResponse<TopikTugas[]>>(`/guru/topik?${query.toString()}`);
+}
+
+export async function createTopikKelas(kelasId: string, namaTopik: string, mapelId?: string): Promise<ApiResponse<TopikTugas>> {
+  return await fetchAPI<ApiResponse<TopikTugas>>('/guru/topik', {
+    method: 'POST',
+    body: JSON.stringify({
+      kelas_id: kelasId,
+      nama_topik: namaTopik,
+      mapel_id: mapelId,
+    }),
   });
 }
 

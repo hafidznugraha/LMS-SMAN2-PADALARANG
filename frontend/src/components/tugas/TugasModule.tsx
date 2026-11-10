@@ -273,14 +273,27 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
     const groups: { [key: string]: TugasKuis[] } = {};
     filteredTugas.forEach((t) => {
       const topicName =
-        (t as unknown as { topik?: string }).topik ||
-        (t.jenis === 'Proyek' ? 'Proyek Praktikum' : 'Tugas Terstruktur');
+        (t.topik || (t as unknown as { topik?: string }).topik || '').trim() ||
+        'Tidak ada topik';
       if (!groups[topicName]) {
         groups[topicName] = [];
       }
       groups[topicName].push(t);
     });
-    return groups;
+
+    // Sort so "Tidak ada topik" appears at top, then alphabetical by topic name
+    const sortedEntries = Object.entries(groups).sort(([a], [b]) => {
+      if (a === 'Tidak ada topik') return -1;
+      if (b === 'Tidak ada topik') return 1;
+      return a.localeCompare(b);
+    });
+
+    const sortedGroups: { [key: string]: TugasKuis[] } = {};
+    sortedEntries.forEach(([k, v]) => {
+      sortedGroups[k] = v;
+    });
+
+    return sortedGroups;
   }, [filteredTugas]);
 
   const handleOpenGrading = (tugas: TugasKuis) => {

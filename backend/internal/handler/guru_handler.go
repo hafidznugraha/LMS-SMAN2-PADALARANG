@@ -506,6 +506,7 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 			t.deadline,
 			COALESCE(t.format_file, 'pdf, docx') as format_file,
 			COALESCE(t.file_lampiran, '') as file_lampiran,
+			COALESCE(t.topik, '') as topik,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
@@ -658,19 +659,38 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		formatFile = "pdf, docx"
 	}
 
+	topik := strings.TrimSpace(req.Topik)
+	if topik == "Tidak ada topik" {
+		topik = ""
+	}
+	if topik != "" {
+		var existingTopik model.TopikTugas
+		if err := db.Where("kelas_id = ? AND mapel_id = ? AND LOWER(nama_topik) = LOWER(?)", kelasUUID, mapelUUID, topik).First(&existingTopik).Error; err != nil {
+			_ = db.Create(&model.TopikTugas{
+				ID:        uuid.New(),
+				KelasID:   kelasUUID,
+				MapelID:   mapelUUID,
+				GuruID:    &guruUUID,
+				NamaTopik: topik,
+				CreatedAt: time.Now(),
+			})
+		}
+	}
+
 	newID := uuid.New()
 	now := time.Now()
 	newTugas := model.Tugas{
-		ID:         newID,
-		GuruID:     guruUUID,
-		MapelID:    mapelUUID,
-		KelasID:    kelasUUID, // Terkunci ke kelas ini saja!
+		ID:           newID,
+		GuruID:       guruUUID,
+		MapelID:      mapelUUID,
+		KelasID:      kelasUUID, // Terkunci ke kelas ini saja!
 		Judul:        req.Judul,
 		Deskripsi:    deskripsi,
 		FormatFile:   formatFile,
 		FileLampiran: strings.TrimSpace(req.FileLampiran),
+		Topik:        topik,
 		Deadline:     deadlineTime,
-		CreatedAt:  now,
+		CreatedAt:    now,
 	}
 
 	if err := db.Create(&newTugas).Error; err != nil {
@@ -723,6 +743,7 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 			t.deadline,
 			COALESCE(t.format_file, 'pdf, docx') as format_file,
 			COALESCE(t.file_lampiran, '') as file_lampiran,
+			COALESCE(t.topik, '') as topik,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			0 as jumlah_mengumpulkan,
@@ -828,6 +849,26 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 	if req.FileLampiran != "" || strings.Contains(string(c.Body()), "file_lampiran") {
 		existing.FileLampiran = strings.TrimSpace(req.FileLampiran)
 	}
+	if req.Topik != "" || strings.Contains(string(c.Body()), "topik") {
+		topik := strings.TrimSpace(req.Topik)
+		if topik == "Tidak ada topik" {
+			topik = ""
+		}
+		existing.Topik = topik
+		if topik != "" {
+			var existingTopik model.TopikTugas
+			if err := db.Where("kelas_id = ? AND mapel_id = ? AND LOWER(nama_topik) = LOWER(?)", existing.KelasID, existing.MapelID, topik).First(&existingTopik).Error; err != nil {
+				_ = db.Create(&model.TopikTugas{
+					ID:        uuid.New(),
+					KelasID:   existing.KelasID,
+					MapelID:   existing.MapelID,
+					GuruID:    &existing.GuruID,
+					NamaTopik: topik,
+					CreatedAt: time.Now(),
+				})
+			}
+		}
+	}
 
 	deadlineStr := strings.TrimSpace(req.Deadline)
 	if deadlineStr == "" {
@@ -893,6 +934,7 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 			t.deadline,
 			COALESCE(t.format_file, 'pdf, docx') as format_file,
 			COALESCE(t.file_lampiran, '') as file_lampiran,
+			COALESCE(t.topik, '') as topik,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
@@ -964,6 +1006,139 @@ func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
 	return c.JSON(model.APIResponse{
 		Success: true,
 		Message: "Tugas berhasil dihapus",
+	})
+}
+
+// GetTopikList mengambil daftar topik tugas berdasarkan kelas dan mata pelajaran
+func (h *GuruHandler) GetTopikList(c *fiber.Ctx) error {
+	kelasIDStr := strings.TrimSpace(c.Query("kelas_id"))
+	mapelIDStr := strings.TrimSpace(c.Query("mapel_id"))
+
+	db := repository.GetDB()
+	query := db.Model(&model.TopikTugas{})
+
+	if kelasIDStr != "" {
+		if kUUID, err := uuid.Parse(kelasIDStr); err == nil {
+			query = query.Where("kelas_id = ?", kUUID)
+		}
+	}
+	if mapelIDStr != "" {
+		if mUUID, err := uuid.Parse(mapelIDStr); err == nil {
+			query = query.Where("mapel_id = ?", mUUID)
+		}
+	}
+
+	var topics []model.TopikTugas
+	if err := query.Order("created_at ASC").Find(&topics).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal memuat daftar topik",
+			Error:   err.Error(),
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Daftar topik berhasil dimuat",
+		Data:    topics,
+	})
+}
+
+// CreateTopik menambahkan topik tugas baru untuk kelas dan mata pelajaran
+func (h *GuruHandler) CreateTopik(c *fiber.Ctx) error {
+	var req model.CreateTopikRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format data topik tidak valid",
+		})
+	}
+
+	namaTopik := strings.TrimSpace(req.NamaTopik)
+	if namaTopik == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Nama topik tidak boleh kosong",
+		})
+	}
+	if len(namaTopik) > 100 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Nama topik maksimal 100 karakter",
+		})
+	}
+
+	kelasUUID, err := uuid.Parse(req.KelasID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Kelas ID tidak valid",
+		})
+	}
+
+	var mapelUUID uuid.UUID
+	if strings.TrimSpace(req.MapelID) != "" {
+		mUUID, err := uuid.Parse(req.MapelID)
+		if err == nil {
+			mapelUUID = mUUID
+		}
+	}
+
+	var callerGuruUUID *uuid.UUID
+	if gUUID, hasCaller := h.getCallerGuruID(c); hasCaller {
+		callerGuruUUID = &gUUID
+	}
+
+	db := repository.GetDB()
+
+	// If mapelUUID is Nil, try to look up from guru's assigned mapel or an existing assignment in this kelas
+	if mapelUUID == uuid.Nil {
+		var existingTugas model.Tugas
+		if err := db.Where("kelas_id = ?", kelasUUID).First(&existingTugas).Error; err == nil {
+			mapelUUID = existingTugas.MapelID
+		} else {
+			var guruModel model.Guru
+			if callerGuruUUID != nil && db.Where("id = ?", *callerGuruUUID).First(&guruModel).Error == nil && guruModel.MapelID != nil {
+				mapelUUID = *guruModel.MapelID
+			}
+		}
+	}
+
+	// Check if topic with same name already exists in this class & mapel
+	var existing model.TopikTugas
+	checkQuery := db.Where("kelas_id = ? AND LOWER(nama_topik) = LOWER(?)", kelasUUID, namaTopik)
+	if mapelUUID != uuid.Nil {
+		checkQuery = checkQuery.Where("mapel_id = ?", mapelUUID)
+	}
+	if err := checkQuery.First(&existing).Error; err == nil {
+		return c.JSON(model.APIResponse{
+			Success: true,
+			Message: "Topik sudah tersedia",
+			Data:    existing,
+		})
+	}
+
+	newTopik := model.TopikTugas{
+		ID:        uuid.New(),
+		KelasID:   kelasUUID,
+		MapelID:   mapelUUID,
+		GuruID:    callerGuruUUID,
+		NamaTopik: namaTopik,
+		CreatedAt: time.Now(),
+	}
+
+	if err := db.Create(&newTopik).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal membuat topik: " + err.Error(),
+			Error:   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
+		Success: true,
+		Message: "Topik berhasil dibuat",
+		Data:    newTopik,
 	})
 }
 

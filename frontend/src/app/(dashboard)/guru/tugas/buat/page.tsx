@@ -34,8 +34,9 @@ import {
   createTugasGuru,
   updateTugasGuru,
   uploadLampiranTugas,
+  getTopikKelas,
 } from '@/services/guruService';
-import { Kelas, TugasKuis, JenisPenugasan } from '@/types/lms';
+import { Kelas, TugasKuis, JenisPenugasan, TopikTugas } from '@/types/lms';
 
 interface FormatOption {
   id: string;
@@ -218,7 +219,13 @@ function BuatTugasGoogleClassroomForm() {
   const [poin, setPoin] = useState('100');
   const [hasDeadline, setHasDeadline] = useState(true);
   const [tenggatWaktu, setTenggatWaktu] = useState(getDefaultDeadline);
-  const [topik, setTopik] = useState('Tugas Terstruktur');
+  const [topik, setTopik] = useState('Tidak ada topik');
+  const [topikList, setTopikList] = useState<TopikTugas[]>([]);
+  const [showTopikDropdown, setShowTopikDropdown] = useState(false);
+  const [isCreatingTopik, setIsCreatingTopik] = useState(false);
+  const [newTopikInput, setNewTopikInput] = useState('');
+  const topikDropdownRef = useRef<HTMLDivElement>(null);
+  const newTopikInputRef = useRef<HTMLInputElement>(null);
   const [selectedFormatIds, setSelectedFormatIds] = useState<string[]>([
     'pdf',
     'word',
@@ -296,11 +303,8 @@ function BuatTugasGoogleClassroomForm() {
             if (match.id_kelas) {
               setSelectedKelasId(match.id_kelas);
             }
-            if (match.jenis) {
-              setTopik(
-                match.jenis === 'Proyek' ? 'Proyek Praktikum' : 'Tugas Terstruktur'
-              );
-            }
+            const matchedTopik = match.topik || (match as unknown as { topik?: string }).topik || '';
+            setTopik(matchedTopik || 'Tidak ada topik');
             if (match.tenggat_waktu || (match as unknown as { deadline?: string }).deadline) {
               setTenggatWaktu(
                 toDateTimeLocalValue(
@@ -354,6 +358,45 @@ function BuatTugasGoogleClassroomForm() {
 
     loadData();
   }, [targetKelasId, editId]);
+
+  // Load topics dynamically from database for selected class
+  useEffect(() => {
+    async function fetchTopik() {
+      if (!selectedKelasId) return;
+      try {
+        const res = await getTopikKelas(selectedKelasId);
+        if (res?.success && Array.isArray(res.data)) {
+          setTopikList(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch topik for class:', err);
+      }
+    }
+    fetchTopik();
+  }, [selectedKelasId]);
+
+  // Click outside to close topic dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        topikDropdownRef.current &&
+        !topikDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowTopikDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Autofocus when creating new topic
+  useEffect(() => {
+    if (isCreatingTopik && newTopikInputRef.current) {
+      newTopikInputRef.current.focus();
+    }
+  }, [isCreatingTopik]);
 
   // Sync editor innerHTML on initial mount or reset
   useEffect(() => {
@@ -584,8 +627,11 @@ function BuatTugasGoogleClassroomForm() {
     const compiledFormatFile = getFormatStringFromIds(selectedFormatIds);
     const compiledAttachments =
       attachments.length > 0 ? JSON.stringify(attachments) : '';
+    const finalTopik = isCreatingTopik
+      ? newTopikInput.trim()
+      : (topik === 'Tidak ada topik' ? '' : topik);
     const jenisValue: JenisPenugasan =
-      topik.toLowerCase().includes('proyek') ? 'Proyek' : 'Tugas';
+      finalTopik.toLowerCase().includes('proyek') ? 'Proyek' : 'Tugas';
 
     try {
       if (editId) {
@@ -593,6 +639,7 @@ function BuatTugasGoogleClassroomForm() {
           judul: judul.trim(),
           deskripsi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
           instruksi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+          topik: finalTopik,
           jenis: jenisValue,
           deadline: formattedDeadline,
           tenggat_waktu: formattedDeadline,
@@ -617,6 +664,7 @@ function BuatTugasGoogleClassroomForm() {
           judul: judul.trim(),
           deskripsi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
           instruksi: instruksi.trim() || 'Kerjakan tugas sesuai rubrik penilaian',
+          topik: finalTopik,
           jenis: jenisValue,
           deadline: formattedDeadline,
           tenggat_waktu: formattedDeadline,
@@ -1257,24 +1305,126 @@ function BuatTugasGoogleClassroomForm() {
             )}
           </div>
 
-          {/* Topik / Tipe Asesmen */}
+          {/* Topik - Google Classroom Dynamic Style */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Topik
             </label>
-            <div className="relative">
-              <select
-                value={topik}
-                onChange={(e) => setTopik(e.target.value)}
-                className="w-full appearance-none bg-[#f1f3f4] text-gray-800 text-sm font-medium py-2.5 px-3 rounded-t-md border-b-2 border-transparent focus:border-[#1a73e8] focus:outline-none cursor-pointer"
-              >
-                <option value="Tugas Terstruktur">Tugas Terstruktur</option>
-                <option value="Proyek Praktikum">Proyek Praktikum</option>
-                <option value="Latihan Mandiri">Latihan Mandiri</option>
-                <option value="Tidak ada topik">Tidak ada topik</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-3 pointer-events-none" />
-            </div>
+            {isCreatingTopik ? (
+              <div className="relative">
+                <div className="flex items-center justify-between bg-[#f1f3f4] rounded-t-md border-b-2 border-[#1a73e8] px-3 py-2">
+                  <input
+                    ref={newTopikInputRef}
+                    type="text"
+                    value={newTopikInput}
+                    onChange={(e) => setNewTopikInput(e.target.value.slice(0, 100))}
+                    placeholder="Beri nama topik"
+                    maxLength={100}
+                    className="w-full bg-transparent text-gray-800 text-sm font-medium focus:outline-none placeholder:text-gray-400"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newTopikInput.trim()) {
+                          setTopik(newTopikInput.trim());
+                        }
+                      } else if (e.key === 'Escape') {
+                        setIsCreatingTopik(false);
+                        setNewTopikInput('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingTopik(false);
+                      setNewTopikInput('');
+                    }}
+                    className="text-gray-500 hover:text-gray-700 p-0.5 rounded-full hover:bg-gray-200 transition-colors ml-1 flex-shrink-0"
+                    title="Batal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-right text-[11px] text-gray-500 mt-1">
+                  {newTopikInput.length}/100
+                </div>
+              </div>
+            ) : (
+              <div className="relative" ref={topikDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowTopikDropdown(!showTopikDropdown)}
+                  className={`w-full flex items-center justify-between bg-[#f1f3f4] text-gray-800 text-sm font-medium py-2.5 px-3 rounded-t-md border-b-2 ${
+                    showTopikDropdown ? 'border-[#1a73e8]' : 'border-transparent hover:border-gray-400'
+                  } focus:outline-none cursor-pointer text-left transition-colors`}
+                >
+                  <span className="truncate">
+                    {topik && topik !== 'Tidak ada topik' ? topik : 'Tidak ada topik'}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-500 transition-transform ${
+                      showTopikDropdown ? 'rotate-180 text-[#1a73e8]' : ''
+                    }`}
+                  />
+                </button>
+
+                {showTopikDropdown && (
+                  <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-md shadow-xl border border-gray-200 py-1 max-h-60 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTopik('Tidak ada topik');
+                        setShowTopikDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                        !topik || topik === 'Tidak ada topik'
+                          ? 'bg-gray-100 font-semibold text-gray-900'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Tidak ada topik
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTopikDropdown(false);
+                        setIsCreatingTopik(true);
+                        setNewTopikInput('');
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-[#1a73e8] hover:bg-blue-50 font-medium transition-colors"
+                    >
+                      Buat topik
+                    </button>
+
+                    {topikList.length > 0 && (
+                      <div className="my-1 border-t border-gray-200" />
+                    )}
+
+                    {topikList.map((t) => {
+                      const isSelected = topik === t.nama_topik;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setTopik(t.nama_topik);
+                            setShowTopikDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
+                            isSelected
+                              ? 'bg-gray-100 font-semibold text-gray-900'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{t.nama_topik}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Rubrik */}
