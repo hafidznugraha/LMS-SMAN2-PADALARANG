@@ -87,6 +87,7 @@ type TugasDetailResponse struct {
 	TenggatWaktu       string    `json:"tenggat_waktu"`
 	Deadline           time.Time `json:"deadline"`
 	FormatFile         string    `json:"format_file"`
+	FileLampiran       string    `json:"file_lampiran"`
 	RubrikPenilaian    string    `json:"rubrik_penilaian"`
 	TotalSiswa         int       `json:"total_siswa"`
 	JumlahMengumpulkan int       `json:"jumlah_mengumpulkan"`

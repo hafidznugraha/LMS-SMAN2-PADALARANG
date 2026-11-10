@@ -46,3 +46,4 @@ skills-lock.json
 # Local Uploads
 backend/uploads/*
 !backend/uploads/**/.gitkeep
+backend/internal/app/uploads/

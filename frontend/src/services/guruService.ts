@@ -119,7 +119,7 @@ export async function createTugasGuru(payload: {
     jenis: payload.jenis || 'Tugas',
     deadline: payload.deadline || payload.tenggat_waktu,
     tenggat_waktu: payload.tenggat_waktu || payload.deadline,
-    file_lampiran: payload.file_lampiran || payload.format_file || '',
+    file_lampiran: payload.file_lampiran || '',
     format_file: payload.format_file || '',
     rubrik_penilaian: payload.rubrik_penilaian || '',
   };
@@ -141,6 +141,7 @@ export async function updateTugasGuru(
     tenggat_waktu?: string;
     format_file?: string;
     rubrik_penilaian?: string;
+    file_lampiran?: string;
     kelas_id?: string;
     mapel_id?: string;
   }
@@ -154,6 +155,7 @@ export async function updateTugasGuru(
     tenggat_waktu: payload.tenggat_waktu || payload.deadline,
     format_file: payload.format_file,
     rubrik_penilaian: payload.rubrik_penilaian,
+    file_lampiran: payload.file_lampiran,
     kelas_id: payload.kelas_id,
     mapel_id: payload.mapel_id,
   };
@@ -161,6 +163,16 @@ export async function updateTugasGuru(
   return await fetchAPI<ApiResponse<TugasKuis>>('/guru/tugas/' + tugasId, {
     method: 'PUT',
     body: JSON.stringify(body),
+  });
+}
+
+export async function uploadLampiranTugas(file: File): Promise<ApiResponse<{ file_url: string; file_name: string; file_size: number }>> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return await fetchAPI<ApiResponse<{ file_url: string; file_name: string; file_size: number }>>('/guru/tugas/upload', {
+    method: 'POST',
+    body: formData,
   });
 }
 

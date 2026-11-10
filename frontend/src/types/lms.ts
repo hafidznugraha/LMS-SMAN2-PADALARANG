@@ -82,6 +82,7 @@ export interface TugasKuis {
   jenis: JenisPenugasan;
   tenggat_waktu: string; // ISO datetime string
   format_file: string; // e.g., "pdf,docx,zip"
+  file_lampiran?: string;
   rubrik_penilaian: string;
   total_siswa: number;
   jumlah_mengumpulkan: number;

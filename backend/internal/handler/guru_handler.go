@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -504,6 +505,7 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
 			t.deadline,
 			COALESCE(t.format_file, 'pdf, docx') as format_file,
+			COALESCE(t.file_lampiran, '') as file_lampiran,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
@@ -663,10 +665,11 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		GuruID:     guruUUID,
 		MapelID:    mapelUUID,
 		KelasID:    kelasUUID, // Terkunci ke kelas ini saja!
-		Judul:      req.Judul,
-		Deskripsi:  deskripsi,
-		FormatFile: formatFile,
-		Deadline:   deadlineTime,
+		Judul:        req.Judul,
+		Deskripsi:    deskripsi,
+		FormatFile:   formatFile,
+		FileLampiran: strings.TrimSpace(req.FileLampiran),
+		Deadline:     deadlineTime,
 		CreatedAt:  now,
 	}
 
@@ -719,6 +722,7 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
 			t.deadline,
 			COALESCE(t.format_file, 'pdf, docx') as format_file,
+			COALESCE(t.file_lampiran, '') as file_lampiran,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			0 as jumlah_mengumpulkan,
@@ -821,6 +825,9 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 	if strings.TrimSpace(req.FormatFile) != "" {
 		existing.FormatFile = strings.TrimSpace(req.FormatFile)
 	}
+	if req.FileLampiran != "" || strings.Contains(string(c.Body()), "file_lampiran") {
+		existing.FileLampiran = strings.TrimSpace(req.FileLampiran)
+	}
 
 	deadlineStr := strings.TrimSpace(req.Deadline)
 	if deadlineStr == "" {
@@ -885,6 +892,7 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
 			t.deadline,
 			COALESCE(t.format_file, 'pdf, docx') as format_file,
+			COALESCE(t.file_lampiran, '') as file_lampiran,
 			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
 			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
@@ -956,6 +964,75 @@ func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
 	return c.JSON(model.APIResponse{
 		Success: true,
 		Message: "Tugas berhasil dihapus",
+	})
+}
+
+// UploadLampiranTugas menangani upload berkas lampiran tugas oleh guru (PDF, Dokumen, Presentasi, Gambar, dll)
+func (h *GuruHandler) UploadLampiranTugas(c *fiber.Ctx) error {
+	fileHeader, err := c.FormFile("file")
+	if err != nil || fileHeader == nil || fileHeader.Size == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Berkas lampiran tidak ditemukan atau kosong",
+		})
+	}
+
+	// Batas ukuran 50 MB
+	if fileHeader.Size > 50*1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Ukuran berkas lampiran melebihi batas maksimal 50 MB",
+		})
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if ext == "" {
+		ext = ".pdf"
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal membuka berkas lampiran: " + err.Error(),
+		})
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil || len(data) == 0 {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal membaca isi berkas lampiran",
+		})
+	}
+
+	storageFilename := fmt.Sprintf("lampiran_%s%s", uuid.New().String(), ext)
+	mime := mimeTypeByExt(ext)
+
+	// 1. Simpan salinan lokal di folder uploads/lampiran/
+	uploadDir := filepath.Join("uploads", "lampiran")
+	if err := os.MkdirAll(uploadDir, 0755); err == nil {
+		destPath := filepath.Join(uploadDir, storageFilename)
+		_ = os.WriteFile(destPath, data, 0644)
+	}
+
+	// 2. Upload ke Supabase Storage bucket 'materi-pelajaran'
+	fileURL := "/uploads/lampiran/" + storageFilename
+	supabasePublicURL, errSupabase := uploadFileToSupabaseStorage(h.cfg, storageFilename, data, mime)
+	if errSupabase == nil && supabasePublicURL != "" {
+		fileURL = supabasePublicURL
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Berkas lampiran berhasil diunggah",
+		Data: fiber.Map{
+			"file_url":  fileURL,
+			"file_name": fileHeader.Filename,
+			"file_size": fileHeader.Size,
+			"mime_type": mime,
+		},
 	})
 }
 

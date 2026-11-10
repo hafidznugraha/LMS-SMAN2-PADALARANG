@@ -31,6 +31,9 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronUp,
+  HardDrive,
+  PlaySquare,
+  Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TugasKuis, PengumpulanTugas, Kelas, JenisPenugasan } from '../../types/lms';
@@ -234,6 +237,22 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
       return content;
     }
     return content.replace(/\n/g, '<br />');
+  };
+
+  const getAttachmentDomain = (url: string, type: string): string => {
+    if (!url || url === '#' || url.startsWith('#')) {
+      return type === 'doc' ? 'Catatan Tambahan' : 'Lampiran Referensi';
+    }
+    try {
+      const parsed = new URL(url, 'http://localhost');
+      if (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')) return 'YouTube Video';
+      if (parsed.hostname.includes('drive.google.com')) return 'Google Drive';
+      if (parsed.hostname.includes('docs.google.com')) return 'Google Docs';
+      if (url.includes('/uploads/')) return 'Berkas Lampiran';
+      return parsed.hostname.replace(/^www\./, '');
+    } catch {
+      return type === 'file' ? 'Berkas Lampiran' : 'Tautan Web';
+    }
   };
 
   const filteredTugas = tugasList.filter((t) => {
@@ -831,6 +850,22 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                           const instruksiHtml = formatInstructionHtml(
                             tugas.instruksi || (tugas as unknown as { deskripsi?: string }).deskripsi
                           );
+                          const parsedLampiran: { type: string; name: string; url: string }[] = (() => {
+                            const raw = tugas.file_lampiran || (tugas as unknown as { file_lampiran?: string }).file_lampiran;
+                            if (!raw) return [];
+                            try {
+                              const parsed = JSON.parse(raw);
+                              if (Array.isArray(parsed)) return parsed;
+                              if (typeof parsed === 'string' && parsed.trim()) {
+                                return [{ type: 'file', name: 'Berkas Lampiran', url: parsed.trim() }];
+                              }
+                            } catch {
+                              if (typeof raw === 'string' && raw.trim() && raw !== '[]' && raw !== '{}') {
+                                return [{ type: 'file', name: 'Berkas Lampiran', url: raw.trim() }];
+                              }
+                            }
+                            return [];
+                          })();
 
                           return (
                             <div
@@ -1013,6 +1048,72 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                                         </p>
                                       )}
                                     </div>
+
+                                    {/* Lampiran Tugas (Google Classroom Style: Drive, YouTube, File, Link) */}
+                                    {parsedLampiran.length > 0 && (
+                                      <div className="pt-2 space-y-2">
+                                        <p className="text-xs font-semibold text-slate-700">
+                                          Lampiran Tugas ({parsedLampiran.length}):
+                                        </p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                          {parsedLampiran.map((att, attIdx) => {
+                                            const isYoutube = att.type === 'youtube';
+                                            const isDrive = att.type === 'drive';
+                                            const isFile = att.type === 'file';
+                                            const isDoc = att.type === 'doc';
+                                            const isExternal = Boolean(att.url && att.url !== '#' && !att.url.startsWith('#'));
+                                            const domain = getAttachmentDomain(att.url, att.type);
+
+                                            return (
+                                              <a
+                                                key={attIdx}
+                                                href={isExternal ? att.url : undefined}
+                                                target={isExternal ? '_blank' : undefined}
+                                                rel={isExternal ? 'noopener noreferrer' : undefined}
+                                                className={`group flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:shadow-xs transition-all ${
+                                                  isExternal ? 'cursor-pointer' : ''
+                                                }`}
+                                              >
+                                                <div
+                                                  className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                                                    isYoutube
+                                                      ? 'bg-red-50 text-red-600'
+                                                      : isDrive
+                                                      ? 'bg-emerald-50 text-emerald-600'
+                                                      : isFile
+                                                      ? 'bg-blue-50 text-blue-600'
+                                                      : isDoc
+                                                      ? 'bg-amber-50 text-amber-600'
+                                                      : 'bg-purple-50 text-purple-600'
+                                                  }`}
+                                                >
+                                                  {isYoutube ? (
+                                                    <PlaySquare className="w-5 h-5 text-red-600" />
+                                                  ) : isDrive ? (
+                                                    <HardDrive className="w-5 h-5 text-emerald-600" />
+                                                  ) : isFile ? (
+                                                    <FileText className="w-5 h-5 text-blue-600" />
+                                                  ) : isDoc ? (
+                                                    <FileText className="w-5 h-5 text-amber-600" />
+                                                  ) : (
+                                                    <Link2 className="w-5 h-5 text-purple-600" />
+                                                  )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                  <h5 className="text-xs font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                                                    {att.name || 'Lampiran'}
+                                                  </h5>
+                                                  <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                                                    <span>{domain}</span>
+                                                    {isExternal && <ExternalLink className="w-2.5 h-2.5 opacity-60" />}
+                                                  </p>
+                                                </div>
+                                              </a>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
 
                                     {/* Format Berkas & Rubrik Badges */}
                                     <div className="flex flex-wrap items-center gap-2 pt-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FileUp, Loader2, X, FileCheck2, AlertCircle } from "lucide-react";
+import { FileUp, Loader2, X, FileCheck2, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSubmitTugas } from "@/hooks/useSiswaTugas";
@@ -185,6 +185,42 @@ export function SubmitTugasDialog({ tugas, onClose }: Props) {
               <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{tugas.deskripsi}</p>
             </div>
           )}
+
+          {/* Lampiran Materi / Referensi dari Guru */}
+          {(() => {
+            const raw = tugas.file_lampiran;
+            if (!raw) return null;
+            let list: { type: string; name: string; url: string }[] = [];
+            try {
+              const p = JSON.parse(raw);
+              if (Array.isArray(p)) list = p;
+              else if (typeof p === 'string' && p.trim()) list = [{ type: 'file', name: 'Berkas Lampiran', url: p.trim() }];
+            } catch {
+              if (typeof raw === 'string' && raw.trim() && raw !== '[]' && raw !== '{}') {
+                list = [{ type: 'file', name: 'Berkas Lampiran', url: raw.trim() }];
+              }
+            }
+            if (list.length === 0) return null;
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-700">Lampiran Bahan dari Guru:</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {list.map((att, i) => (
+                    <a
+                      key={i}
+                      href={att.url && att.url !== '#' ? att.url : undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-xs font-medium text-slate-800 transition-colors"
+                    >
+                      <span className="truncate">{att.name || 'Buka Lampiran'}</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-blue-600 shrink-0 ml-2" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div>
             <label

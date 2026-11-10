@@ -33,6 +33,7 @@ import {
   getTugasGuru,
   createTugasGuru,
   updateTugasGuru,
+  uploadLampiranTugas,
 } from '@/services/guruService';
 import { Kelas, TugasKuis, JenisPenugasan } from '@/types/lms';
 
@@ -229,10 +230,14 @@ function BuatTugasGoogleClassroomForm() {
 
   // Attachments (Lampirkan)
   const [attachments, setAttachments] = useState<
-    { type: 'link' | 'file' | 'drive' | 'youtube'; name: string; url: string }[]
+    { type: 'link' | 'file' | 'drive' | 'youtube' | 'doc'; name: string; url: string }[]
   >([]);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showYoutubeModal, setShowYoutubeModal] = useState(false);
+  const [showDriveModal, setShowDriveModal] = useState(false);
+  const [showBuatModal, setShowBuatModal] = useState(false);
+  const [buatType, setBuatType] = useState<'docs' | 'sheets' | 'slides' | 'note'>('docs');
+  const [isUploading, setIsUploading] = useState(false);
   const [modalInputUrl, setModalInputUrl] = useState('');
   const [modalInputName, setModalInputName] = useState('');
   const [showDeadlineDropdown, setShowDeadlineDropdown] = useState(false);
@@ -313,6 +318,31 @@ function BuatTugasGoogleClassroomForm() {
             if (match.rubrik_penilaian) {
               setRubrik(match.rubrik_penilaian);
             }
+            if (match.file_lampiran) {
+              try {
+                const parsed = JSON.parse(match.file_lampiran);
+                if (Array.isArray(parsed)) {
+                  setAttachments(parsed);
+                } else if (typeof parsed === 'string' && parsed.trim()) {
+                  setAttachments([
+                    { type: 'file', name: 'Berkas Lampiran', url: parsed.trim() },
+                  ]);
+                }
+              } catch {
+                if (
+                  typeof match.file_lampiran === 'string' &&
+                  match.file_lampiran.trim()
+                ) {
+                  setAttachments([
+                    {
+                      type: 'file',
+                      name: 'Berkas Lampiran',
+                      url: match.file_lampiran.trim(),
+                    },
+                  ]);
+                }
+              }
+            }
           }
         }
       } catch (err) {
@@ -385,25 +415,108 @@ function BuatTugasGoogleClassroomForm() {
     setShowDeadlineDropdown(false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
+
+    // Batas 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Ukuran berkas melebihi batas maksimal 50 MB');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const toastId = toast.loading(`Mengunggah berkas "${file.name}"...`);
+      const res = await uploadLampiranTugas(file);
+
+      if (res?.success && res.data?.file_url) {
+        setAttachments((prev) => [
+          ...prev,
+          {
+            type: 'file',
+            name: file.name,
+            url: res.data.file_url,
+          },
+        ]);
+        toast.success(`Berkas "${file.name}" berhasil diunggah dan terlampir`, {
+          id: toastId,
+        });
+      } else {
+        toast.error(res?.message || 'Gagal mengunggah berkas lampiran', {
+          id: toastId,
+        });
+      }
+    } catch (err) {
+      console.error('Error uploading attachment file:', err);
+      toast.error('Terjadi kesalahan saat mengunggah berkas ke server');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAddDriveAttachment = () => {
+    if (!modalInputUrl.trim()) {
+      toast.error('Tautan Google Drive wajib diisi');
+      return;
+    }
+    const name = modalInputName.trim() || 'Dokumen Google Drive';
     setAttachments((prev) => [
       ...prev,
       {
-        type: 'file',
-        name: file.name,
-        url: URL.createObjectURL(file),
+        type: 'drive',
+        name,
+        url: modalInputUrl.trim(),
       },
     ]);
-    toast.success(`Berkas "${file.name}" terlampir sebagai referensi tugas`);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    toast.success('Lampiran Google Drive berhasil ditambahkan');
+    setModalInputUrl('');
+    setModalInputName('');
+    setShowDriveModal(false);
+  };
+
+  const handleAddBuatAttachment = (kind: 'docs' | 'sheets' | 'slides' | 'note') => {
+    let url = modalInputUrl.trim();
+    let defaultTitle = 'Dokumen Baru';
+    if (kind === 'docs') {
+      defaultTitle = 'Dokumen Baru (Google Docs)';
+      if (!url) url = 'https://docs.google.com/document/create';
+    } else if (kind === 'sheets') {
+      defaultTitle = 'Spreadsheet Baru (Google Sheets)';
+      if (!url) url = 'https://docs.google.com/spreadsheets/create';
+    } else if (kind === 'slides') {
+      defaultTitle = 'Presentasi Baru (Google Slides)';
+      if (!url) url = 'https://docs.google.com/presentation/create';
+    } else if (kind === 'note') {
+      defaultTitle = modalInputName.trim() || 'Catatan Lampiran Tambahan';
+      if (!modalInputName.trim() && !modalInputUrl.trim()) {
+        toast.error('Tuliskan judul atau instruksi catatan lampiran');
+        return;
+      }
+      url = modalInputUrl.trim() || '#catatan';
+    }
+
+    const name = modalInputName.trim() || defaultTitle;
+    setAttachments((prev) => [
+      ...prev,
+      {
+        type: kind === 'note' ? 'doc' : 'drive',
+        name,
+        url,
+      },
+    ]);
+    toast.success(`Lampiran "${name}" berhasil ditambahkan`);
+    setModalInputUrl('');
+    setModalInputName('');
+    setShowBuatModal(false);
   };
 
   const handleAddLinkAttachment = (type: 'link' | 'youtube') => {
     if (!modalInputUrl.trim()) {
-      toast.error('URL wajib diisi');
+      toast.error(type === 'youtube' ? 'URL video YouTube wajib diisi' : 'URL tautan wajib diisi');
       return;
     }
     const name =
@@ -469,6 +582,8 @@ function BuatTugasGoogleClassroomForm() {
       ? toBackendDeadline(tenggatWaktu)
       : '';
     const compiledFormatFile = getFormatStringFromIds(selectedFormatIds);
+    const compiledAttachments =
+      attachments.length > 0 ? JSON.stringify(attachments) : '';
     const jenisValue: JenisPenugasan =
       topik.toLowerCase().includes('proyek') ? 'Proyek' : 'Tugas';
 
@@ -483,6 +598,7 @@ function BuatTugasGoogleClassroomForm() {
           tenggat_waktu: formattedDeadline,
           format_file: compiledFormatFile,
           rubrik_penilaian: rubrik,
+          file_lampiran: compiledAttachments,
           kelas_id: kelasObj?.id_kelas,
         });
 
@@ -506,6 +622,7 @@ function BuatTugasGoogleClassroomForm() {
           tenggat_waktu: formattedDeadline,
           format_file: compiledFormatFile,
           rubrik_penilaian: rubrik,
+          file_lampiran: compiledAttachments,
           kelas_id: kelasObj?.id_kelas,
           guru_id: user?.extra?.guru_id,
           mapel_id:
@@ -781,10 +898,15 @@ function BuatTugasGoogleClassroomForm() {
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => setShowLinkModal(true)}
-                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-700 transition-colors cursor-pointer shadow-xs"
+                  onClick={() => {
+                    setModalInputUrl('');
+                    setModalInputName('');
+                    setShowDriveModal(true);
+                  }}
+                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-emerald-50/60 hover:border-emerald-400 flex items-center justify-center text-gray-700 transition-colors cursor-pointer shadow-xs group"
+                  title="Lampirkan berkas dari Google Drive"
                 >
-                  <HardDrive className="w-5 h-5 text-gray-600" />
+                  <HardDrive className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
                 </button>
                 <span className="text-xs text-gray-600 mt-1.5 font-normal">
                   Drive
@@ -795,10 +917,15 @@ function BuatTugasGoogleClassroomForm() {
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => setShowYoutubeModal(true)}
-                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-red-600 transition-colors cursor-pointer shadow-xs"
+                  onClick={() => {
+                    setModalInputUrl('');
+                    setModalInputName('');
+                    setShowYoutubeModal(true);
+                  }}
+                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-red-50/60 hover:border-red-400 flex items-center justify-center text-red-600 transition-colors cursor-pointer shadow-xs group"
+                  title="Lampirkan video YouTube"
                 >
-                  <PlaySquare className="w-5 h-5 text-red-600" />
+                  <PlaySquare className="w-5 h-5 text-red-600 group-hover:scale-110 transition-transform" />
                 </button>
                 <span className="text-xs text-gray-600 mt-1.5 font-normal">
                   YouTube
@@ -809,10 +936,16 @@ function BuatTugasGoogleClassroomForm() {
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => setShowRubrikModal(true)}
-                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-blue-600 transition-colors cursor-pointer shadow-xs"
+                  onClick={() => {
+                    setModalInputUrl('');
+                    setModalInputName('');
+                    setBuatType('docs');
+                    setShowBuatModal(true);
+                  }}
+                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-blue-50/60 hover:border-blue-400 flex items-center justify-center text-blue-600 transition-colors cursor-pointer shadow-xs group"
+                  title="Buat dokumen baru atau petunjuk lampiran"
                 >
-                  <Plus className="w-5 h-5 text-[#1a73e8]" />
+                  <Plus className="w-5 h-5 text-[#1a73e8] group-hover:scale-110 transition-transform" />
                 </button>
                 <span className="text-xs text-gray-600 mt-1.5 font-normal">
                   Buat
@@ -823,13 +956,19 @@ function BuatTugasGoogleClassroomForm() {
               <div className="flex flex-col items-center">
                 <button
                   type="button"
+                  disabled={isUploading}
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-700 transition-colors cursor-pointer shadow-xs"
+                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-slate-100 hover:border-slate-400 flex items-center justify-center text-gray-700 transition-colors cursor-pointer shadow-xs group disabled:opacity-50"
+                  title="Unggah berkas dari perangkat Anda"
                 >
-                  <Upload className="w-5 h-5 text-gray-600" />
+                  {isUploading ? (
+                    <Loader2 className="w-5 h-5 text-[#1a73e8] animate-spin" />
+                  ) : (
+                    <Upload className="w-5 h-5 text-gray-600 group-hover:scale-110 transition-transform" />
+                  )}
                 </button>
                 <span className="text-xs text-gray-600 mt-1.5 font-normal">
-                  Upload
+                  {isUploading ? 'Unggah...' : 'Upload'}
                 </span>
               </div>
 
@@ -837,10 +976,15 @@ function BuatTugasGoogleClassroomForm() {
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => setShowLinkModal(true)}
-                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-700 transition-colors cursor-pointer shadow-xs"
+                  onClick={() => {
+                    setModalInputUrl('');
+                    setModalInputName('');
+                    setShowLinkModal(true);
+                  }}
+                  className="w-12 h-12 rounded-full border border-gray-300 hover:bg-purple-50/60 hover:border-purple-400 flex items-center justify-center text-gray-700 transition-colors cursor-pointer shadow-xs group"
+                  title="Tambahkan tautan link"
                 >
-                  <Link2 className="w-5 h-5 text-gray-600" />
+                  <Link2 className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" />
                 </button>
                 <span className="text-xs text-gray-600 mt-1.5 font-normal">
                   Link
@@ -848,37 +992,80 @@ function BuatTugasGoogleClassroomForm() {
               </div>
             </div>
 
+            {/* Hidden native file input for Upload */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+
             {/* List of Attached Links/Files */}
             {attachments.length > 0 && (
               <div className="pt-3 border-t border-gray-100 space-y-2">
-                <p className="text-xs font-medium text-gray-500">
-                  Lampiran Terpasang ({attachments.length}):
+                <p className="text-xs font-semibold text-gray-600">
+                  Lampiran Tersimpan ({attachments.length}):
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {attachments.map((att, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs"
+                      className="flex items-center justify-between p-2.5 bg-gray-50/80 hover:bg-gray-100/70 border border-gray-200 rounded-lg text-xs transition-colors"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         {att.type === 'youtube' ? (
                           <PlaySquare className="w-4 h-4 text-red-600 shrink-0" />
+                        ) : att.type === 'drive' ? (
+                          <HardDrive className="w-4 h-4 text-emerald-600 shrink-0" />
                         ) : att.type === 'file' ? (
                           <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                        ) : att.type === 'doc' ? (
+                          <FileText className="w-4 h-4 text-amber-600 shrink-0" />
                         ) : (
-                          <Link2 className="w-4 h-4 text-gray-600 shrink-0" />
+                          <Link2 className="w-4 h-4 text-purple-600 shrink-0" />
                         )}
-                        <span className="truncate font-medium text-gray-800">
-                          {att.name}
+                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded shrink-0 bg-white border border-gray-200 text-gray-600">
+                          {att.type === 'youtube'
+                            ? 'YouTube'
+                            : att.type === 'drive'
+                            ? 'Drive'
+                            : att.type === 'file'
+                            ? 'Berkas'
+                            : att.type === 'doc'
+                            ? 'Catatan'
+                            : 'Link'}
                         </span>
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate font-medium text-gray-800 hover:text-blue-600 hover:underline"
+                          title={`Buka ${att.name}`}
+                        >
+                          {att.name}
+                        </a>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAttachment(idx)}
-                        className="text-gray-400 hover:text-red-600 p-1 rounded-md transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        {att.url && att.url !== '#' && (
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-400 hover:text-blue-600 p-1 rounded-md transition-colors"
+                            title="Buka lampiran di tab baru"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(idx)}
+                          className="text-gray-400 hover:text-red-600 p-1 rounded-md transition-colors cursor-pointer"
+                          title="Hapus lampiran"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1150,6 +1337,244 @@ function BuatTugasGoogleClassroomForm() {
                 className="px-4 py-2 text-xs font-semibold bg-[#1a73e8] text-white rounded-lg hover:bg-blue-600 cursor-pointer"
               >
                 Simpan Rubrik
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: DRIVE ATTACHMENT
+          =================================================================== */}
+      {showDriveModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <HardDrive className="w-5 h-5 text-emerald-600" />
+                <span>Lampirkan Google Drive</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowDriveModal(false)}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Tempel tautan berkas atau dokumen dari Google Drive Anda (Google Docs, Sheets, Slides, atau berkas Drive lainnya).
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Tautan Google Drive / Dokumen *
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/... atau https://docs.google.com/..."
+                  value={modalInputUrl}
+                  onChange={(e) => setModalInputUrl(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Nama Berkas / Dokumen (opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Modul Bahan Ajar Praktikum"
+                  value={modalInputName}
+                  onChange={(e) => setModalInputName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDriveModal(false)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDriveAttachment}
+                className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer"
+              >
+                Lampirkan Drive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: BUAT DOKUMEN / CATATAN
+          =================================================================== */}
+      {showBuatModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#1a73e8]" />
+                <span>Buat Dokumen / Catatan Lampiran</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowBuatModal(false)}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-medium text-gray-700">
+                Pilih Jenis Lampiran yang Ingin Dibuat:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBuatType('docs');
+                    if (!modalInputName) setModalInputName('Dokumen Tugas Baru');
+                    if (!modalInputUrl) setModalInputUrl('https://docs.google.com/document/create');
+                  }}
+                  className={`p-3 rounded-lg border text-left text-xs transition-all flex items-center gap-2.5 cursor-pointer ${
+                    buatType === 'docs'
+                      ? 'border-blue-500 bg-blue-50/70 text-blue-900 font-semibold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Google Docs</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBuatType('slides');
+                    if (!modalInputName) setModalInputName('Slide Presentasi Tugas');
+                    if (!modalInputUrl) setModalInputUrl('https://docs.google.com/presentation/create');
+                  }}
+                  className={`p-3 rounded-lg border text-left text-xs transition-all flex items-center gap-2.5 cursor-pointer ${
+                    buatType === 'slides'
+                      ? 'border-amber-500 bg-amber-50/70 text-amber-900 font-semibold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <Presentation className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Google Slides</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBuatType('sheets');
+                    if (!modalInputName) setModalInputName('Lembar Kerja Spreadsheet');
+                    if (!modalInputUrl) setModalInputUrl('https://docs.google.com/spreadsheets/create');
+                  }}
+                  className={`p-3 rounded-lg border text-left text-xs transition-all flex items-center gap-2.5 cursor-pointer ${
+                    buatType === 'sheets'
+                      ? 'border-emerald-500 bg-emerald-50/70 text-emerald-900 font-semibold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Google Sheets</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBuatType('note');
+                    if (!modalInputName) setModalInputName('Catatan Petunjuk Tugas');
+                    setModalInputUrl('');
+                  }}
+                  className={`p-3 rounded-lg border text-left text-xs transition-all flex items-center gap-2.5 cursor-pointer ${
+                    buatType === 'note'
+                      ? 'border-indigo-500 bg-indigo-50/70 text-indigo-900 font-semibold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>Catatan Teks Singkat</span>
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Judul Lampiran *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Format Lembar Kerja Praktikum"
+                  value={modalInputName}
+                  onChange={(e) => setModalInputName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {buatType !== 'note' ? (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-gray-700">
+                      Tautan Dokumen / Template
+                    </label>
+                    <a
+                      href={modalInputUrl || 'https://docs.google.com'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <span>Buka di Google</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://docs.google.com/..."
+                    value={modalInputUrl}
+                    onChange={(e) => setModalInputUrl(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Anda dapat menggunakan tautan template baru atau menyalin tautan berkas dari Google Anda.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Ringkasan Catatan / Petunjuk Khusus
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Tuliskan catatan penting referensi yang perlu diperhatikan siswa..."
+                    value={modalInputUrl}
+                    onChange={(e) => setModalInputUrl(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBuatModal(false)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddBuatAttachment(buatType)}
+                className="px-4 py-1.5 text-xs font-semibold bg-[#1a73e8] text-white rounded-lg hover:bg-blue-600 cursor-pointer"
+              >
+                Tambahkan Lampiran
               </button>
             </div>
           </div>

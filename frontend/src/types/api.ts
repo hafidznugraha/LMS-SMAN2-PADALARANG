@@ -103,6 +103,7 @@ export interface SiswaTugas {
   judul: string;
   deskripsi: string;
   format_file?: string;
+  file_lampiran?: string;
   nama_mapel: string;
   nama_guru: string;
   deadline: string;
