@@ -67,6 +67,7 @@ func (h *SiswaHandler) GetMateriList(c *fiber.Ctx) error {
 			m.mapel_id,
 			mp.nama_mapel,
 			u.nama_lengkap AS nama_guru,
+			COALESCE(g.gelar, '') AS gelar_guru,
 			COALESCE(m.tipe_file, '') AS tipe_file,
 			COALESCE(m.ukuran_mb, 0) AS ukuran_mb,
 			m.created_at
@@ -84,6 +85,14 @@ func (h *SiswaHandler) GetMateriList(c *fiber.Ctx) error {
 			Message: "Gagal memuat daftar materi",
 			Error:   err.Error(),
 		})
+	}
+
+	for i := range resp.Items {
+		nama := strings.TrimSpace(resp.Items[i].NamaGuru)
+		gelar := strings.TrimSpace(resp.Items[i].GelarGuru)
+		if gelar != "" && !strings.Contains(strings.ToLower(nama), strings.ToLower(gelar)) {
+			resp.Items[i].NamaGuru = fmt.Sprintf("%s, %s", nama, gelar)
+		}
 	}
 
 	// Pilihan filter mapel: tidak ikut terfilter pencarian agar pill tetap stabil.

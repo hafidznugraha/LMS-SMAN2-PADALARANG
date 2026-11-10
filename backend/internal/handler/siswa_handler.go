@@ -2,7 +2,9 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -210,6 +212,7 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 		var jrows []dashboardJadwalRow
 		if err := db.Raw(`
 			SELECT j.id::text AS id, mp.nama_mapel, u.nama_lengkap AS nama_guru,
+			       COALESCE(g.gelar, '') AS gelar_guru,
 			       to_char(j.jam_mulai, 'HH24:MI') AS jam_mulai,
 			       to_char(j.jam_selesai, 'HH24:MI') AS jam_selesai,
 			       COALESCE(j.ruang, '') AS ruang
@@ -234,10 +237,15 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 			case menitSekarang >= parseJamMenit(r.JamMulai, 0):
 				status = "berlangsung"
 			}
+			namaGuru := strings.TrimSpace(r.NamaGuru)
+			gelarGuru := strings.TrimSpace(r.GelarGuru)
+			if gelarGuru != "" && !strings.Contains(strings.ToLower(namaGuru), strings.ToLower(gelarGuru)) {
+				namaGuru = fmt.Sprintf("%s, %s", namaGuru, gelarGuru)
+			}
 			resp.JadwalHariIni = append(resp.JadwalHariIni, model.SiswaJadwalItem{
 				ID:         r.ID,
 				NamaMapel:  r.NamaMapel,
-				NamaGuru:   r.NamaGuru,
+				NamaGuru:   namaGuru,
 				JamMulai:   r.JamMulai,
 				JamSelesai: r.JamSelesai,
 				Ruang:      r.Ruang,
@@ -257,6 +265,7 @@ type dashboardJadwalRow struct {
 	ID         string `gorm:"column:id"`
 	NamaMapel  string `gorm:"column:nama_mapel"`
 	NamaGuru   string `gorm:"column:nama_guru"`
+	GelarGuru  string `gorm:"column:gelar_guru"`
 	JamMulai   string `gorm:"column:jam_mulai"`
 	JamSelesai string `gorm:"column:jam_selesai"`
 	Ruang      string `gorm:"column:ruang"`

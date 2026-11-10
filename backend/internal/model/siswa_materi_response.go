@@ -13,6 +13,7 @@ type SiswaMateriItem struct {
 	MapelID   uuid.UUID `gorm:"column:mapel_id" json:"mapel_id"`
 	NamaMapel string    `gorm:"column:nama_mapel" json:"nama_mapel"`
 	NamaGuru  string    `gorm:"column:nama_guru" json:"nama_guru"`
+	GelarGuru string    `gorm:"column:gelar_guru" json:"gelar_guru,omitempty"`
 	TipeFile  string    `gorm:"column:tipe_file" json:"tipe_file"`
 	UkuranMB  float64   `gorm:"column:ukuran_mb" json:"ukuran_mb"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`

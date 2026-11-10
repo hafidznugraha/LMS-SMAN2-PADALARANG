@@ -9,14 +9,13 @@ import {
   User,
   BookOpen,
   ClipboardList,
-  Sparkles,
   CalendarCheck2,
   Coffee,
   ArrowRight,
   Info
 } from "lucide-react";
 import { useSiswaJadwal } from "@/hooks/useSiswaJadwal";
-import { cn, getMapelBadgeClass } from "@/lib/utils";
+import { cn, getMapelBadgeClass, formatNamaWithGelar } from "@/lib/utils";
 import type { SiswaJadwalItem } from "@/types/api";
 
 const DAFTAR_HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
@@ -176,7 +175,7 @@ export default function SiswaJadwalPage() {
               </div>
               <h4 className="text-base font-extrabold mt-0.5">{sesiBerlangsung.nama_mapel}</h4>
               <p className="text-xs text-emerald-100">
-                Pendidik: {sesiBerlangsung.nama_guru} • Ruangan: {sesiBerlangsung.ruang || "Ruang Kelas"}
+                Pendidik: {formatNamaWithGelar(sesiBerlangsung.nama_guru, sesiBerlangsung.gelar_guru)} • Ruangan: {sesiBerlangsung.ruang || "Ruang Kelas"}
               </p>
             </div>
           </div>
@@ -331,7 +330,7 @@ export default function SiswaJadwalPage() {
                       <User className="w-3.5 h-3.5" />
                     </div>
                     <div className="truncate">
-                      <span className="font-semibold">{item.nama_guru}</span>
+                      <span className="font-semibold">{formatNamaWithGelar(item.nama_guru, item.gelar_guru)}</span>
                       {item.nip_guru && item.nip_guru !== "-" && (
                         <span className="text-[10px] text-slate-400 font-mono block">NIP: {item.nip_guru}</span>
                       )}

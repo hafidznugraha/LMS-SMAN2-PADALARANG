@@ -20,6 +20,7 @@ type SiswaJadwalItem struct {
 	KodeMapel  string `json:"kode_mapel"`
 	GuruID     string `json:"guru_id"`
 	NamaGuru   string `json:"nama_guru"`
+	GelarGuru  string `json:"gelar_guru,omitempty"`
 	NIPGuru    string `json:"nip_guru"`
 	KelasID    string `json:"kelas_id"`
 	NamaKelas  string `json:"nama_kelas"`
@@ -87,8 +88,12 @@ func (h *SiswaHandler) GetJadwal(c *fiber.Ctx) error {
 	for _, j := range list {
 		guruNama := "-"
 		guruNIP := "-"
+		guruGelar := strings.TrimSpace(j.Guru.Gelar)
 		if j.Guru.User.NamaLengkap != "" {
-			guruNama = j.Guru.User.NamaLengkap
+			guruNama = strings.TrimSpace(j.Guru.User.NamaLengkap)
+			if guruGelar != "" && !strings.Contains(strings.ToLower(guruNama), strings.ToLower(guruGelar)) {
+				guruNama = fmt.Sprintf("%s, %s", guruNama, guruGelar)
+			}
 		}
 		if j.Guru.NIP != "" {
 			guruNIP = j.Guru.NIP
@@ -119,6 +124,7 @@ func (h *SiswaHandler) GetJadwal(c *fiber.Ctx) error {
 			KodeMapel:  mapelKode,
 			GuruID:     j.GuruID.String(),
 			NamaGuru:   guruNama,
+			GelarGuru:  guruGelar,
 			NIPGuru:    guruNIP,
 			KelasID:    j.KelasID.String(),
 			NamaKelas:  kelasNama,

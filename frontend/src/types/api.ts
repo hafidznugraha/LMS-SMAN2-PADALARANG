@@ -100,12 +100,16 @@ export interface SiswaPengumpulan {
 
 export interface SiswaTugas {
   id: string;
+  mapel_id?: string;
+  guru_id?: string;
   judul: string;
   deskripsi: string;
   format_file?: string;
   file_lampiran?: string;
+  topik?: string;
   nama_mapel: string;
   nama_guru: string;
+  gelar_guru?: string;
   deadline: string;
   status: "belum" | "dikumpulkan" | "dinilai";
   lewat_deadline: boolean;
@@ -236,28 +240,20 @@ export interface SiswaJadwalItem {
   jam_mulai: string;
   jam_selesai: string;
   ruang: string;
-  mapel_id: string;
+  mapel_id?: string;
   nama_mapel: string;
-  kode_mapel: string;
-  guru_id: string;
+  kode_mapel?: string;
+  guru_id?: string;
   nama_guru: string;
-  nip_guru: string;
-  kelas_id: string;
-  nama_kelas: string;
+  gelar_guru?: string;
+  nip_guru?: string;
+  kelas_id?: string;
+  nama_kelas?: string;
+  status?: "selesai" | "berlangsung" | "akan_datang";
 }
 
 export interface SiswaJadwalResponse {
   nama_kelas: string;
   tingkat: string;
   items: SiswaJadwalItem[];
-}
-
-export interface SiswaJadwalItem {
-  id: string;
-  nama_mapel: string;
-  nama_guru: string;
-  jam_mulai: string;
-  jam_selesai: string;
-  ruang: string;
-  status: "selesai" | "berlangsung" | "akan_datang";
 }

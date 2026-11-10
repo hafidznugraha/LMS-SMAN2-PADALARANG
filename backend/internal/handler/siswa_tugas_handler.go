@@ -116,23 +116,26 @@ func newSubmissionStore(cfg *config.Config) storage.Store {
 }
 
 type tugasRow struct {
-	ID         uuid.UUID  `gorm:"column:id"`
-	Judul      string     `gorm:"column:judul"`
-	Deskripsi  string     `gorm:"column:deskripsi"`
+	ID           uuid.UUID  `gorm:"column:id"`
+	MapelID      uuid.UUID  `gorm:"column:mapel_id"`
+	GuruID       uuid.UUID  `gorm:"column:guru_id"`
+	Judul        string     `gorm:"column:judul"`
+	Deskripsi    string     `gorm:"column:deskripsi"`
 	FormatFile   string     `gorm:"column:format_file"`
 	FileLampiran string     `gorm:"column:file_lampiran"`
 	Topik        string     `gorm:"column:topik"`
 	NamaMapel    string     `gorm:"column:nama_mapel"`
-	NamaGuru   string     `gorm:"column:nama_guru"`
-	Deadline   time.Time  `gorm:"column:deadline"`
-	PID        string     `gorm:"column:p_id"`
-	PFileURL   string     `gorm:"column:p_file_url"`
-	PCatatan   string     `gorm:"column:p_catatan"`
-	PNilai     *float64   `gorm:"column:p_nilai"`
-	PFeedback  string     `gorm:"column:p_feedback"`
-	PStatus    string     `gorm:"column:p_status"`
-	PSubmitted *time.Time `gorm:"column:p_submitted_at"`
-	PGraded    *time.Time `gorm:"column:p_graded_at"`
+	NamaGuru     string     `gorm:"column:nama_guru"`
+	GelarGuru    string     `gorm:"column:gelar_guru"`
+	Deadline     time.Time  `gorm:"column:deadline"`
+	PID          string     `gorm:"column:p_id"`
+	PFileURL     string     `gorm:"column:p_file_url"`
+	PCatatan     string     `gorm:"column:p_catatan"`
+	PNilai       *float64   `gorm:"column:p_nilai"`
+	PFeedback    string     `gorm:"column:p_feedback"`
+	PStatus      string     `gorm:"column:p_status"`
+	PSubmitted   *time.Time `gorm:"column:p_submitted_at"`
+	PGraded      *time.Time `gorm:"column:p_graded_at"`
 }
 
 // GET /api/v1/siswa/tugas
@@ -149,10 +152,23 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 		return c.JSON(model.APIResponse{Success: true, Message: "Siswa belum ditempatkan di kelas", Data: items})
 	}
 
+	mapelIDStr := strings.TrimSpace(c.Query("mapel_id"))
+	mapelFilter := ""
+	var args []interface{}
+	args = append(args, siswa.ID, *siswa.KelasID)
+	if mapelIDStr != "" {
+		if mUUID, err := uuid.Parse(mapelIDStr); err == nil {
+			mapelFilter = " AND t.mapel_id = ?"
+			args = append(args, mUUID)
+		}
+	}
+
 	var rows []tugasRow
-	if err := db.Raw(`
+	querySQL := fmt.Sprintf(`
 		SELECT
 			t.id,
+			t.mapel_id,
+			t.guru_id,
 			t.judul,
 			COALESCE(t.deskripsi, '') AS deskripsi,
 			COALESCE(t.format_file, 'pdf, docx') AS format_file,
@@ -160,6 +176,7 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 			COALESCE(t.topik, '') AS topik,
 			mp.nama_mapel,
 			u.nama_lengkap AS nama_guru,
+			COALESCE(g.gelar, '') AS gelar_guru,
 			t.deadline,
 			COALESCE(p.id::text, '') AS p_id,
 			COALESCE(p.file_url, '') AS p_file_url,
@@ -174,9 +191,11 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 		JOIN guru g ON g.id = t.guru_id
 		JOIN users u ON u.id = g.user_id
 		LEFT JOIN pengumpulan_tugas p ON p.tugas_id = t.id AND p.siswa_id = ?
-		WHERE t.kelas_id = ?
+		WHERE t.kelas_id = ?%s
 		ORDER BY t.deadline ASC
-		LIMIT 200`, siswa.ID, *siswa.KelasID).Scan(&rows).Error; err != nil {
+		LIMIT 200`, mapelFilter)
+
+	if err := db.Raw(querySQL, args...).Scan(&rows).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
 			Message: "Gagal memuat daftar tugas",
@@ -186,15 +205,23 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 
 	now := time.Now()
 	for _, r := range rows {
+		namaGuru := strings.TrimSpace(r.NamaGuru)
+		gelarGuru := strings.TrimSpace(r.GelarGuru)
+		if gelarGuru != "" && !strings.Contains(strings.ToLower(namaGuru), strings.ToLower(gelarGuru)) {
+			namaGuru = fmt.Sprintf("%s, %s", namaGuru, gelarGuru)
+		}
 		item := model.SiswaTugasItem{
 			ID:            r.ID,
+			MapelID:       r.MapelID,
+			GuruID:        r.GuruID,
 			Judul:         r.Judul,
 			Deskripsi:     r.Deskripsi,
 			FormatFile:    r.FormatFile,
 			FileLampiran:  r.FileLampiran,
 			Topik:         r.Topik,
 			NamaMapel:     r.NamaMapel,
-			NamaGuru:      r.NamaGuru,
+			NamaGuru:      namaGuru,
+			GelarGuru:     gelarGuru,
 			Deadline:      r.Deadline,
 			Status:        "belum",
 			LewatDeadline: now.After(r.Deadline),

@@ -4,11 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "@/lib/api";
 import type { APIResponse, SiswaPengumpulan, SiswaTugas } from "@/types/api";
 
-export function useSiswaTugas() {
+export function useSiswaTugas(mapelId?: string) {
+  const queryParam = mapelId ? `?mapel_id=${encodeURIComponent(mapelId)}` : "";
   return useQuery({
-    queryKey: ["siswa", "tugas"],
+    queryKey: ["siswa", "tugas", mapelId ?? "semua"],
     queryFn: async () => {
-      const res = await fetchAPI<APIResponse<SiswaTugas[]>>("/siswa/tugas");
+      const res = await fetchAPI<APIResponse<SiswaTugas[]>>(`/siswa/tugas${queryParam}`);
       return res.data ?? [];
     },
   });

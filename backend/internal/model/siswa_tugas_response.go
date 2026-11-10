@@ -19,6 +19,8 @@ type SiswaPengumpulan struct {
 
 type SiswaTugasItem struct {
 	ID            uuid.UUID         `json:"id"`
+	MapelID       uuid.UUID         `json:"mapel_id"`
+	GuruID        uuid.UUID         `json:"guru_id"`
 	Judul         string            `json:"judul"`
 	Deskripsi     string            `json:"deskripsi"`
 	FormatFile    string            `json:"format_file"`
@@ -26,6 +28,7 @@ type SiswaTugasItem struct {
 	Topik         string            `json:"topik"`
 	NamaMapel     string            `json:"nama_mapel"`
 	NamaGuru      string            `json:"nama_guru"`
+	GelarGuru     string            `json:"gelar_guru,omitempty"`
 	Deadline      time.Time         `json:"deadline"`
 	Status        string            `json:"status"` // belum | dikumpulkan | dinilai
 	LewatDeadline bool              `json:"lewat_deadline"`
