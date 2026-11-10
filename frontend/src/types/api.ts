@@ -90,6 +90,7 @@ export interface SiswaMateriDownload {
 export interface SiswaPengumpulan {
   id: string;
   nama_file: string;
+  file_url?: string;
   catatan: string;
   nilai: number | null;
   feedback_guru: string;
@@ -256,4 +257,16 @@ export interface SiswaJadwalResponse {
   nama_kelas: string;
   tingkat: string;
   items: SiswaJadwalItem[];
+}
+
+export interface KomentarTugas {
+  id: string;
+  tugas_id: string;
+  user_id: string;
+  nama_user: string;
+  gelar_user?: string;
+  peran_user: string;
+  pesan: string;
+  created_at: string;
+  waktu_format?: string;
 }

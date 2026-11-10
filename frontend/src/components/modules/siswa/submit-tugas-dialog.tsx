@@ -77,6 +77,14 @@ function validateFile(f: File, formatSpec?: string): string {
   return "";
 }
 
+function formatInstructionHtml(content?: string): string {
+  if (!content) return "";
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    return content;
+  }
+  return content.replace(/\n/g, "<br />");
+}
+
 interface Props {
   tugas: SiswaTugas;
   onClose: () => void;
@@ -180,9 +188,11 @@ export function SubmitTugasDialog({ tugas, onClose }: Props) {
 
         <div className="p-5 space-y-4">
           {tugas.deskripsi && (
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-              <p className="text-xs font-semibold text-slate-600 mb-1">Petunjuk Pengerjaan:</p>
-              <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{tugas.deskripsi}</p>
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1">
+              <p className="text-xs font-semibold text-slate-600">Petunjuk Pengerjaan:</p>
+              <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans space-y-1.5 break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_a]:text-blue-600 [&_a]:underline">
+                <div dangerouslySetInnerHTML={{ __html: formatInstructionHtml(tugas.deskripsi) }} />
+              </div>
             </div>
           )}
 

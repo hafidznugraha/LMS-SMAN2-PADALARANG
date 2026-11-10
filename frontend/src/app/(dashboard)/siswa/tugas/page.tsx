@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   Clock,
@@ -22,7 +23,6 @@ import {
   FileCheck2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SubmitTugasDialog } from "@/components/modules/siswa/submit-tugas-dialog";
 import { useSiswaTugas } from "@/hooks/useSiswaTugas";
 import { useSiswaJadwal } from "@/hooks/useSiswaJadwal";
 import { cn, formatTanggal, formatNamaWithGelar } from "@/lib/utils";
@@ -80,6 +80,14 @@ function formatClassroomDeadline(dateStr?: string | null): string {
   } catch {
     return dateStr;
   }
+}
+
+function formatInstructionHtml(content?: string): string {
+  if (!content) return "";
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    return content;
+  }
+  return content.replace(/\n/g, "<br />");
 }
 
 function getInitials(name?: string) {
@@ -162,7 +170,6 @@ export default function SiswaTugasPage() {
 
   const [selectedMapelId, setSelectedMapelId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [dipilih, setDipilih] = useState<SiswaTugas | null>(null);
 
   // Group scheduled subjects by mapel_id / nama_mapel according to Kurikulum schedule
   const mapelList = useMemo<MapelKelasItem[]>(() => {
@@ -550,12 +557,12 @@ export default function SiswaTugasPage() {
 
                                 {/* Petunjuk / Deskripsi */}
                                 {t.deskripsi ? (
-                                  <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-100">
-                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                                  <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-100 space-y-1.5">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                                       Petunjuk Pengerjaan:
                                     </p>
-                                    <div className="text-slate-700 leading-relaxed whitespace-pre-line text-xs sm:text-sm">
-                                      {t.deskripsi}
+                                    <div className="text-slate-700 leading-relaxed text-xs sm:text-sm font-sans space-y-1.5 break-words [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_a]:text-blue-600 [&_a]:underline">
+                                      <div dangerouslySetInnerHTML={{ __html: formatInstructionHtml(t.deskripsi) }} />
                                     </div>
                                   </div>
                                 ) : (
@@ -652,49 +659,68 @@ export default function SiswaTugasPage() {
 
                                 {/* Action Footer */}
                                 <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-3">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleTask(t.id);
-                                    }}
-                                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                                  >
-                                    Ciutkan detail
-                                  </button>
+                                  <div className="flex items-center gap-3">
+                                    <Link
+                                      href={`/siswa/tugas/${t.id}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+                                    >
+                                      <span>Lihat petunjuk</span>
+                                      <ArrowRight className="w-3.5 h-3.5" />
+                                    </Link>
+
+                                    <span className="text-slate-300">•</span>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleTask(t.id);
+                                      }}
+                                      className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                    >
+                                      Ciutkan detail
+                                    </button>
+                                  </div>
 
                                   <div className="flex items-center gap-2">
                                     {t.status === "belum" && !t.lewat_deadline && (
-                                      <Button
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDipilih(t);
-                                        }}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                      <Link
+                                        href={`/siswa/tugas/${t.id}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2 shadow-2xs transition-colors cursor-pointer"
                                       >
                                         <FileUp className="w-3.5 h-3.5" />
                                         <span>Kumpulkan Tugas</span>
-                                      </Button>
+                                      </Link>
                                     )}
                                     {t.status === "dikumpulkan" && !t.lewat_deadline && (
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDipilih(t);
-                                        }}
-                                        className="rounded-xl text-xs font-bold px-4 py-2 flex items-center gap-1.5 border border-slate-200 cursor-pointer"
+                                      <Link
+                                        href={`/siswa/tugas/${t.id}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold px-4 py-2 border border-slate-200 transition-colors cursor-pointer"
                                       >
                                         <FileUp className="w-3.5 h-3.5" />
                                         <span>Ganti Jawaban</span>
-                                      </Button>
+                                      </Link>
                                     )}
                                     {t.status === "belum" && t.lewat_deadline && (
-                                      <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1 rounded-full">
-                                        Batas Waktu Berakhir
-                                      </span>
+                                      <Link
+                                        href={`/siswa/tugas/${t.id}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                                      >
+                                        <span>Batas Waktu Berakhir</span>
+                                      </Link>
+                                    )}
+                                    {t.status === "dinilai" && (
+                                      <Link
+                                        href={`/siswa/tugas/${t.id}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                                      >
+                                        <span>Lihat Nilai & Evaluasi</span>
+                                      </Link>
                                     )}
                                   </div>
                                 </div>
@@ -836,10 +862,11 @@ export default function SiswaTugasPage() {
                         {upcomingTasks.length > 0 ? (
                           <div className="space-y-2">
                             {upcomingTasks.slice(0, 2).map((task) => (
-                              <div
+                              <Link
                                 key={task.id}
-                                onClick={() => setDipilih(task)}
-                                className="group/item p-2 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+                                href={`/siswa/tugas/${task.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="group/item block p-2 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
                               >
                                 <div className="flex items-center justify-between gap-1">
                                   <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
@@ -859,7 +886,7 @@ export default function SiswaTugasPage() {
                                 <p className="text-xs font-bold text-slate-800 group-hover/item:text-blue-600 transition-colors truncate mt-0.5">
                                   {task.judul}
                                 </p>
-                              </div>
+                              </Link>
                             ))}
 
                             {upcomingTasks.length > 2 && (
@@ -909,11 +936,6 @@ export default function SiswaTugasPage() {
             </div>
           )}
         </div>
-      )}
-
-      {/* Dialog Submit Tugas Siswa */}
-      {dipilih && (
-        <SubmitTugasDialog key={dipilih.id} tugas={dipilih} onClose={() => setDipilih(null)} />
       )}
     </div>
   );

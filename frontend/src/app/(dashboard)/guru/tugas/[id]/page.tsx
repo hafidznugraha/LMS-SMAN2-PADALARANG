@@ -957,15 +957,23 @@ function TugasDetailPageContent() {
                           </td>
                           <td className="py-3.5 px-4">
                             {sub.file_tugas ? (
-                              <a
-                                href={sub.file_tugas}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold underline"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                <span>{sub.file_name || 'Buka Berkas'}</span>
-                              </a>
+                              <div className="space-y-1">
+                                <a
+                                  href={sub.file_tugas}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold underline"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>{sub.file_name || 'Buka Berkas'}</span>
+                                </a>
+                                {sub.catatan_siswa && (
+                                  <div className="text-[11px] text-slate-600 bg-amber-50/90 border border-amber-200/90 rounded-lg p-1.5 max-w-xs space-y-0.5">
+                                    <span className="font-bold text-amber-800 block text-[10px]">Catatan Siswa:</span>
+                                    <span className="italic leading-tight block break-words">"{sub.catatan_siswa}"</span>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-slate-400 italic">Tidak ada berkas</span>
                             )}

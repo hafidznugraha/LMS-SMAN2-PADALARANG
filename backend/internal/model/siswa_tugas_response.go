@@ -9,6 +9,7 @@ import (
 type SiswaPengumpulan struct {
 	ID           uuid.UUID  `json:"id"`
 	NamaFile     string     `json:"nama_file"`
+	FileURL      string     `json:"file_url,omitempty"`
 	Catatan      string     `json:"catatan"`
 	Nilai        *float64   `json:"nilai"`
 	FeedbackGuru string     `json:"feedback_guru"`

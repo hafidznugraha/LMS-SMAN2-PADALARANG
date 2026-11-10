@@ -235,6 +235,7 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 			p := &model.SiswaPengumpulan{
 				ID:           pid,
 				NamaFile:     displayFileName(r.PFileURL),
+				FileURL:      r.PFileURL,
 				Catatan:      r.PCatatan,
 				Nilai:        r.PNilai,
 				FeedbackGuru: r.PFeedback,
@@ -253,6 +254,122 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(model.APIResponse{Success: true, Message: "Daftar tugas berhasil dimuat", Data: items})
+}
+
+// GET /api/v1/siswa/tugas/:id
+// Mengembalikan data detail satu tugas kelas siswa beserta pengumpulannya.
+func (h *SiswaHandler) GetTugasDetail(c *fiber.Ctx) error {
+	siswa, db, err := currentSiswa(c)
+	if siswa == nil {
+		return err
+	}
+
+	tugasID, perr := uuid.Parse(c.Params("id"))
+	if perr != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID tugas tidak valid",
+		})
+	}
+
+	if siswa.KelasID == nil {
+		return c.Status(fiber.StatusForbidden).JSON(model.APIResponse{
+			Success: false,
+			Message: "Siswa belum ditempatkan di kelas",
+		})
+	}
+
+	var r tugasRow
+	querySQL := `
+		SELECT
+			t.id,
+			t.mapel_id,
+			t.guru_id,
+			t.judul,
+			COALESCE(t.deskripsi, '') AS deskripsi,
+			COALESCE(t.format_file, 'pdf, docx') AS format_file,
+			COALESCE(t.file_lampiran, '') AS file_lampiran,
+			COALESCE(t.topik, '') AS topik,
+			mp.nama_mapel,
+			u.nama_lengkap AS nama_guru,
+			COALESCE(g.gelar, '') AS gelar_guru,
+			t.deadline,
+			COALESCE(p.id::text, '') AS p_id,
+			COALESCE(p.file_url, '') AS p_file_url,
+			COALESCE(p.catatan, '') AS p_catatan,
+			p.nilai AS p_nilai,
+			COALESCE(p.feedback_guru, '') AS p_feedback,
+			COALESCE(p.status, '') AS p_status,
+			p.submitted_at AS p_submitted_at,
+			p.graded_at AS p_graded_at
+		FROM tugas t
+		JOIN mata_pelajaran mp ON mp.id = t.mapel_id
+		JOIN guru g ON g.id = t.guru_id
+		JOIN users u ON u.id = g.user_id
+		LEFT JOIN pengumpulan_tugas p ON p.tugas_id = t.id AND p.siswa_id = ?
+		WHERE t.id = ? AND t.kelas_id = ?
+		LIMIT 1`
+
+	if err := db.Raw(querySQL, siswa.ID, tugasID, *siswa.KelasID).Scan(&r).Error; err != nil || r.ID == uuid.Nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	now := time.Now()
+	namaGuru := strings.TrimSpace(r.NamaGuru)
+	gelarGuru := strings.TrimSpace(r.GelarGuru)
+	if gelarGuru != "" && !strings.Contains(strings.ToLower(namaGuru), strings.ToLower(gelarGuru)) {
+		namaGuru = fmt.Sprintf("%s, %s", namaGuru, gelarGuru)
+	}
+
+	item := model.SiswaTugasItem{
+		ID:            r.ID,
+		MapelID:       r.MapelID,
+		GuruID:        r.GuruID,
+		Judul:         r.Judul,
+		Deskripsi:     r.Deskripsi,
+		FormatFile:    r.FormatFile,
+		FileLampiran:  r.FileLampiran,
+		Topik:         r.Topik,
+		NamaMapel:     r.NamaMapel,
+		NamaGuru:      namaGuru,
+		GelarGuru:     gelarGuru,
+		Deadline:      r.Deadline,
+		Status:        "belum",
+		LewatDeadline: now.After(r.Deadline),
+	}
+	if r.PID != "" {
+		pid, _ := uuid.Parse(r.PID)
+		status := "dikumpulkan"
+		if r.PNilai != nil || r.PStatus == "dinilai" {
+			status = "dinilai"
+		}
+		p := &model.SiswaPengumpulan{
+			ID:           pid,
+			NamaFile:     displayFileName(r.PFileURL),
+			FileURL:      r.PFileURL,
+			Catatan:      r.PCatatan,
+			Nilai:        r.PNilai,
+			FeedbackGuru: r.PFeedback,
+			Status:       status,
+			GradedAt:     r.PGraded,
+		}
+		if r.PSubmitted != nil {
+			p.SubmittedAt = *r.PSubmitted
+		}
+		item.Status = status
+		item.Pengumpulan = p
+	} else {
+		item.Mendesak = !item.LewatDeadline && r.Deadline.Sub(now) <= 48*time.Hour
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Detail tugas berhasil dimuat",
+		Data:    item,
+	})
 }
 
 type uploadedFile struct {
