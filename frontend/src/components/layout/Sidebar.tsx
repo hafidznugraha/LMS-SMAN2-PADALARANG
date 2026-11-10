@@ -36,7 +36,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-64 bg-[#142d72] text-white flex flex-col justify-between shrink-0 min-h-screen border-r border-blue-900/40 select-none">
-      {/* Top Brand Section */}
       <div>
         <div className="p-5 flex items-center gap-3 border-b border-white/10">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 to-blue-300 p-0.5 shadow-md flex items-center justify-center shrink-0">
@@ -52,7 +51,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Branch / Modul Badge for Academic Review */}
         <div className="mx-4 mt-3 mb-2">
           <button
             onClick={onOpenBranchInfo}
@@ -74,7 +72,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        {/* Navigation Menu */}
         <nav className="p-3 space-y-1.5">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -101,7 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Section: Logout & Version */}
       <div className="p-4 border-t border-white/10 space-y-3">
         <button
           onClick={onLogout}

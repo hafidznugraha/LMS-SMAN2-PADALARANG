@@ -33,7 +33,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
   return (
     <header className="h-18 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-      {/* Brand & Subtitle in Header */}
       <div className="flex items-center gap-3.5">
         <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shadow-xs">
           <GraduationCap className="w-6 h-6" />
@@ -48,9 +47,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div>
       </div>
 
-      {/* Action Controls & Profile */}
       <div className="flex items-center gap-4">
-        {/* Branch / Modul Scope Indicator Button */}
         <button
           onClick={onOpenBranchInfo}
           className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-semibold transition-colors cursor-pointer"
@@ -60,7 +57,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <span>Scope: Modul Guru Mapel</span>
         </button>
 
-        {/* Notification Bell */}
         <div className="relative">
           <button
             onClick={() => setShowNotifDropdown(!showNotifDropdown)}
@@ -73,7 +69,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             )}
           </button>
 
-          {/* Notification Dropdown */}
           {showNotifDropdown && (
             <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -127,7 +122,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           )}
         </div>
 
-        {/* User Profile Display */}
         <div className="relative">
           <button
             onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -149,7 +143,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             <ChevronDown className="w-4 h-4 text-slate-400" />
           </button>
 
-          {/* Profile & Switcher Dropdown */}
           {showProfileDropdown && (
             <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50">
               <div className="pb-3 border-b border-slate-100">
@@ -176,7 +169,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 )}
               </div>
 
-              {/* Demo Switcher for Evaluation */}
               <div className="pt-3">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Uji Tipe Guru (Evaluasi Praktikum):

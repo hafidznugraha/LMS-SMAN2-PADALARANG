@@ -20,7 +20,6 @@ export default function GuruMateriPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentBidangStudi, setCurrentBidangStudi] = useState('Matematika Peminatan');
 
-  // Ambil data materi & kelas dari database Supabase melalui API Go
   const fetchMateriData = useCallback(async () => {
     try {
       setIsLoading(true);

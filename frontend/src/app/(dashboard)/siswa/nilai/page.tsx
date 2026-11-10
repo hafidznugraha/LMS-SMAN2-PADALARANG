@@ -34,7 +34,6 @@ export default function SiswaNilaiPage() {
         <p className="text-xs md:text-sm text-slate-500 mt-1">Hasil belajar kamu per mata pelajaran</p>
       </div>
 
-      {/* Rapor */}
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-800">Rapor Semester</h3>
         {rapor.isLoading ? (
@@ -73,7 +72,6 @@ export default function SiswaNilaiPage() {
         )}
       </section>
 
-      {/* Nilai */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-800">Nilai per Mata Pelajaran</h3>

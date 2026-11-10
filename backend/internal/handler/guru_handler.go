@@ -53,11 +53,7 @@ func (h *GuruHandler) isCallerKurikulum(c *fiber.Ctx) bool {
 	return false
 }
 
-// getCallerGuruID resolves the guru_id from query param, form value, or Authorization JWT token.
-// If caller is authenticated as a guru, it returns that guru's UUID and true.
-// If caller is kurikulum/admin without guru_id query, it returns false (meaning no restriction).
 func (h *GuruHandler) getCallerGuruID(c *fiber.Ctx) (uuid.UUID, bool) {
-	// 1. Explicit query parameter check
 	gStr := strings.TrimSpace(c.Query("guru_id"))
 	if gStr != "" && gStr != "ALL" {
 		if gUUID, err := uuid.Parse(gStr); err == nil {
@@ -65,14 +61,12 @@ func (h *GuruHandler) getCallerGuruID(c *fiber.Ctx) (uuid.UUID, bool) {
 		}
 	}
 
-	// 2. Explicit form value check (for multipart uploads)
 	if fStr := strings.TrimSpace(c.FormValue("guru_id")); fStr != "" && fStr != "ALL" {
 		if gUUID, err := uuid.Parse(fStr); err == nil {
 			return gUUID, true
 		}
 	}
 
-	// 3. Extract from Authorization token if available
 	authHeader := c.Get("Authorization")
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
@@ -88,7 +82,6 @@ func (h *GuruHandler) getCallerGuruID(c *fiber.Ctx) (uuid.UUID, bool) {
 		})
 		if err == nil && token != nil && token.Valid {
 			if claims, ok := token.Claims.(jwt.MapClaims); ok {
-				// Kurikulum/Admin role has full visibility unless specific query provided
 				if roleStr, ok := claims["role"].(string); ok && roleStr == string(model.RoleKurikulum) {
 					return uuid.Nil, false
 				}
@@ -107,7 +100,6 @@ func (h *GuruHandler) getCallerGuruID(c *fiber.Ctx) (uuid.UUID, bool) {
 	return uuid.Nil, false
 }
 
-// 0. GET /api/v1/guru/kelas - Mengambil daftar rombel/kelas yang secara resmi dijadwalkan oleh Kurikulum untuk guru ini
 func (h *GuruHandler) GetKelasAjar(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {
@@ -125,7 +117,6 @@ func (h *GuruHandler) GetKelasAjar(c *fiber.Ctx) error {
 
 	guruUUID, hasCaller := h.getCallerGuruID(c)
 
-	// Jika pemanggil adalah kurikulum/admin tanpa parameter guru_id tertentu, tampilkan seluruh kelas master
 	if !hasCaller || guruUUID == uuid.Nil {
 		var list []model.Kelas
 		if err := db.Select("kelas.*, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS total_siswa, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS jumlah_siswa, ? AS tahun_ajaran", tahunAjaranStr).
@@ -145,7 +136,6 @@ func (h *GuruHandler) GetKelasAjar(c *fiber.Ctx) error {
 		})
 	}
 
-	// Kueri HANYA kelas yang secara resmi memiliki jadwal KBM untuk guru pengampu ini di jadwal_pelajaran
 	var list []model.Kelas
 	err := db.Select("DISTINCT kelas.*, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS total_siswa, (SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = kelas.id) AS jumlah_siswa, ? AS tahun_ajaran", tahunAjaranStr).
 		Preload("WaliGuru.User").
@@ -169,7 +159,6 @@ func (h *GuruHandler) GetKelasAjar(c *fiber.Ctx) error {
 	})
 }
 
-// 1. GET /api/v1/guru/materi - Mengambil daftar seluruh materi dari Supabase
 func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {
@@ -259,7 +248,6 @@ func (h *GuruHandler) GetMateriList(c *fiber.Ctx) error {
 	})
 }
 
-// 2. POST /api/v1/guru/materi - Menyimpan materi baru ke tabel materi di Supabase
 func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	var req model.CreateMateriRequest
 	_ = c.BodyParser(&req)
@@ -303,7 +291,7 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	if hasCaller {
 		guruUUID = callerGuruUUID
 	} else if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback jika unauthenticated
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5")
 	}
 
 	kelasUUID, err := uuid.Parse(req.KelasID)
@@ -337,7 +325,7 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
 		} else {
-			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001") // MTK Peminatan
+			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001")
 		}
 	}
 
@@ -362,7 +350,6 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 
 	materiID := uuid.New()
 
-	// Simpan berkas fisik ke disk lokal dan upload ke Supabase Storage
 	if savedURL, mb, detectedTipe, ok := processMateriUpload(c, h.cfg, materiID, tipeFile); ok {
 		fileURL = savedURL
 		ukuran = mb
@@ -393,7 +380,6 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 		})
 	}
 
-	// Kirim notifikasi HANYA kepada siswa yang terdaftar di kelas materi terkait
 	namaGuru := service.FormatNamaGuruWithGelar(db, guruUUID)
 	var namaMapel string
 	var mapel model.MataPelajaran
@@ -416,7 +402,6 @@ func (h *GuruHandler) CreateMateri(c *fiber.Ctx) error {
 	})
 }
 
-// 3. DELETE /api/v1/guru/materi/:id - Menghapus materi
 func (h *GuruHandler) DeleteMateri(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	targetID, err := uuid.Parse(idStr)
@@ -446,14 +431,12 @@ func (h *GuruHandler) DeleteMateri(c *fiber.Ctx) error {
 		}
 	}
 
-	// Hapus berkas lokal jika ada
 	if matches, errGlob := filepath.Glob(filepath.Join("uploads", "materi", targetID.String()+".*")); errGlob == nil {
 		for _, m := range matches {
 			_ = os.Remove(m)
 		}
 	}
 
-	// Hapus berkas dari Supabase Storage jika URL mengarah ke Supabase
 	if strings.Contains(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/") {
 		parts := strings.Split(materi.FileURL, "/storage/v1/object/public/materi-pelajaran/")
 		if len(parts) == 2 && parts[1] != "" {
@@ -476,7 +459,6 @@ func (h *GuruHandler) DeleteMateri(c *fiber.Ctx) error {
 	})
 }
 
-// 4. GET /api/v1/guru/tugas - Mengambil daftar tugas (Bisa difilter per kelas)
 func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	kelasID := c.Query("kelas_id")
@@ -520,7 +502,6 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 		Joins("LEFT JOIN mata_pelajaran m ON m.id = t.mapel_id").
 		Joins("LEFT JOIN kelas k ON k.id = t.kelas_id")
 
-	// Filter Kelas: Hanya tampilkan tugas kelas yang diminta
 	if kelasUUID, err := uuid.Parse(kelasID); err == nil {
 		query = query.Where("t.kelas_id = ?", kelasUUID)
 	}
@@ -544,7 +525,6 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 	})
 }
 
-// GetTugasDetail mengambil data detail penugasan tunggal untuk guru
 func (h *GuruHandler) GetTugasDetail(c *fiber.Ctx) error {
 	idStr := strings.TrimSpace(c.Params("id"))
 	tugasUUID, err := uuid.Parse(idStr)
@@ -611,7 +591,6 @@ func (h *GuruHandler) GetTugasDetail(c *fiber.Ctx) error {
 	})
 }
 
-// 5. POST /api/v1/guru/tugas - Menerbitkan tugas baru (Terkunci ke kelas yang dipilih)
 func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 	var req model.CreateTugasRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -630,16 +609,14 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
-	// 1. Validasi UUID Guru
 	callerGuruUUID, hasCaller := h.getCallerGuruID(c)
 	guruUUID, err := uuid.Parse(req.GuruID)
 	if hasCaller {
 		guruUUID = callerGuruUUID
 	} else if err != nil {
-		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5") // Fallback jika unauthenticated
+		guruUUID = uuid.MustParse("298257fb-b4aa-4710-afaa-bbfd63abd5c5")
 	}
 
-	// 2. Kunci Kelas yang dipilih Guru & Validasi Wewenang
 	kelasUUID, err := uuid.Parse(req.KelasID)
 	if err != nil || kelasUUID == uuid.Nil {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
@@ -665,14 +642,13 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		}
 	}
 
-	// 3. Validasi UUID Mapel
 	mapelUUID, err := uuid.Parse(req.MapelID)
 	if err != nil || mapelUUID == uuid.Nil {
 		var guru model.Guru
 		if err := db.Where("id = ?", guruUUID).First(&guru).Error; err == nil && guru.MapelID != nil {
 			mapelUUID = *guru.MapelID
 		} else {
-			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001") // MTK Peminatan
+			mapelUUID = uuid.MustParse("20000000-0000-0000-0000-000000000001")
 		}
 	}
 
@@ -754,7 +730,7 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		ID:           newID,
 		GuruID:       guruUUID,
 		MapelID:      mapelUUID,
-		KelasID:      kelasUUID, // Terkunci ke kelas ini saja!
+		KelasID:      kelasUUID,
 		Judul:        req.Judul,
 		Deskripsi:    deskripsi,
 		FormatFile:   formatFile,
@@ -772,7 +748,6 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 		})
 	}
 
-	// Kirim notifikasi HANYA kepada siswa yang terdaftar di kelas tugas terkait
 	namaGuru := service.FormatNamaGuruWithGelar(db, guruUUID)
 	var namaMapel string
 	var mapel model.MataPelajaran
@@ -834,7 +809,6 @@ func (h *GuruHandler) CreateTugas(c *fiber.Ctx) error {
 	})
 }
 
-// 6. PUT /api/v1/guru/tugas/:id - Memperbarui data tugas di Supabase
 func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	targetID, err := uuid.Parse(idStr)
@@ -1025,7 +999,6 @@ func (h *GuruHandler) UpdateTugas(c *fiber.Ctx) error {
 	})
 }
 
-// 7. DELETE /api/v1/guru/tugas/:id - Menghapus tugas dan pengumpulan terkait
 func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	targetID, err := uuid.Parse(idStr)
@@ -1055,10 +1028,8 @@ func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
 		}
 	}
 
-	// Hapus seluruh pengumpulan tugas terlebih dahulu jika ada
 	_ = db.Where("tugas_id = ?", targetID).Delete(&model.PengumpulanTugas{}).Error
 
-	// Hapus tugas
 	res := db.Delete(&model.Tugas{}, "id = ?", targetID)
 	if res.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
@@ -1080,7 +1051,6 @@ func (h *GuruHandler) DeleteTugas(c *fiber.Ctx) error {
 	})
 }
 
-// GetTopikList mengambil daftar topik tugas berdasarkan kelas dan mata pelajaran
 func (h *GuruHandler) GetTopikList(c *fiber.Ctx) error {
 	kelasIDStr := strings.TrimSpace(c.Query("kelas_id"))
 	mapelIDStr := strings.TrimSpace(c.Query("mapel_id"))
@@ -1115,7 +1085,6 @@ func (h *GuruHandler) GetTopikList(c *fiber.Ctx) error {
 	})
 }
 
-// CreateTopik menambahkan topik tugas baru untuk kelas dan mata pelajaran
 func (h *GuruHandler) CreateTopik(c *fiber.Ctx) error {
 	var req model.CreateTopikRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -1162,7 +1131,6 @@ func (h *GuruHandler) CreateTopik(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
-	// If mapelUUID is Nil, try to look up from guru's assigned mapel or an existing assignment in this kelas
 	if mapelUUID == uuid.Nil {
 		var existingTugas model.Tugas
 		if err := db.Where("kelas_id = ?", kelasUUID).First(&existingTugas).Error; err == nil {
@@ -1175,7 +1143,6 @@ func (h *GuruHandler) CreateTopik(c *fiber.Ctx) error {
 		}
 	}
 
-	// Check if topic with same name already exists in this class & mapel
 	var existing model.TopikTugas
 	checkQuery := db.Where("kelas_id = ? AND LOWER(nama_topik) = LOWER(?)", kelasUUID, namaTopik)
 	if mapelUUID != uuid.Nil {
@@ -1213,7 +1180,6 @@ func (h *GuruHandler) CreateTopik(c *fiber.Ctx) error {
 	})
 }
 
-// UploadLampiranTugas menangani upload berkas lampiran tugas oleh guru (PDF, Dokumen, Presentasi, Gambar, dll)
 func (h *GuruHandler) UploadLampiranTugas(c *fiber.Ctx) error {
 	fileHeader, err := c.FormFile("file")
 	if err != nil || fileHeader == nil || fileHeader.Size == 0 {
@@ -1223,7 +1189,6 @@ func (h *GuruHandler) UploadLampiranTugas(c *fiber.Ctx) error {
 		})
 	}
 
-	// Batas ukuran 50 MB
 	if fileHeader.Size > 50*1024*1024 {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
 			Success: false,
@@ -1256,14 +1221,12 @@ func (h *GuruHandler) UploadLampiranTugas(c *fiber.Ctx) error {
 	storageFilename := fmt.Sprintf("lampiran_%s%s", uuid.New().String(), ext)
 	mime := mimeTypeByExt(ext)
 
-	// 1. Simpan salinan lokal di folder uploads/lampiran/
 	uploadDir := filepath.Join("uploads", "lampiran")
 	if err := os.MkdirAll(uploadDir, 0755); err == nil {
 		destPath := filepath.Join(uploadDir, storageFilename)
 		_ = os.WriteFile(destPath, data, 0644)
 	}
 
-	// 2. Upload ke Supabase Storage bucket 'materi-pelajaran'
 	fileURL := "/uploads/lampiran/" + storageFilename
 	supabasePublicURL, errSupabase := uploadFileToSupabaseStorage(h.cfg, storageFilename, data, mime)
 	if errSupabase == nil && supabasePublicURL != "" {
@@ -1282,7 +1245,6 @@ func (h *GuruHandler) UploadLampiranTugas(c *fiber.Ctx) error {
 	})
 }
 
-// 8. GET /api/v1/guru/tugas/:id/submissions - Lembar pengumpulan tugas (Hanya siswa kelas bersangkutan)
 func (h *GuruHandler) GetTugasSubmissions(c *fiber.Ctx) error {
 	tugasIDStr := c.Params("id")
 	tugasUUID, err := uuid.Parse(tugasIDStr)
@@ -1296,7 +1258,6 @@ func (h *GuruHandler) GetTugasSubmissions(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	var results []model.SubmissionWithSiswa
 
-	// ISOLASI KETAT: JOIN siswa s ON s.kelas_id = t.kelas_id (Hanya siswa dari kelas tugas ini)
 	query := `
 		SELECT 
 			COALESCE(pt.id, gen_random_uuid()) as id,
@@ -1351,7 +1312,6 @@ func (h *GuruHandler) GetTugasSubmissions(c *fiber.Ctx) error {
 	})
 }
 
-// 9. GET /api/v1/siswa/tugas - Siswa HANYA BISA MELIHAT tugas dari kelasnya sendiri
 func (h *GuruHandler) GetTugasSiswa(c *fiber.Ctx) error {
 	kelasIDStr := c.Query("kelas_id")
 	kelasUUID, err := uuid.Parse(kelasIDStr)
@@ -1365,7 +1325,6 @@ func (h *GuruHandler) GetTugasSiswa(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	var listTugas []model.Tugas
 
-	// ISOLASI KETAT SISWA: Hanya ambil tugas yang t.kelas_id = kelas_id siswa!
 	if err := db.Where("kelas_id = ?", kelasUUID).Order("deadline ASC").Find(&listTugas).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
 			Success: false,
@@ -1380,7 +1339,6 @@ func (h *GuruHandler) GetTugasSiswa(c *fiber.Ctx) error {
 	})
 }
 
-// 10. PUT /api/v1/guru/submissions/:id/grade - Guru menilai tugas siswa
 func (h *GuruHandler) GradeSubmission(c *fiber.Ctx) error {
 	subIDStr := c.Params("id")
 	subUUID, err := uuid.Parse(subIDStr)
@@ -1521,7 +1479,6 @@ func (h *GuruHandler) GradeSubmission(c *fiber.Ctx) error {
 	})
 }
 
-// 11. GET /api/v1/guru/absensi - Rekap presensi siswa kelas
 func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	kelasIDStr := c.Params("kelas_id")
 	if kelasIDStr == "" {
@@ -1529,7 +1486,7 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	}
 	kelasUUID, err := uuid.Parse(kelasIDStr)
 	if err != nil {
-		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001") // Default XII IPA 1
+		kelasUUID = uuid.MustParse("f0000000-0000-0000-0000-000000000001")
 	}
 
 	tanggal := c.Query("tanggal", time.Now().Format("2006-01-02"))
@@ -1647,7 +1604,6 @@ func (h *GuruHandler) GetAbsensiKelas(c *fiber.Ctx) error {
 	})
 }
 
-// 12. POST & PUT /api/v1/guru/absensi - Menyimpan atau memperbarui kehadiran siswa ke Supabase
 func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	var req struct {
 		AbsensiID  string `json:"absensi_id"`
@@ -1760,7 +1716,6 @@ func (h *GuruHandler) SaveOrUpdateAbsensi(c *fiber.Ctx) error {
 	})
 }
 
-// 13. POST /api/v1/guru/absensi/verify - Verifikasi seluruh presensi kelas pada tanggal sesi oleh Wali Kelas
 func (h *GuruHandler) VerifyAbsensiKelas(c *fiber.Ctx) error {
 	var req struct {
 		KelasID string `json:"kelas_id"`
@@ -1794,7 +1749,6 @@ func (h *GuruHandler) VerifyAbsensiKelas(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
-	// 1. Ambil seluruh siswa di kelas tersebut
 	var siswaInKelas []model.Siswa
 	if err := db.Where("kelas_id = ?", kelasUUID).Find(&siswaInKelas).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
@@ -1839,7 +1793,6 @@ func (h *GuruHandler) VerifyAbsensiKelas(c *fiber.Ctx) error {
 	})
 }
 
-// 13. GET /api/v1/guru/nilai - Mengambil rekap nilai siswa satu kelas dari Supabase
 type NilaiSiswaResponse struct {
 	IDNilai     string  `json:"id_nilai"`
 	IDSiswa     string  `json:"id_siswa"`
@@ -1991,7 +1944,6 @@ func (h *GuruHandler) GetNilaiList(c *fiber.Ctx) error {
 	})
 }
 
-// 14. PUT & POST /api/v1/guru/nilai - Menyimpan input nilai siswa ke tabel nilai di Supabase
 type UpdateNilaiRequest struct {
 	SiswaID    string  `json:"siswa_id"`
 	GuruID     string  `json:"guru_id"`
@@ -2094,7 +2046,6 @@ func (h *GuruHandler) UpdateNilai(c *fiber.Ctx) error {
 	})
 }
 
-// 14. GET /api/v1/guru/kelas/:id/anggota atau /api/v1/guru/anggota-kelas?kelas_id=...
 type AnggotaPengajarItem struct {
 	ID          string `json:"id"`
 	NamaLengkap string `json:"nama_lengkap"`
@@ -2147,7 +2098,6 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		kelasIDStr = c.Query("kelas_id")
 	}
 
-	// Jika kelas_id belum diisi, coba deteksi dari token siswa yang sedang login
 	if kelasIDStr == "" {
 		authHeader := c.Get("Authorization")
 		if strings.HasPrefix(authHeader, "Bearer ") {
@@ -2195,7 +2145,6 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		})
 	}
 
-	// 1. Ambil Pengajar (Hanya guru pengampu mata pelajaran ruang kelas ini)
 	guruIDStr := c.Query("guru_id")
 	mapelIDStr := c.Query("mapel_id")
 	mapelName := strings.TrimSpace(c.Query("mapel"))
@@ -2267,7 +2216,6 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 	db.Raw(querySQL, queryArgs...).Scan(&jadwalPengajar)
 
 	if len(jadwalPengajar) > 0 {
-		// Tepat 1 guru pengampu untuk mata pelajaran ruang kelas ini
 		jp := jadwalPengajar[0]
 		pengajarList = append(pengajarList, AnggotaPengajarItem{
 			ID:          jp.ID.String(),
@@ -2279,7 +2227,6 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 			Mapel:       jp.NamaMapel,
 		})
 	} else if guruIDStr != "" {
-		// Fallback ke guru spesifik jika jadwal belum lengkap
 		if gUUID, err := uuid.Parse(guruIDStr); err == nil {
 			type SingleGuruRow struct {
 				ID          uuid.UUID `json:"id"`
@@ -2339,7 +2286,6 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		}
 	}
 
-	// 2. Ambil Siswa
 	type SiswaRow struct {
 		ID           uuid.UUID `json:"id"`
 		UserID       uuid.UUID `json:"user_id"`
@@ -2390,7 +2336,6 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 	})
 }
 
-// GetKomentarTugas handles retrieving all comments for an assignment
 func (h *GuruHandler) GetKomentarTugas(c *fiber.Ctx) error {
 	tugasIDStr := strings.TrimSpace(c.Params("id"))
 	if tugasIDStr == "" {
@@ -2409,7 +2354,6 @@ func (h *GuruHandler) GetKomentarTugas(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
-	// Verify tugas exists
 	var tugas model.Tugas
 	if err := db.Select("id").First(&tugas, "id = ?", tugasUUID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
@@ -2506,7 +2450,6 @@ func (h *GuruHandler) GetKomentarTugas(c *fiber.Ctx) error {
 	})
 }
 
-// CreateKomentarTugas handles posting a new comment to an assignment
 func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 	tugasIDStr := strings.TrimSpace(c.Params("id"))
 	if tugasIDStr == "" {
@@ -2544,7 +2487,6 @@ func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 
 	db := repository.GetDB()
 
-	// Verify tugas exists
 	var tugas model.Tugas
 	if err := db.Preload("Guru").First(&tugas, "id = ?", tugasUUID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
@@ -2553,7 +2495,6 @@ func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 		})
 	}
 
-	// Resolve caller user ID
 	var callerUserID uuid.UUID
 	authHeader := c.Get("Authorization")
 	if strings.HasPrefix(authHeader, "Bearer ") {
@@ -2579,7 +2520,6 @@ func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 		}
 	}
 
-	// Fallback to c.Locals if set by middleware
 	if callerUserID == uuid.Nil {
 		if localUID, ok := c.Locals("user_id").(string); ok && localUID != "" {
 			if parsedUID, err := uuid.Parse(localUID); err == nil {
@@ -2588,7 +2528,6 @@ func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 		}
 	}
 
-	// Fallback to guru of the assignment or first user in DB if unauthenticated (e.g. testing)
 	if callerUserID == uuid.Nil {
 		if tugas.Guru != nil && tugas.Guru.UserID != uuid.Nil {
 			callerUserID = tugas.Guru.UserID
@@ -2627,7 +2566,6 @@ func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch user details for response
 	var u model.User
 	db.First(&u, "id = ?", callerUserID)
 	var g model.Guru
@@ -2679,7 +2617,6 @@ func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteKomentarTugas handles deleting a comment
 func (h *GuruHandler) DeleteKomentarTugas(c *fiber.Ctx) error {
 	komentarIDStr := strings.TrimSpace(c.Params("komentarId"))
 	if komentarIDStr == "" {
@@ -2714,5 +2651,3 @@ func (h *GuruHandler) DeleteKomentarTugas(c *fiber.Ctx) error {
 		Message: "Komentar berhasil dihapus",
 	})
 }
-
-

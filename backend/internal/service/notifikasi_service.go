@@ -12,17 +12,14 @@ import (
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 )
 
-// NotifikasiService menyediakan fungsi domain terpusat untuk distribusi dan manajemen notifikasi LMS
 type NotifikasiService struct{}
 
 var notifServiceInstance = &NotifikasiService{}
 
-// GetNotifikasiService mengembalikan instance singleton NotifikasiService
 func GetNotifikasiService() *NotifikasiService {
 	return notifServiceInstance
 }
 
-// KirimKeKelas mendistribusikan notifikasi secara isolatif HANYA kepada siswa yang terdaftar di kelas tertentu
 func (s *NotifikasiService) KirimKeKelas(db *gorm.DB, kelasID uuid.UUID, judul, pesan, tipe, tautan string) (int, error) {
 	if db == nil || kelasID == uuid.Nil {
 		return 0, fmt.Errorf("database handle atau kelasID tidak valid")
@@ -66,7 +63,6 @@ func (s *NotifikasiService) KirimKeKelas(db *gorm.DB, kelasID uuid.UUID, judul, 
 	return len(notifList), nil
 }
 
-// KirimKeUser mengirimkan notifikasi personal ke satu user tertentu
 func (s *NotifikasiService) KirimKeUser(db *gorm.DB, userID uuid.UUID, judul, pesan, tipe, tautan string) error {
 	if db == nil || userID == uuid.Nil {
 		return fmt.Errorf("database handle atau userID tidak valid")
@@ -86,7 +82,6 @@ func (s *NotifikasiService) KirimKeUser(db *gorm.DB, userID uuid.UUID, judul, pe
 	return db.Create(&notif).Error
 }
 
-// KirimBatch mendistribusikan notifikasi yang sama ke kumpulan user ID tertentu
 func (s *NotifikasiService) KirimBatch(db *gorm.DB, userIDs []uuid.UUID, judul, pesan, tipe, tautan string) (int, error) {
 	if db == nil || len(userIDs) == 0 {
 		return 0, nil
@@ -120,7 +115,6 @@ func (s *NotifikasiService) KirimBatch(db *gorm.DB, userIDs []uuid.UUID, judul, 
 	return len(notifList), nil
 }
 
-// FormatNamaGuruWithGelar mengambil nama lengkap guru beserta gelar akademis secara cerdas tanpa duplikasi
 func (s *NotifikasiService) FormatNamaGuruWithGelar(db *gorm.DB, guruUUID uuid.UUID) string {
 	if db == nil || guruUUID == uuid.Nil {
 		return "Guru Pengampu"
@@ -147,7 +141,6 @@ func (s *NotifikasiService) FormatNamaGuruWithGelar(db *gorm.DB, guruUUID uuid.U
 	return "Guru Pengampu"
 }
 
-// FormatDeadlineIndo memformat objek time.Time deadline ke dalam bahasa Indonesia (e.g. "15 November 2026, 23:59 WIB")
 func (s *NotifikasiService) FormatDeadlineIndo(t time.Time) string {
 	bulanIndo := [...]string{
 		"", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember",
@@ -159,7 +152,6 @@ func (s *NotifikasiService) FormatDeadlineIndo(t time.Time) string {
 	return t.Format("02/01/2006 15:04 WIB")
 }
 
-// Helper wrapper functions untuk pemanggilan langsung tingkat paket (package-level)
 func KirimKeKelas(db *gorm.DB, kelasID uuid.UUID, judul, pesan, tipe, tautan string) (int, error) {
 	return notifServiceInstance.KirimKeKelas(db, kelasID, judul, pesan, tipe, tautan)
 }

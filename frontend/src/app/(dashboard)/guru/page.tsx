@@ -63,7 +63,6 @@ export default function GuruDashboardPage() {
   const [nilaiList, setNilaiList] = useState<NilaiSiswa[]>([]);
   const [jadwalList, setJadwalList] = useState<JadwalPelajaran[]>([]);
 
-  // Modals & State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [editingMateri, setEditingMateri] = useState<Materi | null>(null);
   const [deletingTarget, setDeletingTarget] = useState<{ id: string; judul: string } | null>(null);
@@ -148,7 +147,6 @@ export default function GuruDashboardPage() {
     }
   };
 
-  // Handler Simpan / Edit Materi
   const handleSaveMateri = async (saved: Materi) => {
     if (editingMateri) {
       setMateriList((prev) =>
@@ -193,13 +191,11 @@ export default function GuruDashboardPage() {
     }
   };
 
-  // Handler Simpan Tugas
   const handleSaveTugas = (newT: TugasKuis) => {
     setTugasList((prev) => [newT, ...prev.filter((t) => t.id_tugas_kuis !== newT.id_tugas_kuis)]);
     setActiveView('tugas');
   };
 
-  // Handler Buka Penilaian Siswa
   const handleOpenGrading = async (tugas: TugasKuis) => {
     const tugasId = tugas.id_tugas_kuis || (tugas as unknown as { id?: string }).id;
     if (!tugasId) return;
@@ -212,7 +208,6 @@ export default function GuruDashboardPage() {
     }
   };
 
-  // Handler Simpan Nilai Tugas Siswa
   const handleSaveNilaiSubmission = async (
     idSub: string,
     nilai: number,
@@ -252,8 +247,6 @@ export default function GuruDashboardPage() {
     }
   };
 
-
-  // Handler Update Nilai
   const handleUpdateNilai = async (updated: NilaiSiswa) => {
     setNilaiList((prev) =>
       prev.map((n) => (n.id_nilai === updated.id_nilai || n.id_siswa === updated.id_siswa ? updated : n))
@@ -303,7 +296,6 @@ export default function GuruDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Tombol Kembali jika sedang membuka sub-halaman Materi / Tugas / Absensi */}
       {activeView !== 'dashboard' && (
         <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
           <button
@@ -319,7 +311,6 @@ export default function GuruDashboardPage() {
         </div>
       )}
 
-      {/* 1. TAMPILAN DASHBOARD UTAMA */}
       {activeView === 'dashboard' && (
         <>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -637,7 +628,6 @@ export default function GuruDashboardPage() {
           onSaveNilaiSubmission={handleSaveNilaiSubmission}
         />
       )}
-
 
       {activeView === 'nilai' && (
         <NilaiModule

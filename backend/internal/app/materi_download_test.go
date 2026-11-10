@@ -30,7 +30,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 
 	app := SetupRouter(cfg)
 
-	// 1. Setup dummy test kelas, guru, mapel, siswa, dan materi
 	kelas := model.Kelas{
 		ID:        uuid.New(),
 		NamaKelas: "Test Kelas Unduhan",
@@ -41,11 +40,11 @@ func TestMateriDownloadTracking(t *testing.T) {
 	defer db.Delete(&kelas)
 
 	userGuru := model.User{
-		ID:          uuid.New(),
-		Username:    "guru_unduhan_test",
-		Email:       "guru_unduhan@test.com",
-		NamaLengkap: "Guru Unduhan Test",
-		Role:        model.RoleGuru,
+		ID:           uuid.New(),
+		Username:     "guru_unduhan_test",
+		Email:        "guru_unduhan@test.com",
+		NamaLengkap:  "Guru Unduhan Test",
+		Role:         model.RoleGuru,
 		PasswordHash: "dummy",
 	}
 	db.Create(&userGuru)
@@ -60,11 +59,11 @@ func TestMateriDownloadTracking(t *testing.T) {
 	defer db.Delete(&guru)
 
 	userSiswa1 := model.User{
-		ID:          uuid.New(),
-		Username:    "siswa_unduhan_1",
-		Email:       "siswa1@test.com",
-		NamaLengkap: "Siswa Unduhan 1",
-		Role:        model.RoleSiswa,
+		ID:           uuid.New(),
+		Username:     "siswa_unduhan_1",
+		Email:        "siswa1@test.com",
+		NamaLengkap:  "Siswa Unduhan 1",
+		Role:         model.RoleSiswa,
 		PasswordHash: "dummy",
 	}
 	db.Create(&userSiswa1)
@@ -83,10 +82,10 @@ func TestMateriDownloadTracking(t *testing.T) {
 
 	userSiswa2 := model.User{
 		ID:           uuid.New(),
-		Username:    "siswa_unduhan_2",
-		Email:       "siswa2@test.com",
-		NamaLengkap: "Siswa Unduhan 2",
-		Role:        model.RoleSiswa,
+		Username:     "siswa_unduhan_2",
+		Email:        "siswa2@test.com",
+		NamaLengkap:  "Siswa Unduhan 2",
+		Role:         model.RoleSiswa,
 		PasswordHash: "dummy",
 	}
 	db.Create(&userSiswa2)
@@ -127,7 +126,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 	defer db.Delete(&materi)
 	defer db.Where("materi_id = ?", materi.ID).Delete(&model.MateriUnduhanSiswa{})
 
-	// Generate JWT tokens
 	genToken := func(userID uuid.UUID, role model.UserRole) string {
 		claims := jwt.MapClaims{
 			"user_id":      userID.String(),
@@ -146,7 +144,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 	tokenSiswa1 := genToken(userSiswa1.ID, model.RoleSiswa)
 	tokenSiswa2 := genToken(userSiswa2.ID, model.RoleSiswa)
 
-	// Kasus 1: Guru mengunduh materi -> counter TIDAK boleh bertambah
 	t.Run("Guru mengunduh materi tidak boleh menambah counter unduhan", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/materi/"+materi.ID.String()+"/download", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenGuru)
@@ -165,7 +162,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 		}
 	})
 
-	// Kasus 2: Siswa 1 mengunduh materi untuk pertama kali -> counter bertambah jadi 1
 	t.Run("Siswa 1 mengunduh pertama kali harus menghitung 1", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/siswa/materi/"+materi.ID.String()+"/download", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenSiswa1)
@@ -184,7 +180,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 		}
 	})
 
-	// Kasus 3: Siswa 1 mengunduh materi KEDUA dan KETIGA kali -> counter HARUS TETAP 1
 	t.Run("Siswa 1 mengunduh berulang kali harus tetap terhitung 1 (idempoten)", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/siswa/materi/"+materi.ID.String()+"/download", nil)
@@ -202,7 +197,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 		}
 	})
 
-	// Kasus 4: Siswa 2 mengunduh materi -> counter bertambah jadi 2 (karena siswa berbeda)
 	t.Run("Siswa 2 mengunduh materi harus menambah counter menjadi 2", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/siswa/materi/"+materi.ID.String()+"/download", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenSiswa2)
@@ -221,7 +215,6 @@ func TestMateriDownloadTracking(t *testing.T) {
 		}
 	})
 
-	// Kasus 5: GetMateriList Guru mengembalikan unduhan_count yang akurat
 	t.Run("GetMateriList guru mengembalikan unduhan_count siswa yang benar", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/guru/materi", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenGuru)

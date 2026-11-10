@@ -1,10 +1,5 @@
 import { Materi } from '@/types/lms';
 
-/**
- * Helper pembuat berkas PDF binary murni (PDF-1.4) standar ISO untuk LMS SMAN 2 Padalarang.
- * Menjamin bahwa berkas unduhan di sisi klien selalu berupa format PDF valid yang dapat dibuka
- * di semua PDF viewer (Chrome, Adobe Acrobat, Edge), bukan plain text dan bukan 0 byte.
- */
 export function generateClientMateriPDF(materi: {
   judul_materi: string;
   nama_kelas?: string;
@@ -46,7 +41,6 @@ export function generateClientMateriPDF(materi: {
   const streamBytes = encoder.encode(stream);
   const streamLen = streamBytes.length;
 
-  // Gunakan header ASCII murni agar byte offset xref 100% akurat di UTF-8 encoder
   const header = '%PDF-1.4\n';
   const offsets: number[] = [0];
 
@@ -104,11 +98,6 @@ export function generateClientMateriPDF(materi: {
   return result;
 }
 
-/**
- * Fungsi pengunduh materi terpadu untuk Guru & Siswa.
- * Menjamin file fisik asli dari Supabase Storage atau backend diunduh secara penuh,
- * dan Blob URL tidak di-revoke sebelum Chrome selesai menyalin stream ke disk (mencegah bug 0 Byte).
- */
 export async function downloadMateriFile(materi: Materi): Promise<void> {
   if (materi.format_file === 'LINK' && materi.file_url && materi.file_url.startsWith('http')) {
     window.open(materi.file_url, '_blank', 'noopener,noreferrer');
@@ -123,7 +112,6 @@ export async function downloadMateriFile(materi: Materi): Promise<void> {
   const ext = (materi.format_file || 'PDF').toLowerCase();
   let filename = `${cleanTitle}.${ext === 'link' ? 'pdf' : ext}`;
 
-  // Helper trigger browser download yang aman dari 0 Byte (Chromium stream buffer safety)
   const triggerDownload = (blob: Blob, targetFilename: string) => {
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -141,7 +129,6 @@ export async function downloadMateriFile(materi: Materi): Promise<void> {
     }, 60000);
   };
 
-  // 1. Prioritas Utama: Unduh berkas fisik asli langsung dari Supabase Storage jika ada file_url publik
   if (
     materi.file_url &&
     (materi.file_url.includes('supabase.co/storage') ||
@@ -163,7 +150,6 @@ export async function downloadMateriFile(materi: Materi): Promise<void> {
     }
   }
 
-  // 2. Jalur Backend Proxy: Mengambil file stream resmi lewat backend Go
   if (materi.id_materi) {
     try {
       const downloadEndpoints = [
@@ -196,7 +182,6 @@ export async function downloadMateriFile(materi: Materi): Promise<void> {
             }
           }
         } catch {
-          // Lanjut ke endpoint alternatif jika ada
         }
       }
     } catch (err) {
@@ -204,7 +189,6 @@ export async function downloadMateriFile(materi: Materi): Promise<void> {
     }
   }
 
-  // 3. Fallback HANYA jika berkas asli benar-benar tidak ditemukan (contoh: data mock lama tanpa file fisik)
   const pdfBytes = generateClientMateriPDF({
     judul_materi: materi.judul_materi,
     nama_kelas: materi.nama_kelas,

@@ -227,7 +227,6 @@ func (h *PengaturanHandler) UpdatePengaturan(c *fiber.Ctx) error {
 		_ = db.Save(&kbm).Error
 	}
 
-	// Tangani pembaruan konfigurasi penilaian oleh Kurikulum
 	if req.KKMDefault != nil || req.BobotTugas != nil || req.BobotUH != nil ||
 		req.BobotUTS != nil || req.BobotUAS != nil || req.BatasPredikatA != nil ||
 		req.BatasPredikatB != nil || req.BatasPredikatC != nil {

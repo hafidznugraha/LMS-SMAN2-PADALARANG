@@ -911,7 +911,6 @@ func (h *LaporanHandler) ExportLegerCSV(c *fiber.Ctx) error {
 	return c.Send(buf.Bytes())
 }
 
-	
 func (h *LaporanHandler) GetProgresNilaiKelas(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {
@@ -984,10 +983,9 @@ func (h *LaporanHandler) GetProgresNilaiKelas(c *fiber.Ctx) error {
 		Success: true,
 		Message: "Progres nilai kelas berhasil dimuat",
 		Data: fiber.Map{
-			"total_mapel":    hasil.TotalMapel,
-			"mapel_lengkap":  hasil.MapelLengkap,
-			"persentase":     persentase,
+			"total_mapel":   hasil.TotalMapel,
+			"mapel_lengkap": hasil.MapelLengkap,
+			"persentase":    persentase,
 		},
 	})
 }
-

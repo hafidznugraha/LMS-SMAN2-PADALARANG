@@ -19,7 +19,6 @@ export function useNotifikasi(pollIntervalMs = 15000) {
       setItems(data.items);
       setUnreadCount(data.unread_count);
     } catch {
-      // abaikan error jika offline
     }
   }, []);
 

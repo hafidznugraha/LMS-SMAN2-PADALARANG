@@ -90,7 +90,6 @@ interface Props {
   onClose: () => void;
 }
 
-// Render dengan key={tugas.id} dari parent agar state ter-reset tiap tugas.
 export function SubmitTugasDialog({ tugas, onClose }: Props) {
   const edit = Boolean(tugas.pengumpulan);
   const [file, setFile] = useState<File | null>(null);
@@ -196,7 +195,6 @@ export function SubmitTugasDialog({ tugas, onClose }: Props) {
             </div>
           )}
 
-          {/* Lampiran Materi / Referensi dari Guru */}
           {(() => {
             const raw = tugas.file_lampiran;
             if (!raw) return null;

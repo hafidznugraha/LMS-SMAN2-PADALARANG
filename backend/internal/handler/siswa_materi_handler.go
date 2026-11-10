@@ -16,7 +16,6 @@ import (
 
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
-// GET /api/v1/siswa/materi?search=&mapel_id=
 func (h *SiswaHandler) GetMateriList(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -28,7 +27,6 @@ func (h *SiswaHandler) GetMateriList(c *fiber.Ctx) error {
 		Mapel: []model.SiswaMapelOption{},
 	}
 
-	// Siswa yang belum punya kelas belum punya materi.
 	if siswa.KelasID == nil {
 		return c.JSON(model.APIResponse{
 			Success: true,
@@ -95,7 +93,6 @@ func (h *SiswaHandler) GetMateriList(c *fiber.Ctx) error {
 		}
 	}
 
-	// Pilihan filter mapel: tidak ikut terfilter pencarian agar pill tetap stabil.
 	if err := db.Raw(`
 		SELECT DISTINCT mp.id, mp.nama_mapel
 		FROM materi m
@@ -116,9 +113,6 @@ func (h *SiswaHandler) GetMateriList(c *fiber.Ctx) error {
 	})
 }
 
-// GET /api/v1/siswa/materi/:id/download
-// Mengembalikan URL file (bukan redirect), karena navigasi browser tidak
-// bisa membawa header Authorization.
 func (h *SiswaHandler) DownloadMateri(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -168,7 +162,6 @@ func (h *SiswaHandler) DownloadMateri(c *fiber.Ctx) error {
 		fileURL = fmt.Sprintf("/api/v1/materi/%s/download", materi.ID.String())
 	}
 
-	// Catat riwayat unduhan siswa jika belum pernah tercatat (idempotent / unik per siswa)
 	unduhan := model.MateriUnduhanSiswa{
 		ID:           uuid.New(),
 		MateriID:     materi.ID,

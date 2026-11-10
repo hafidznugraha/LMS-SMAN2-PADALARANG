@@ -101,7 +101,6 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
           });
         }
       } catch {
-        // Fallback default
       }
     }
     loadConfig();
@@ -252,7 +251,7 @@ export const NilaiModule: React.FC<NilaiModuleProps> = ({
       .join('');
 
     const htmlContent = `
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http:
 <head>
 <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
 <!--[if gte mso 9]>

@@ -34,7 +34,6 @@ function cekStatusSesi(hari: string, jamMulai: string, jamSelesai: string): "ber
   const pad = (n: number) => String(n).padStart(2, "0");
   const currentTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  // Normalisasi format jam (e.g., 07:00 atau 07:00:00 -> 07:00)
   const start = jamMulai.slice(0, 5);
   const end = jamSelesai.slice(0, 5);
 
@@ -81,7 +80,6 @@ function JadwalSkeleton() {
 
 export default function SiswaJadwalPage() {
   const hariIni = getHariIni();
-  // Jika hari Minggu, defaultkan ke Senin agar siswa melihat jadwal besok
   const defaultTab = hariIni === "Minggu" ? "Senin" : hariIni;
   const [selectedHari, setSelectedHari] = useState<string>(defaultTab);
 
@@ -96,13 +94,11 @@ export default function SiswaJadwalPage() {
     return allItems.filter((item) => item.hari.toLowerCase() === selectedHari.toLowerCase());
   }, [allItems, selectedHari]);
 
-  // Cari sesi yang sedang berlangsung hari ini
   const sesiBerlangsung = useMemo(() => {
     if (hariIni === "Minggu") return null;
     return allItems.find((item) => cekStatusSesi(item.hari, item.jam_mulai, item.jam_selesai) === "berlangsung");
   }, [allItems, hariIni]);
 
-  // Hitung jumlah sesi per hari
   const countsPerHari = useMemo(() => {
     const map: Record<string, number> = { Semua: allItems.length };
     DAFTAR_HARI.forEach((h) => {
@@ -132,7 +128,6 @@ export default function SiswaJadwalPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header Halaman */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
@@ -154,7 +149,6 @@ export default function SiswaJadwalPage() {
         </div>
       </div>
 
-      {/* Banner Sesi Sedang Berlangsung (Jika Ada) */}
       {sesiBerlangsung && (
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -190,7 +184,6 @@ export default function SiswaJadwalPage() {
         </div>
       )}
 
-      {/* Tab Filter Hari */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
         <button
           onClick={() => setSelectedHari("Semua")}
@@ -245,7 +238,6 @@ export default function SiswaJadwalPage() {
         })}
       </div>
 
-      {/* Daftar Kartu Jadwal */}
       {filteredItems.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-12 text-center space-y-3">
           <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto border border-slate-200">
@@ -285,7 +277,6 @@ export default function SiswaJadwalPage() {
                     : "border-slate-200/90"
                 )}
               >
-                {/* Bagian Atas: Hari, Jam, Status */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -304,7 +295,6 @@ export default function SiswaJadwalPage() {
                     </h3>
                   </div>
 
-                  {/* Status Pill */}
                   {statusSesi === "berlangsung" && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300 animate-pulse shrink-0">
                       <span className="w-2 h-2 rounded-full bg-emerald-600" />
@@ -323,7 +313,6 @@ export default function SiswaJadwalPage() {
                   )}
                 </div>
 
-                {/* Bagian Tengah: Guru & Ruangan */}
                 <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
                   <div className="flex items-center gap-2 text-slate-700">
                     <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-900 flex items-center justify-center shrink-0">
@@ -347,7 +336,6 @@ export default function SiswaJadwalPage() {
                   </div>
                 </div>
 
-                {/* Bagian Bawah: Pintasan Aksi */}
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                   <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-md border", badgeMapel)}>
                     {item.kode_mapel || "MAPEL"}

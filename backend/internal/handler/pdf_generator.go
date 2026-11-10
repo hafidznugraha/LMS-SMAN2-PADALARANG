@@ -9,13 +9,11 @@ import (
 	"time"
 )
 
-// GenerateMateriPDF menghasilkan dokumen binary PDF 1.4 resmi dan valid untuk materi ajar
 func GenerateMateriPDF(judul, mapel, kelas, deskripsi, guru string) []byte {
 	esc := func(s string) string {
 		s = strings.ReplaceAll(s, "\\", "\\\\")
 		s = strings.ReplaceAll(s, "(", "\\(")
 		s = strings.ReplaceAll(s, ")", "\\)")
-		// Pastikan hanya karakter printable ASCII agar PDF Type1 Helvetica valid
 		var clean strings.Builder
 		for _, r := range s {
 			if r >= 32 && r <= 126 {
@@ -46,7 +44,6 @@ func GenerateMateriPDF(judul, mapel, kelas, deskripsi, guru string) []byte {
 
 	var streamBuf bytes.Buffer
 	streamBuf.WriteString("BT\n")
-	// Header Institusi
 	streamBuf.WriteString("/F1 18 Tf\n")
 	streamBuf.WriteString("50 780 Td\n")
 	streamBuf.WriteString(fmt.Sprintf("(%s) Tj\n", esc("SMA NEGERI 2 PADALARANG")))
@@ -57,12 +54,10 @@ func GenerateMateriPDF(judul, mapel, kelas, deskripsi, guru string) []byte {
 	streamBuf.WriteString("0 -20 Td\n")
 	streamBuf.WriteString(fmt.Sprintf("(%s) Tj\n", esc("----------------------------------------------------------------------------------------------------")))
 
-	// Judul Materi
 	streamBuf.WriteString("/F1 14 Tf\n")
 	streamBuf.WriteString("0 -30 Td\n")
 	streamBuf.WriteString(fmt.Sprintf("(Judul: %s) Tj\n", esc(judul)))
 
-	// Meta Informasi
 	streamBuf.WriteString("/F2 10 Tf\n")
 	streamBuf.WriteString("0 -18 Td\n")
 	streamBuf.WriteString(fmt.Sprintf("(Mata Pelajaran: %s   |   Target Rombel: %s) Tj\n", esc(mapel), esc(kelas)))
@@ -72,7 +67,6 @@ func GenerateMateriPDF(judul, mapel, kelas, deskripsi, guru string) []byte {
 	streamBuf.WriteString("0 -20 Td\n")
 	streamBuf.WriteString(fmt.Sprintf("(%s) Tj\n", esc("----------------------------------------------------------------------------------------------------")))
 
-	// Deskripsi & Catatan
 	streamBuf.WriteString("/F1 11 Tf\n")
 	streamBuf.WriteString("0 -24 Td\n")
 	streamBuf.WriteString("(Deskripsi & Petunjuk Belajar:) Tj\n")
@@ -94,7 +88,6 @@ func GenerateMateriPDF(judul, mapel, kelas, deskripsi, guru string) []byte {
 		streamBuf.WriteString(fmt.Sprintf("(%s) Tj\n", esc(l)))
 	}
 
-	// Footer
 	streamBuf.WriteString("/F2 9 Tf\n")
 	streamBuf.WriteString("0 -40 Td\n")
 	streamBuf.WriteString("(Dokumen ini diunduh secara resmi melalui portal LMS SMA Negeri 2 Padalarang.) Tj\n")
@@ -140,7 +133,6 @@ func GenerateMateriPDF(judul, mapel, kelas, deskripsi, guru string) []byte {
 	return pdf.Bytes()
 }
 
-// GenerateMateriDOCX menghasilkan berkas Word OpenXML (.docx) resmi & valid
 func GenerateMateriDOCX(judul, mapel, kelas, deskripsi, guru string) []byte {
 	escXML := func(s string) string {
 		var buf bytes.Buffer

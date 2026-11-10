@@ -232,7 +232,6 @@ useEffect(() => {
                         id={`catatan-${item.id_laporan}`}
                       />
                     </td>
-                   
 
                     <td className="p-4 text-center">
                       <Button

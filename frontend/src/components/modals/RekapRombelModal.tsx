@@ -96,7 +96,6 @@ export function RekapRombelModal({
   const countLaki = siswaList.filter((s) => s.jenis_kelamin?.toLowerCase() === "laki-laki").length;
   const countPerempuan = siswaList.filter((s) => s.jenis_kelamin?.toLowerCase() === "perempuan").length;
 
-  // Hitung siswa yang butuh perhatian khusus (alpa > 0 atau kehadiran < 80% atau nilai < 75)
   const siswaPerhatianKhusus = presensiList
     .map((p) => {
       const lap = laporanList.find((l) => l.nis === p.nis || l.nisn === p.nisn);
@@ -118,14 +117,12 @@ export function RekapRombelModal({
     })
     .filter((s) => s.alasan.length > 0);
 
-  // Status kelengkapan rapor
   const catatanTerisi = laporanList.filter(
     (l) => l.catatan_wali && l.catatan_wali.trim() !== ""
   ).length;
   const raporDisahkan = laporanList.filter(
     (l) => l.status_laporan === "DisahkanKurikulum"
   ).length;
-
 
 const handlePrint = async () => {
   try {
@@ -192,13 +189,6 @@ const handlePrint = async () => {
       pdf.text(String(value), x, positionY);
     };
 
-    // ============================================
-    // KOP SEKOLAH
-    // ============================================
-
-    // Ambil logo dari folder public.
-    // Logo digambar langsung ke PDF agar tidak
-    // terpotong oleh CSS atau html2canvas.
     try {
       const image = new window.Image();
       image.src = "/logo-sman2.png";
@@ -328,10 +318,6 @@ const handlePrint = async () => {
 
     y = 66;
 
-    // ============================================
-    // HELPER JUDUL BAGIAN
-    // ============================================
-
     const addSection = (title: string) => {
       ensureSpace(20);
 
@@ -357,10 +343,6 @@ const handlePrint = async () => {
 
       y += 12;
     };
-
-    // ============================================
-    // HELPER TABEL
-    // ============================================
 
     type Column = {
       title: string;
@@ -505,10 +487,6 @@ const handlePrint = async () => {
       y += 3;
     };
 
-    // ============================================
-    // I. IDENTITAS KELAS
-    // ============================================
-
     addSection("I. IDENTITAS KELAS & WALI KELAS");
 
     const identities: [string, string][] = [
@@ -533,10 +511,6 @@ const handlePrint = async () => {
     });
 
     y += 3;
-
-    // ============================================
-    // II. JUMLAH SISWA
-    // ============================================
 
     addSection("II. JUMLAH SISWA TERDAFTAR");
 
@@ -569,10 +543,6 @@ const handlePrint = async () => {
       ])
     );
 
-    // ============================================
-    // III. KEHADIRAN
-    // ============================================
-
     addSection("III. REKAPITULASI KEHADIRAN SISWA");
 
     addTable(
@@ -597,10 +567,6 @@ const handlePrint = async () => {
         p.persentase,
       ])
     );
-
-    // ============================================
-    // IV. PERKEMBANGAN NILAI
-    // ============================================
 
     addSection(
       "IV. RINGKASAN PERKEMBANGAN NILAI MATA PELAJARAN"
@@ -645,10 +611,6 @@ const handlePrint = async () => {
         ];
       })
     );
-
-    // ============================================
-    // V. PERHATIAN KHUSUS
-    // ============================================
 
     addSection(
       "V. DAFTAR SISWA YANG MEMBUTUHKAN PERHATIAN KHUSUS"
@@ -696,13 +658,6 @@ const handlePrint = async () => {
       );
     }
 
-    // ============================================
-    // VI. STATUS PENYELESAIAN RAPOR
-    // ============================================
-
-    // Sisakan ruang untuk status dan tanda tangan.
-    // Jika tidak cukup, semuanya dipindah
-    // ke halaman baru tanpa terpotong.
     ensureSpace(91);
 
     addSection("VI. STATUS PENYELESAIAN RAPOR");
@@ -738,10 +693,6 @@ const handlePrint = async () => {
 
       y += 7;
     });
-
-    // ============================================
-    // TANDA TANGAN
-    // ============================================
 
     y += 12;
 
@@ -817,10 +768,6 @@ const handlePrint = async () => {
       { align: "center" }
     );
 
-    // ============================================
-    // FOOTER DAN NOMOR HALAMAN
-    // ============================================
-
     const totalPages = pdf.getNumberOfPages();
 
     for (let page = 1; page <= totalPages; page++) {
@@ -853,10 +800,6 @@ const handlePrint = async () => {
       );
     }
 
-    // ============================================
-    // SIMPAN PDF
-    // ============================================
-
     pdf.save(
       `Rekap_Rombel_${namaKelas.replace(/\s+/g, "_")}.pdf`
     );
@@ -870,7 +813,7 @@ const handlePrint = async () => {
   const handleCetak = () => {
     window.print();
   };
-  
+
   const handleDownloadExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
@@ -902,14 +845,14 @@ const handlePrint = async () => {
       };
 
       sheet.columns = [
-        { width: 9 },  // A: Nomor
-        { width: 26 }, // B: Nama / NIS
-        { width: 20 }, // C: NISN
-        { width: 24 }, // D
-        { width: 20 }, // E
-        { width: 19 }, // F
-        { width: 19 }, // G
-        { width: 38 }, // H: Catatan panjang
+        { width: 9 },  
+        { width: 26 }, 
+        { width: 20 }, 
+        { width: 24 }, 
+        { width: 20 }, 
+        { width: 19 }, 
+        { width: 19 }, 
+        { width: 38 }, 
       ];
 
       sheet.pageSetup.margins = {
@@ -940,7 +883,6 @@ const handlePrint = async () => {
         right: { style: "thin", color: { argb: C.border } },
       };
 
-      // Membuat satu sel yang dapat mencakup beberapa kolom.
       const gabung = (
         nomorBaris: number,
         awal: number,
@@ -956,7 +898,6 @@ const handlePrint = async () => {
         return cell;
       };
 
-      // Memberikan latar dan border pada seluruh baris.
       const warnaiBaris = (
         nomorBaris: number,
         warna: string
@@ -974,7 +915,6 @@ const handlePrint = async () => {
         }
       };
 
-      // Menambahkan judul setiap bagian laporan.
       const tambahBagian = (judul: string) => {
         sheet.addRow([]);
 
@@ -1001,7 +941,6 @@ const handlePrint = async () => {
         return row;
       };
 
-      // Membuat tabel dengan posisi kolom yang konsisten.
       const tambahTabel = (
         headers: string[],
         spans: Span[],
@@ -1009,7 +948,6 @@ const handlePrint = async () => {
         kolomTeks: number[] = [],
         kolomSorotan?: number
       ) => {
-        // Header tabel
         const headerRow = sheet.addRow([]);
         headerRow.height = 39;
 
@@ -1037,7 +975,6 @@ const handlePrint = async () => {
           };
         });
 
-        // Isi tabel
         data.forEach((record, index) => {
           const row = sheet.addRow([]);
           row.height = 34;
@@ -1084,10 +1021,6 @@ const handlePrint = async () => {
 
         return headerRow;
       };
-
-      // ===================================================
-      // KOP SEKOLAH
-      // ===================================================
 
       sheet.mergeCells("A1:H2");
 
@@ -1165,10 +1098,6 @@ const handlePrint = async () => {
 
       sheet.getRow(6).height = 25;
 
-      // ===================================================
-      // I. IDENTITAS KELAS
-      // ===================================================
-
       tambahBagian("I. IDENTITAS KELAS & WALI KELAS");
 
       const identitas: [string, string][] = [
@@ -1228,10 +1157,6 @@ const handlePrint = async () => {
         };
       });
 
-      // ===================================================
-      // II. DAFTAR SISWA
-      // ===================================================
-
       tambahBagian("II. JUMLAH SISWA TERDAFTAR");
 
       const ringkasan = sheet.addRow([]);
@@ -1284,10 +1209,6 @@ const handlePrint = async () => {
         3
       );
 
-      // ===================================================
-      // III. REKAPITULASI KEHADIRAN
-      // ===================================================
-
       tambahBagian("III. REKAPITULASI KEHADIRAN SISWA");
 
       tambahTabel(
@@ -1325,10 +1246,6 @@ const handlePrint = async () => {
         7
       );
 
-      // ===================================================
-      // IV. PERKEMBANGAN NILAI
-      // ===================================================
-
       tambahBagian(
         "IV. RINGKASAN PERKEMBANGAN NILAI MATA PELAJARAN"
       );
@@ -1361,10 +1278,6 @@ const handlePrint = async () => {
         [],
         4
       );
-
-      // ===================================================
-      // V. SISWA PERHATIAN KHUSUS
-      // ===================================================
 
       tambahBagian(
         "V. DAFTAR SISWA YANG MEMBUTUHKAN PERHATIAN KHUSUS"
@@ -1418,7 +1331,6 @@ const handlePrint = async () => {
           1
         );
 
-        // Beri ruang lebih besar untuk catatan.
         for (
           let baris = headerPerhatian.number + 1;
           baris <= headerPerhatian.number + siswaPerhatianKhusus.length;
@@ -1434,10 +1346,6 @@ const handlePrint = async () => {
           };
         }
       }
-
-      // ===================================================
-      // VI. STATUS PENYELESAIAN RAPOR
-      // ===================================================
 
       tambahBagian("VI. STATUS PENYELESAIAN RAPOR");
 
@@ -1495,10 +1403,6 @@ const handlePrint = async () => {
           indent: 1,
         };
       });
-
-      // ===================================================
-      // TANDA TANGAN
-      // ===================================================
 
       sheet.addRow([]);
       sheet.addRow([]);
@@ -1591,10 +1495,6 @@ const handlePrint = async () => {
 
       sheet.getRow(akhirTTD).height = 46;
 
-      // ===================================================
-      // PENGATURAN CETAK DAN UNDUH XLSX
-      // ===================================================
-
       sheet.pageSetup.printArea = `A1:H${sheet.rowCount}`;
 
       sheet.pageSetup.horizontalCentered = true;
@@ -1627,7 +1527,6 @@ const handlePrint = async () => {
     }
   };
 
-
   const tanggalHariIni = new Date().toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
@@ -1636,7 +1535,6 @@ const handlePrint = async () => {
 
   return (
     <>
-      {/* Global CSS khusus untuk print agar hanya mencetak dokumen laporan */}
       <style jsx global>{`
         @media print {
           body * {
@@ -1667,7 +1565,6 @@ const handlePrint = async () => {
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
-          {/* Header Dialog Modal */}
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 no-print">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center shadow-xs">
@@ -1724,14 +1621,12 @@ const handlePrint = async () => {
             </div>
           </div>
 
-          {/* Area Dokumen Resmi (Bisa di-print dan di-preview) */}
           <div className="p-6 sm:p-10 overflow-y-auto flex-1 bg-white space-y-6">
             <div
               id="rekap-rombel-print-area"
               ref={printAreaRef}
               className="space-y-6 text-slate-900 font-sans"
             >
-              {/* KOP RESMI SEKOLAH */}
               <div className="border-b-2 border-slate-900 pb-4 text-center space-y-1">
                 <div className="flex items-center justify-center gap-4">
                   <div className="w-16 h-16 relative shrink-0">
@@ -1762,7 +1657,6 @@ const handlePrint = async () => {
                 </div>
               </div>
 
-              {/* 1. IDENTITAS KELAS, WALI KELAS, SEMESTER, TAHUN AJARAN */}
               <section data-pdf-page-start="true"className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   I. Identitas Kelas & Wali Kelas
@@ -1795,7 +1689,6 @@ const handlePrint = async () => {
                 </div>
               </section>
 
-              {/* 2. JUMLAH SISWA YANG TERDAFTAR */}
               <section className="space-y-2">
                 <div className="flex items-center justify-between bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -1837,7 +1730,6 @@ const handlePrint = async () => {
                 </div>
               </section>
 
-              {/* 3. REKAP KEHADIRAN SISWA */}
               <section className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   III. Rekapitulasi Kehadiran Siswa
@@ -1874,7 +1766,6 @@ const handlePrint = async () => {
                 </div>
               </section>
 
-              {/* 4. RINGKASAN PERKEMBANGAN NILAI MATA PELAJARAN */}
               <section className="space-y-2">
                 <div className="flex items-center justify-between bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -1925,7 +1816,6 @@ const handlePrint = async () => {
                 </div>
               </section>
 
-              {/* 5. DAFTAR SISWA YANG MEMBUTUHKAN PERHATIAN KHUSUS */}
               <section className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   V. Daftar Siswa Membutuhkan Perhatian Khusus
@@ -1966,7 +1856,6 @@ const handlePrint = async () => {
                 )}
               </section>
 
-              {/* 6. STATUS PENYELESAIAN RAPORT */}
               <section className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-100 px-3 py-1.5 rounded-lg border-l-4 border-blue-900">
                   VI. Status Penyelesaian Raport
@@ -1988,7 +1877,6 @@ const handlePrint = async () => {
                 </div>
               </section>
 
-              {/* KOLOM TANDA TANGAN RESMI */}
               <div className="pt-8 grid grid-cols-2 text-center text-xs text-slate-800">
                 <div className="space-y-16">
                   <p>
@@ -2015,7 +1903,6 @@ const handlePrint = async () => {
             </div>
           </div>
 
-          {/* Footer Modal Action Buttons */}
           <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0 no-print">
             <span className="text-xs text-slate-500">
               Dokumen ini memuat data rekapitulasi kelas {namaKelas} terkini.

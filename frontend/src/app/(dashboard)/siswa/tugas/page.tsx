@@ -199,7 +199,6 @@ export default function SiswaTugasPage() {
   const [activeTab, setActiveTab] = useState<"tugas" | "orang">("tugas");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Group scheduled subjects by mapel_id / nama_mapel according to Kurikulum schedule
   const mapelList = useMemo<MapelKelasItem[]>(() => {
     if (!jadwalData?.items || !Array.isArray(jadwalData.items)) return [];
 
@@ -209,7 +208,6 @@ export default function SiswaTugasPage() {
     for (const item of jadwalData.items) {
       const key = item.mapel_id || item.nama_mapel;
       if (!map.has(key)) {
-        // Find tasks belonging to this subject
         const tasksForThisMapel = allTasks.filter((t) => {
           if (t.mapel_id && item.mapel_id) {
             return t.mapel_id === item.mapel_id;
@@ -249,7 +247,6 @@ export default function SiswaTugasPage() {
     return Array.from(map.values());
   }, [jadwalData, dataTugas]);
 
-  // Overall Task Statistics for top metric cards
   const { jumlahAktif, jumlahMendesak } = useMemo(() => {
     const semua = dataTugas ?? [];
     const belum = semua.filter((t) => t.status === "belum");
@@ -259,7 +256,6 @@ export default function SiswaTugasPage() {
     };
   }, [dataTugas]);
 
-  // Filtered Subject Cards based on search query
   const filteredMapelList = useMemo(() => {
     if (!searchQuery.trim()) return mapelList;
     const q = searchQuery.toLowerCase();
@@ -272,13 +268,11 @@ export default function SiswaTugasPage() {
     );
   }, [mapelList, searchQuery]);
 
-  // Selected Subject details
   const selectedMapel = useMemo(() => {
     if (!selectedMapelId) return null;
     return mapelList.find((m) => m.mapel_id === selectedMapelId) || null;
   }, [mapelList, selectedMapelId]);
 
-  // Query class members (teacher & classmates) for the selected subject & class
   const { data: anggotaData, isLoading: isLoadingAnggota } = useSiswaAnggotaKelas(
     selectedMapel?.kelas_id,
     selectedMapel?.mapel_id
@@ -309,7 +303,6 @@ export default function SiswaTugasPage() {
     return anggotaData?.siswa ?? [];
   }, [anggotaData]);
 
-  // State for expanded accordion tasks in selected subject
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
   const toggleTask = (taskId: string) => {
@@ -337,7 +330,6 @@ export default function SiswaTugasPage() {
     }
   };
 
-  // Group tasks by Topic (like Google Classroom)
   const groupedTasksByTopic = useMemo(() => {
     if (!selectedMapel?.tasks) return [];
     const map = new Map<string, SiswaTugas[]>();
@@ -359,9 +351,6 @@ export default function SiswaTugasPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      {/* ======================================================== */}
-      {/* 1. HEADER HALAMAN TUGAS KELAS (GOOGLE CLASSROOM STYLE)   */}
-      {/* ======================================================== */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -380,7 +369,6 @@ export default function SiswaTugasPage() {
           </p>
         </div>
 
-        {/* Global Metric Pills */}
         {!selectedMapel && (
           <div className="flex items-center gap-3">
             <div className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white shadow-2xs text-center min-w-[90px]">
@@ -401,12 +389,8 @@ export default function SiswaTugasPage() {
         )}
       </div>
 
-      {/* ======================================================== */}
-      {/* 2. JIKA SEDANG MEMBUKA SALAH SATU MAPEL (DETAIL STREAM)   */}
-      {/* ======================================================== */}
       {selectedMapel ? (
         <div className="space-y-6">
-          {/* Top Bar: Back button & Google Classroom Tabs */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200">
             <button
               type="button"
@@ -420,7 +404,6 @@ export default function SiswaTugasPage() {
               <span>Kembali ke Semua Mata Pelajaran</span>
             </button>
 
-            {/* Google Classroom Style Tabs: Tugas kelas | Orang */}
             <div className="flex items-center gap-8 self-center sm:self-auto px-2">
               <button
                 type="button"
@@ -458,10 +441,8 @@ export default function SiswaTugasPage() {
             </div>
           </div>
 
-          {/* TAB 1: TUGAS KELAS */}
           {activeTab === "tugas" && (
             <div className="space-y-5">
-              {/* Banner Mata Pelajaran */}
               <div className="rounded-2xl p-6 bg-gradient-to-r from-blue-600 via-indigo-700 to-blue-800 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-200 bg-blue-900/50 px-2.5 py-1 rounded-md">
@@ -489,7 +470,6 @@ export default function SiswaTugasPage() {
             </div>
           </div>
 
-          {/* Header Action Bar: Title on left, 'Ciutkan semua' on right */}
           <div className="flex items-center justify-between gap-3 pt-2">
             <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <ListTodo className="w-4 h-4 text-blue-600" />
@@ -522,7 +502,6 @@ export default function SiswaTugasPage() {
             <div className="space-y-6">
               {groupedTasksByTopic.map(({ topic, tasks }) => (
                 <div key={topic} className="space-y-3">
-                  {/* Topic Header (Google Classroom Style) */}
                   <div className="flex items-center justify-between pb-1.5 border-b-2 border-slate-200/80">
                     <div className="flex items-center gap-2">
                       <h5 className="text-base font-extrabold text-slate-900 tracking-tight">
@@ -534,7 +513,6 @@ export default function SiswaTugasPage() {
                     </div>
                   </div>
 
-                  {/* Accordion Task Cards List */}
                   <div className="space-y-2.5">
                     {tasks.map((t) => {
                       const p = t.pengumpulan;
@@ -552,7 +530,6 @@ export default function SiswaTugasPage() {
                               : "border border-slate-200/90 hover:border-blue-400 hover:bg-slate-50/70 shadow-2xs my-1.5"
                           )}
                         >
-                          {/* Header Bar / Collapsed Row (Clickable Accordion Trigger) */}
                           <div
                             onClick={() => toggleTask(t.id)}
                             className={cn(
@@ -560,7 +537,6 @@ export default function SiswaTugasPage() {
                               isExpanded ? "bg-slate-50/50 hover:bg-slate-50" : "hover:bg-slate-50/70"
                             )}
                           >
-                            {/* Left: Circle Icon & Title */}
                             <div className="flex items-center gap-3.5 min-w-0">
                               <div
                                 className={cn(
@@ -593,13 +569,11 @@ export default function SiswaTugasPage() {
                               </div>
                             </div>
 
-                            {/* Right: Tenggat, Status Badge & Chevron */}
                             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                               <span className="text-xs text-slate-500 hidden sm:inline-block font-normal">
                                 Tenggat: {formatClassroomDeadline(t.deadline)}
                               </span>
 
-                              {/* Status Badges */}
                               {t.status === "dinilai" && p?.nilai != null && (
                                 <span className={cn("text-xs font-extrabold px-2.5 py-0.5 rounded-full", skorClass(p.nilai))}>
                                   Nilai: {p.nilai} / 100
@@ -635,7 +609,6 @@ export default function SiswaTugasPage() {
                             </div>
                           </div>
 
-                          {/* Badan Accordion (Animasi Buka-Tutup Halus dengan CSS Grid) */}
                           <div
                             className={cn(
                               "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
@@ -646,7 +619,6 @@ export default function SiswaTugasPage() {
                           >
                             <div className="overflow-hidden">
                               <div className="px-5 sm:px-6 pb-6 pt-4 space-y-4 text-xs md:text-sm">
-                                {/* Sub Header in Expanded Body: Date posted & Status */}
                                 <div className="flex items-center justify-between text-xs text-slate-500 border-b border-slate-100 pb-2">
                                   <span className="flex items-center gap-1">
                                     <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -661,7 +633,6 @@ export default function SiswaTugasPage() {
                                   </span>
                                 </div>
 
-                                {/* Petunjuk / Deskripsi */}
                                 {t.deskripsi ? (
                                   <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-100 space-y-1.5">
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -677,7 +648,6 @@ export default function SiswaTugasPage() {
                                   </p>
                                 )}
 
-                                {/* Lampiran dari Guru */}
                                 {parsedLampiran.length > 0 && (
                                   <div className="space-y-2">
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -717,7 +687,6 @@ export default function SiswaTugasPage() {
                                   </div>
                                 )}
 
-                                {/* Format Berkas */}
                                 {t.format_file && (
                                   <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                                     <FileCheck2 className="w-3.5 h-3.5 text-blue-600" />
@@ -730,7 +699,6 @@ export default function SiswaTugasPage() {
                                   </div>
                                 )}
 
-                                {/* Jawaban Siswa (Jika Sudah Mengumpulkan) */}
                                 {p && (
                                   <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-2">
                                     <div className="flex items-center justify-between">
@@ -763,7 +731,6 @@ export default function SiswaTugasPage() {
                                   </div>
                                 )}
 
-                                {/* Action Footer */}
                                 <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-3">
                                   <div className="flex items-center gap-3">
                                     <Link
@@ -844,10 +811,8 @@ export default function SiswaTugasPage() {
         </div>
       )}
 
-      {/* TAB 2: ORANG (GOOGLE CLASSROOM STYLE) */}
       {activeTab === "orang" && (
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-6 md:p-10 max-w-4xl mx-auto space-y-10">
-          {/* Pengajar Section */}
           <div className="space-y-4">
             <div className="border-b border-blue-600 pb-3 flex items-center justify-between">
               <h3 className="text-2xl font-normal text-blue-700">Pengajar</h3>
@@ -904,7 +869,6 @@ export default function SiswaTugasPage() {
             )}
           </div>
 
-          {/* Teman Sekelas Section */}
           <div className="space-y-4">
             <div className="border-b border-blue-600 pb-3 flex items-center justify-between">
               <h3 className="text-2xl font-normal text-blue-700">Teman Sekelas</h3>
@@ -993,17 +957,12 @@ export default function SiswaTugasPage() {
       )}
     </div>
   ) : (
-        /* ======================================================== */
-        /* 3. TAMPILAN UTAMA: GRID KELAS MATA PELAJARAN             */
-        /* ======================================================== */
         <div className="space-y-5">
-          {/* Header Row: Judul Bagian & Kolom Pencarian */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
               Mata Pelajaran Terjadwal ({filteredMapelList.length})
             </h3>
 
-            {/* Input Pencarian */}
             <div className="relative w-full sm:w-72">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -1016,7 +975,6 @@ export default function SiswaTugasPage() {
             </div>
           </div>
 
-          {/* Loading State */}
           {isLoading ? (
             <TugasSkeleton />
           ) : isError ? (
@@ -1047,13 +1005,9 @@ export default function SiswaTugasPage() {
               </p>
             </div>
           ) : (
-            /* ======================================================== */
-            /* GRID KARTU KELAS (GOOGLE CLASSROOM STYLE)                */
-            /* ======================================================== */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredMapelList.map((mapel, idx) => {
                 const theme = CARD_THEMES[idx % CARD_THEMES.length];
-                // Next upcoming tasks
                 const upcomingTasks = mapel.tasksAktif
                   .slice()
                   .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
@@ -1066,7 +1020,6 @@ export default function SiswaTugasPage() {
                       theme.hoverBorder
                     )}
                   >
-                    {/* Top Header Banner Google Classroom */}
                     <div className="relative">
                       <div
                         onClick={() => {
@@ -1099,7 +1052,6 @@ export default function SiswaTugasPage() {
                         </p>
                       </div>
 
-                      {/* Floating Teacher Avatar di kanan bawah banner */}
                       <div
                         className={cn(
                           "absolute -bottom-5 right-5 w-11 h-11 rounded-full border-2 border-white shadow-md flex items-center justify-center font-black text-xs text-white",
@@ -1111,7 +1063,6 @@ export default function SiswaTugasPage() {
                       </div>
                     </div>
 
-                    {/* Middle Card Content: Tugas Mendatang / Batas Waktu */}
                     <div className="p-5 pt-7 flex-1 flex flex-col justify-between space-y-3">
                       <div className="space-y-2">
                         <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -1165,7 +1116,6 @@ export default function SiswaTugasPage() {
                       </div>
                     </div>
 
-                    {/* Footer Card: Counter & Tombol Masuk Kelas */}
                     <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
                       <span
                         className={cn(

@@ -100,26 +100,26 @@ type TugasDetailResponse struct {
 }
 
 type SubmissionWithSiswa struct {
-	ID              uuid.UUID  `json:"id"`
-	IDPengumpulan   uuid.UUID  `json:"id_pengumpulan"`
-	TugasID         uuid.UUID  `json:"tugas_id"`
-	IDTugasKuis     uuid.UUID  `json:"id_tugas_kuis"`
-	SiswaID         uuid.UUID  `json:"siswa_id"`
-	IDSiswa         uuid.UUID  `json:"id_siswa"`
-	NamaSiswa       string     `json:"nama_siswa"`
-	NIS             string     `json:"nis"`
-	NamaKelas       string     `json:"nama_kelas"`
-	FileTugas       string     `json:"file_tugas"`
-	FileName        string     `json:"file_name"`
-	CatatanSiswa    string     `json:"catatan_siswa"`
-	WaktuKirim      time.Time  `json:"waktu_kirim"`
-	TanggalKumpul   string     `json:"tanggal_kumpul"`
-	Nilai           *float64   `json:"nilai"`
-	CatatanGuru     string     `json:"catatan_guru"`
-	FeedbackGuru    string     `json:"feedback_guru"`
-	Feedback        string     `json:"feedback"`
-	StatusPenilaian string     `json:"status_penilaian"`
-	StatusKumpul    string     `json:"status_kumpul"`
+	ID              uuid.UUID `json:"id"`
+	IDPengumpulan   uuid.UUID `json:"id_pengumpulan"`
+	TugasID         uuid.UUID `json:"tugas_id"`
+	IDTugasKuis     uuid.UUID `json:"id_tugas_kuis"`
+	SiswaID         uuid.UUID `json:"siswa_id"`
+	IDSiswa         uuid.UUID `json:"id_siswa"`
+	NamaSiswa       string    `json:"nama_siswa"`
+	NIS             string    `json:"nis"`
+	NamaKelas       string    `json:"nama_kelas"`
+	FileTugas       string    `json:"file_tugas"`
+	FileName        string    `json:"file_name"`
+	CatatanSiswa    string    `json:"catatan_siswa"`
+	WaktuKirim      time.Time `json:"waktu_kirim"`
+	TanggalKumpul   string    `json:"tanggal_kumpul"`
+	Nilai           *float64  `json:"nilai"`
+	CatatanGuru     string    `json:"catatan_guru"`
+	FeedbackGuru    string    `json:"feedback_guru"`
+	Feedback        string    `json:"feedback"`
+	StatusPenilaian string    `json:"status_penilaian"`
+	StatusKumpul    string    `json:"status_kumpul"`
 }
 
 type GradeSubmissionRequest struct {
@@ -163,4 +163,3 @@ type CreateKomentarRequest struct {
 	Pesan    string `json:"pesan"`
 	Komentar string `json:"komentar,omitempty"`
 }
-

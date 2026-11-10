@@ -755,7 +755,6 @@ export default function PengaturanSekolahPage() {
               </button>
             </div>
 
-            {/* KKM Section */}
             <div className="p-5 border border-slate-200 rounded-2xl bg-white space-y-4">
               <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
                 <ShieldCheck className="w-4 h-4 text-[#1E3A8A]" />
@@ -794,7 +793,6 @@ export default function PengaturanSekolahPage() {
               </div>
             </div>
 
-            {/* Bobot Asesmen Section */}
             <div className="p-5 border border-slate-200 rounded-2xl bg-white space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900">
@@ -902,7 +900,6 @@ export default function PengaturanSekolahPage() {
               </div>
             </div>
 
-            {/* Predikat Rentang Section */}
             <div className="p-5 border border-slate-200 rounded-2xl bg-white space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900">
@@ -980,7 +977,6 @@ export default function PengaturanSekolahPage() {
                 </div>
               </div>
 
-              {/* Dynamic Predicate Interval Visualization */}
               <div className="pt-2">
                 <p className="text-xs font-semibold text-slate-700 mb-2.5">Pratinjau Rentang Predikat Akademik Kurikulum:</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

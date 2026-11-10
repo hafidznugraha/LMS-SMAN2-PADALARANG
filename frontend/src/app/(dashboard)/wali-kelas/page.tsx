@@ -34,7 +34,7 @@ export default function WaliKelasDashboardPage() {
 
   const [siswaList, setSiswaList] = useState<SiswaInfo[]>([]);
   const [presensiList, setPresensiList] = useState<PresensiItem[]>([]);
-  
+
   const [absensiHarian, setAbsensiHarian] = useState<
     { tanggal: string; status: string }[]
   >([]);
@@ -70,7 +70,6 @@ export default function WaliKelasDashboardPage() {
         setLoadingData(true);
         const token = getStoredToken();
 
-        // 1. Ambil data master siswa di rombel
         const resSiswa = await fetchAPI<{ success: boolean; data: any[] }>(
           `/master/siswa?kelas_id=${encodeURIComponent(kelasId)}`
         );
@@ -85,7 +84,7 @@ export default function WaliKelasDashboardPage() {
           }));
           setSiswaList(mapped);
         }
-        
+
         const resProgresNilai = await fetchAPI<{
           success: boolean;
           data: {
@@ -101,7 +100,6 @@ export default function WaliKelasDashboardPage() {
           setProgresNilai(resProgresNilai.data);
         }
 
-        // 2. Ambil data laporan akademik (leger/raport)
         const resLaporan = await fetchAPI<{ success: boolean; data: any[] }>(
           `/laporan/kelas/${encodeURIComponent(kelasId)}`
         );
@@ -125,8 +123,7 @@ export default function WaliKelasDashboardPage() {
             }))
           );
         }
-        
-        
+
         const resAbsensiHarian = await fetchAPI<{
           success: boolean;
           data: { tanggal: string; status: string }[];
@@ -143,7 +140,6 @@ export default function WaliKelasDashboardPage() {
           setAbsensiHarian([]);
         }
 
-        // 3. Ambil data presensi rombel dari endpoint export-csv
         const resAbsensi = await fetch(
           `${getApiBaseUrl()}/absensi/export-csv?kelas_id=${encodeURIComponent(kelasId)}`,
           {
@@ -197,7 +193,7 @@ export default function WaliKelasDashboardPage() {
   }, [kelasId, namaKelas]);
 
   const displayTotal = totalSiswa !== null ? totalSiswa : 3;
-  
+
   const totalHadirRombel = presensiList.reduce(
     (total, siswa) => total + siswa.hadir + siswa.terlambat,
     0
@@ -212,7 +208,7 @@ export default function WaliKelasDashboardPage() {
     totalPresensiRombel > 0
       ? `${Math.round((totalHadirRombel / totalPresensiRombel) * 100)}%`
       : "-";
-    
+
   const jumlahPerhatianKhusus = presensiList.filter((siswa) => {
     if (siswa.total === 0) return false;
 
@@ -222,7 +218,6 @@ export default function WaliKelasDashboardPage() {
     return persentase < 80;
   }).length;
 
-  
   const jumlahRaporDisahkan = laporanList.filter(
     (laporan) => laporan.status_laporan === "DisahkanKurikulum"
   ).length;
@@ -232,7 +227,6 @@ export default function WaliKelasDashboardPage() {
   const semuaRaporDisahkan =
     totalRapor > 0 && jumlahRaporDisahkan === totalRapor;
 
-  
   const tanggalHariIni = new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Jakarta",
   });
@@ -259,10 +253,8 @@ export default function WaliKelasDashboardPage() {
     ).length,
   };
 
-
   return (
     <div className="space-y-6">
-      {/* Modal Laporan Rekap Rombel Resmi */}
       <RekapRombelModal
         isOpen={isRekapModalOpen}
         onClose={() => setIsRekapModalOpen(false)}
@@ -324,7 +316,7 @@ export default function WaliKelasDashboardPage() {
           icon={Users}
           variant="primary"
         />
-        
+
         <MetricCard
           title="Kehadiran Rombel"
           value={persentaseKehadiranRombel}
@@ -333,7 +325,6 @@ export default function WaliKelasDashboardPage() {
           variant="success"
         />
 
-        
         <MetricCard
           title="Progres Nilai Mapel"
           value={`${progresNilai.mapel_lengkap} / ${progresNilai.total_mapel}`}
@@ -389,7 +380,6 @@ export default function WaliKelasDashboardPage() {
               </div>
             </div>
 
-            
             {!loadingData && dataHariIni.length === 0 && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
                 Belum ada data presensi untuk hari ini ({tanggalHariIni}).
@@ -446,7 +436,7 @@ export default function WaliKelasDashboardPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
-            
+
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-semibold">
               <span className="text-slate-700">
@@ -465,7 +455,6 @@ export default function WaliKelasDashboardPage() {
             </div>
           </div>
 
-
             <div className="space-y-2.5 pt-2">
               <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs">
                 <div>
@@ -482,7 +471,7 @@ export default function WaliKelasDashboardPage() {
               <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-bold text-slate-800">Pengesahan Kurikulum</div>
-                  
+
                   <div className="text-[11px] text-slate-500">
                     {totalRapor > 0
                       ? `${jumlahRaporDisahkan} dari ${totalRapor} rapor siswa telah disahkan Kurikulum`
@@ -490,7 +479,7 @@ export default function WaliKelasDashboardPage() {
                   </div>
 
                 </div>
-                
+
                 <span
                   className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
                     semuaRaporDisahkan

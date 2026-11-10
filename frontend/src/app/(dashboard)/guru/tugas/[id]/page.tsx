@@ -169,13 +169,11 @@ function TugasDetailPageContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Komentar kelas (Google Classroom Style & Terhubung Database)
   const [comments, setComments] = useState<KomentarTugas[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
-  // Current logged in user
   const currentUser = useMemo(() => getStoredUser(), []);
 
   const getInitials = (name?: string) => {
@@ -185,7 +183,6 @@ function TugasDetailPageContent() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  // Grading states
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'DISERAHKAN' | 'DINILAI' | 'BELUM'>('ALL');
   const [gradingSubId, setGradingSubId] = useState<string | null>(null);
   const [scoreInput, setScoreInput] = useState<string>('');
@@ -221,7 +218,6 @@ function TugasDetailPageContent() {
     loadData();
   }, [tugasId]);
 
-  // Synchronize URL tab parameter
   const handleTabChange = (tab: 'petunjuk' | 'siswa') => {
     setActiveTab(tab);
     const url = new URL(window.location.href);
@@ -366,7 +362,6 @@ function TugasDetailPageContent() {
     return parseLampiran(tugas?.file_lampiran);
   }, [tugas?.file_lampiran]);
 
-  // Statistics
   const totalSiswa = tugas?.total_siswa || submissions.length || 0;
   const jumlahDiserahkan = submissions.filter(
     (s) => s.status_kumpul !== 'Belum Mengumpulkan'
@@ -423,9 +418,6 @@ function TugasDetailPageContent() {
 
   return (
     <div className="w-full space-y-6 antialiased">
-      {/* ============================================================
-          HEADER BANNER & BREADCRUMB (KONSISTEN DENGAN TUGAS MODULE)
-          ============================================================ */}
       <div className="flex flex-col gap-3">
         <Link
           href={
@@ -439,7 +431,6 @@ function TugasDetailPageContent() {
           <span>Kembali ke Ruang Penugasan: Kelas {tugas.nama_kelas || 'Kelas'}</span>
         </Link>
 
-        {/* Banner Kartu Header Sesuai LMS Theme */}
         <div className="bg-gradient-to-r from-blue-800 via-indigo-800 to-slate-900 text-white p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -475,9 +466,6 @@ function TugasDetailPageContent() {
         </div>
       </div>
 
-      {/* ============================================================
-          NAVIGATION TABS (KONSISTEN DENGAN TUGAS MODULE LMS)
-          ============================================================ */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs px-6 pt-2">
         <div className="flex items-center gap-4 border-b border-slate-100">
           <button
@@ -517,15 +505,8 @@ function TugasDetailPageContent() {
         </div>
       </div>
 
-      {/* ============================================================
-          TAB CONTENT
-          ============================================================ */}
       {activeTab === 'petunjuk' ? (
-        /* ======================================================== */
-        /* TAB 1: PETUNJUK LENGKAP PENUGASAN (DALAM CARD KONSISTEN) */
-        /* ======================================================== */
         <div className="bg-white border border-slate-200/90 rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
-          {/* Header Card: Icon, Judul, Meta & Menu */}
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -544,7 +525,6 @@ function TugasDetailPageContent() {
                 </div>
               </div>
 
-              {/* Menu Kebab Aksi Tiga Titik */}
               <div className="relative shrink-0">
                 <button
                   type="button"
@@ -596,7 +576,6 @@ function TugasDetailPageContent() {
               </div>
             </div>
 
-            {/* Poin dan Tenggat Waktu */}
             <div className="flex flex-wrap items-center justify-between text-xs font-medium text-slate-600 pt-2 pb-3 border-b border-slate-100">
               <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-full">
                 100 poin
@@ -607,7 +586,6 @@ function TugasDetailPageContent() {
             </div>
           </div>
 
-          {/* Isi Instruksi Tugas */}
           <div className="text-sm text-slate-800 leading-relaxed font-sans space-y-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline">
             {tugas.instruksi || (tugas as unknown as { deskripsi?: string }).deskripsi ? (
               <div
@@ -624,7 +602,6 @@ function TugasDetailPageContent() {
             )}
           </div>
 
-          {/* Berkas Lampiran */}
           {parsedLampiran.length > 0 && (
             <div className="pt-2 space-y-3">
               <p className="text-xs font-bold text-slate-700">
@@ -690,7 +667,6 @@ function TugasDetailPageContent() {
             </div>
           )}
 
-          {/* Badges Format Berkas & Rubrik */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
             {tugas.format_file && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-700 rounded-lg text-xs font-medium border border-slate-200">
@@ -713,7 +689,6 @@ function TugasDetailPageContent() {
             )}
           </div>
 
-          {/* Komentar Kelas (Google Classroom Style & Terhubung Database) */}
           <div className="border-t border-slate-100 pt-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-700">
@@ -737,7 +712,6 @@ function TugasDetailPageContent() {
               </button>
             </div>
 
-            {/* Daftar Komentar */}
             {comments.length > 0 ? (
               <div className="space-y-3 divide-y divide-slate-100">
                 {comments.map((c) => {
@@ -751,7 +725,6 @@ function TugasDetailPageContent() {
                       key={c.id}
                       className="group flex items-start gap-3 pt-3 first:pt-0 transition-colors"
                     >
-                      {/* Avatar Inisial */}
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-2xs ${
                           c.peran_user === 'Guru'
@@ -764,7 +737,6 @@ function TugasDetailPageContent() {
                         {getInitials(c.nama_user)}
                       </div>
 
-                      {/* Konten Komentar */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -792,7 +764,6 @@ function TugasDetailPageContent() {
                             </span>
                           </div>
 
-                          {/* Tombol Hapus Komentar */}
                           {isAuthorOrTeacher && (
                             <button
                               type="button"
@@ -821,7 +792,6 @@ function TugasDetailPageContent() {
               </div>
             )}
 
-            {/* Input Tambah Komentar */}
             <form onSubmit={handleAddComment} className="flex items-center gap-3 pt-2">
               <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-2xs">
                 {getInitials(currentUser?.nama_lengkap || currentUser?.username || 'G')}
@@ -852,11 +822,7 @@ function TugasDetailPageContent() {
           </div>
         </div>
       ) : (
-        /* ======================================================== */
-        /* TAB 2: TUGAS SISWA (SUBMISSIONS KONSISTEN DENGAN LMS)    */
-        /* ======================================================== */
         <div className="space-y-6">
-          {/* Kartu Metrik Statistik */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
               <p className="text-3xl font-extrabold text-slate-800">{jumlahDiserahkan}</p>
@@ -872,7 +838,6 @@ function TugasDetailPageContent() {
             </div>
           </div>
 
-          {/* Filter Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-xs">
             <div className="flex items-center gap-1.5">
               {(['ALL', 'DISERAHKAN', 'DINILAI', 'BELUM'] as const).map((filterKey) => {
@@ -905,7 +870,6 @@ function TugasDetailPageContent() {
             </span>
           </div>
 
-          {/* Submissions Table Card */}
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -1053,7 +1017,6 @@ function TugasDetailPageContent() {
         </div>
       )}
 
-      {/* Modal Kriteria Rubrik Penilaian */}
       {showRubrikModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
@@ -1083,7 +1046,6 @@ function TugasDetailPageContent() {
         </div>
       )}
 
-      {/* Confirmation Modal Hapus Tugas */}
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}

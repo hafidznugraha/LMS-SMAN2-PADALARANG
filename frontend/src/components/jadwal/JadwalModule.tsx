@@ -29,7 +29,6 @@ export const JadwalModule: React.FC<JadwalModuleProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
@@ -40,7 +39,6 @@ export const JadwalModule: React.FC<JadwalModuleProps> = ({
           </p>
         </div>
 
-        {/* Day Filter */}
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl self-start sm:self-auto">
           <button
             onClick={() => setSelectedHari('ALL')}
@@ -68,7 +66,6 @@ export const JadwalModule: React.FC<JadwalModuleProps> = ({
         </div>
       </div>
 
-      {/* Timetable Cards */}
       <div className="space-y-4">
         {filteredJadwal.length === 0 ? (
           <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center text-slate-500">

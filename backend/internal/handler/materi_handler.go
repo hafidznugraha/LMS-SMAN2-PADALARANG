@@ -50,7 +50,6 @@ func mimeTypeByExt(ext string) string {
 	}
 }
 
-// uploadFileToSupabaseStorage mengunggah berkas biner ke bucket 'materi-pelajaran' di Supabase Storage
 func uploadFileToSupabaseStorage(cfg *config.Config, filename string, data []byte, mimeType string) (publicURL string, err error) {
 	if cfg == nil || cfg.SupabaseURL == "" || cfg.SupabasePublishable == "" {
 		return "", fmt.Errorf("konfigurasi Supabase tidak lengkap")
@@ -83,7 +82,6 @@ func uploadFileToSupabaseStorage(cfg *config.Config, filename string, data []byt
 	return publicURL, nil
 }
 
-// deleteFileFromSupabaseStorage menghapus berkas dari bucket 'materi-pelajaran' di Supabase Storage
 func deleteFileFromSupabaseStorage(cfg *config.Config, filename string) {
 	if cfg == nil || cfg.SupabaseURL == "" || cfg.SupabasePublishable == "" || filename == "" {
 		return
@@ -104,7 +102,6 @@ func deleteFileFromSupabaseStorage(cfg *config.Config, filename string) {
 	}
 }
 
-// processMateriUpload memproses berkas multipart: simpan lokal + upload ke Supabase Storage
 func processMateriUpload(c *fiber.Ctx, cfg *config.Config, materiID uuid.UUID, fallbackExt string) (fileURL string, ukuranMB float64, detectedTipe string, ok bool) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil || fileHeader == nil || fileHeader.Size == 0 {
@@ -133,19 +130,16 @@ func processMateriUpload(c *fiber.Ctx, cfg *config.Config, materiID uuid.UUID, f
 	storageFilename := fmt.Sprintf("%s%s", materiID.String(), ext)
 	mime := mimeTypeByExt(ext)
 
-	// 1. Simpan salinan di disk lokal server (uploads/materi/)
 	uploadDir := filepath.Join("uploads", "materi")
 	if err := os.MkdirAll(uploadDir, 0755); err == nil {
 		destPath := filepath.Join(uploadDir, storageFilename)
 		_ = os.WriteFile(destPath, data, 0644)
 	}
 
-	// 2. Upload ke Supabase Storage bucket 'materi-pelajaran'
 	supabasePublicURL, errSupabase := uploadFileToSupabaseStorage(cfg, storageFilename, data, mime)
 	if errSupabase == nil && supabasePublicURL != "" {
 		fileURL = supabasePublicURL
 	} else {
-		// Fallback ke path lokal jika upload Supabase bermasalah
 		fileURL = "/uploads/materi/" + storageFilename
 	}
 
@@ -158,7 +152,6 @@ func processMateriUpload(c *fiber.Ctx, cfg *config.Config, materiID uuid.UUID, f
 	return fileURL, mb, detectedTipe, true
 }
 
-// PUT /api/v1/guru/materi/:id - Memperbarui metadata dan/atau berkas materi
 func (h *GuruHandler) UpdateMateri(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	targetID, err := uuid.Parse(idStr)
@@ -273,7 +266,6 @@ func (h *GuruHandler) UpdateMateri(c *fiber.Ctx) error {
 		existing.FileURL = strings.TrimSpace(req.FileURL)
 	}
 
-	// Jika Guru turut mengunggah berkas fisik pengganti baru
 	cfg := h.cfg
 	if cfg == nil {
 		cfg = config.LoadConfig()
@@ -302,7 +294,6 @@ func (h *GuruHandler) UpdateMateri(c *fiber.Ctx) error {
 	})
 }
 
-// GET /api/v1/guru/materi/:id/download - Mengunduh berkas materi asli dari Supabase Storage atau disk lokal
 func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	targetID, err := uuid.Parse(idStr)
@@ -329,14 +320,12 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 		})
 	}
 
-
 	cleanBaseName := sanitizeFilename(materi.Judul)
 	disposition := "attachment"
 	if c.Query("inline") == "true" || c.Query("disposition") == "inline" {
 		disposition = "inline"
 	}
 
-	// 1. Cek apakah ada file fisik di disk lokal server (uploads/materi/...)
 	var candidatePaths []string
 	if strings.HasPrefix(materi.FileURL, "/uploads/materi/") || strings.HasPrefix(materi.FileURL, "uploads/materi/") {
 		rel := strings.TrimPrefix(materi.FileURL, "/")
@@ -364,7 +353,6 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 		}
 	}
 
-	// 2. Cek apakah file berada di Supabase Storage (URL publik http/https)
 	if strings.HasPrefix(materi.FileURL, "http://") || strings.HasPrefix(materi.FileURL, "https://") {
 		client := &http.Client{Timeout: 8 * time.Second}
 		resp, err := client.Get(materi.FileURL)
@@ -393,7 +381,6 @@ func (h *GuruHandler) DownloadMateri(c *fiber.Ctx) error {
 		}
 	}
 
-	// 3. Fallback jika berkas asli tidak ada sama sekali di Supabase Storage maupun disk lokal (misal data mock/seed lama)
 	namaKelas := "XII IPA 1"
 	var kelas model.Kelas
 	if err := db.Where("id = ?", materi.KelasID).First(&kelas).Error; err == nil && kelas.NamaKelas != "" {

@@ -22,8 +22,6 @@ type jamKBMRow struct {
 	JamPulang string `gorm:"column:jam_pulang"`
 }
 
-// jamKBM membaca jam masuk/pulang aktif (format HH:MM); memakai 07:00 dan
-// 15:30 bila belum ada konfigurasi aktif.
 func jamKBM(db *gorm.DB) (masuk, pulang string) {
 	var row jamKBMRow
 	res := db.Raw(`
@@ -39,7 +37,6 @@ func jamKBM(db *gorm.DB) (masuk, pulang string) {
 	return row.JamMasuk, row.JamPulang
 }
 
-// GET /api/v1/siswa/absensi?bulan=YYYY-MM
 func (h *SiswaHandler) GetAbsensi(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -100,7 +97,6 @@ func (h *SiswaHandler) GetAbsensi(c *fiber.Ctx) error {
 		resp.Rekap.Persen = (resp.Rekap.Hadir + resp.Rekap.Terlambat) * 100 / resp.Rekap.Total
 	}
 
-	// Status presensi hari ini (terlepas dari bulan yang sedang dilihat).
 	var hariIni []model.SiswaAbsensiRiwayat
 	if err := db.Raw(`
 		SELECT
@@ -139,8 +135,6 @@ func (h *SiswaHandler) GetAbsensi(c *fiber.Ctx) error {
 	})
 }
 
-// POST /api/v1/siswa/absensi/self  {"status":"hadir|sakit|izin","catatan":"..."}
-// Status "alpa" tidak bisa dipilih sendiri oleh siswa; itu ditetapkan guru.
 func (h *SiswaHandler) AbsenMandiri(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -192,7 +186,7 @@ func (h *SiswaHandler) AbsenMandiri(c *fiber.Ctx) error {
 		status = statusHadir(now, parseJamMenit(jamMasuk, defaultJamMasukMenit))
 	}
 	if status == "hadir" || status == "terlambat" {
-		req.Catatan = "" // keterangan hanya untuk sakit/izin
+		req.Catatan = ""
 	}
 
 	var id uuid.UUID

@@ -9,7 +9,6 @@ import (
 	"github.com/hafidznugraha/lms-sman2-padalarang/backend/internal/model"
 )
 
-// DefaultKonfigurasiPenilaian menyediakan nilai fallback aman bila database belum memiliki konfigurasi.
 var DefaultKonfigurasiPenilaian = model.KonfigurasiPenilaian{
 	KKMDefault:     75.00,
 	BobotTugas:     30.00,
@@ -22,8 +21,6 @@ var DefaultKonfigurasiPenilaian = model.KonfigurasiPenilaian{
 	IsAktif:        true,
 }
 
-// GetKonfigurasiPenilaian mengambil konfigurasi penilaian aktif dari database.
-// Jika belum ada record atau database error, mengembalikan DefaultKonfigurasiPenilaian.
 func GetKonfigurasiPenilaian(db *gorm.DB) model.KonfigurasiPenilaian {
 	if db == nil {
 		return DefaultKonfigurasiPenilaian
@@ -35,7 +32,6 @@ func GetKonfigurasiPenilaian(db *gorm.DB) model.KonfigurasiPenilaian {
 	return cfg
 }
 
-// ValidasiKonfigurasiPenilaian memvalidasi bahwa total bobot tepat 100% dan ambang batas A > B > C.
 func ValidasiKonfigurasiPenilaian(cfg model.KonfigurasiPenilaian) error {
 	totalBobot := math.Round((cfg.BobotTugas+cfg.BobotUH+cfg.BobotUTS+cfg.BobotUAS)*100) / 100
 	if math.Abs(totalBobot-100.00) > 0.01 {
@@ -53,7 +49,6 @@ func ValidasiKonfigurasiPenilaian(cfg model.KonfigurasiPenilaian) error {
 	return nil
 }
 
-// HitungNilaiAkhir menghitung nilai akhir terbobot berdasarkan konfigurasi aktif.
 func HitungNilaiAkhir(tugas, uh, uts, uas float64, cfg model.KonfigurasiPenilaian) float64 {
 	wTugas := cfg.BobotTugas / 100.0
 	wUH := cfg.BobotUH / 100.0
@@ -63,7 +58,6 @@ func HitungNilaiAkhir(tugas, uh, uts, uas float64, cfg model.KonfigurasiPenilaia
 	return math.Round(raw*10) / 10
 }
 
-// TentukanPredikat mengonversi skor angka ke predikat huruf (A, B, C, D) secara dinamis.
 func TentukanPredikat(skor float64, cfg model.KonfigurasiPenilaian) string {
 	switch {
 	case skor >= cfg.BatasPredikatA:
@@ -77,7 +71,6 @@ func TentukanPredikat(skor float64, cfg model.KonfigurasiPenilaian) string {
 	}
 }
 
-// HitungNilaiDanPredikat mengembalikan nilai akhir terbobot dan predikat huruf sekaligus.
 func HitungNilaiDanPredikat(tugas, uh, uts, uas float64, cfg model.KonfigurasiPenilaian) (float64, string) {
 	nilaiAkhir := HitungNilaiAkhir(tugas, uh, uts, uas, cfg)
 	predikat := TentukanPredikat(nilaiAkhir, cfg)

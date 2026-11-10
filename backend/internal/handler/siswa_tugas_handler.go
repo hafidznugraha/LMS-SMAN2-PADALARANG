@@ -100,8 +100,6 @@ func isFileExtensionAllowed(filename string, formatSpec string) (bool, string) {
 	return false, fmt.Sprintf("Format berkas (%s) tidak diizinkan. Guru hanya menerima format: %s", userExt, allowedStr)
 }
 
-// newSubmissionStore memilih Supabase Storage bila kuncinya diisi,
-// selain itu menyimpan ke disk lokal (untuk pengembangan).
 func newSubmissionStore(cfg *config.Config) storage.Store {
 	key := strings.TrimSpace(cfg.SupabasePublishable)
 	if key == "" {
@@ -138,9 +136,6 @@ type tugasRow struct {
 	PGraded      *time.Time `gorm:"column:p_graded_at"`
 }
 
-// GET /api/v1/siswa/tugas
-// Mengembalikan semua tugas kelas siswa beserta status pengumpulannya.
-// Pemisahan tab (aktif / dikumpulkan) dilakukan di frontend.
 func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -256,8 +251,6 @@ func (h *SiswaHandler) GetTugasList(c *fiber.Ctx) error {
 	return c.JSON(model.APIResponse{Success: true, Message: "Daftar tugas berhasil dimuat", Data: items})
 }
 
-// GET /api/v1/siswa/tugas/:id
-// Mengembalikan data detail satu tugas kelas siswa beserta pengumpulannya.
 func (h *SiswaHandler) GetTugasDetail(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -378,9 +371,6 @@ type uploadedFile struct {
 	ContentType string
 }
 
-// readSubmissionFile membaca dan memvalidasi field multipart "file".
-// Mengembalikan (file, "", "") bila sukses, atau (nil, kode, pesan) bila gagal.
-// Bila required=false dan tidak ada file, hasilnya (nil, "", "").
 func readSubmissionFile(c *fiber.Ctx, required bool) (*uploadedFile, string, string) {
 	fh, err := c.FormFile("file")
 	if err != nil {
@@ -457,7 +447,6 @@ func toPengumpulanDTO(p model.PengumpulanTugas) model.SiswaPengumpulan {
 	}
 }
 
-// POST /api/v1/siswa/tugas/:id/submit  (multipart: file, catatan)
 func (h *SiswaHandler) SubmitTugas(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -469,7 +458,6 @@ func (h *SiswaHandler) SubmitTugas(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{Success: false, Message: "ID tugas tidak valid"})
 	}
 
-	// Siswa hanya boleh mengumpulkan tugas kelasnya sendiri.
 	var tugas model.Tugas
 	q := db.Where("id = ?", tugasID)
 	if siswa.KelasID != nil {
@@ -564,8 +552,6 @@ func (h *SiswaHandler) SubmitTugas(c *fiber.Ctx) error {
 	})
 }
 
-// PUT /api/v1/siswa/submissions/:id  (multipart: file opsional, catatan)
-// Hanya boleh sebelum deadline dan sebelum dinilai guru.
 func (h *SiswaHandler) UpdatePengumpulan(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -658,7 +644,7 @@ func (h *SiswaHandler) UpdatePengumpulan(c *fiber.Ctx) error {
 		})
 	}
 	if newRef != "" && oldRef != "" {
-		_ = h.store.Remove(c.UserContext(), oldRef) // hapus file lama, kegagalan diabaikan
+		_ = h.store.Remove(c.UserContext(), oldRef)
 	}
 
 	sub.Catatan = catatan

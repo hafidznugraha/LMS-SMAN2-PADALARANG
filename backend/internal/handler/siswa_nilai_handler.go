@@ -22,8 +22,6 @@ type nilaiRow struct {
 	CreatedAt time.Time `gorm:"column:created_at"`
 }
 
-// GET /api/v1/siswa/nilai
-// Semua nilai milik siswa, dikelompokkan per mata pelajaran.
 func (h *SiswaHandler) GetNilai(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -89,8 +87,6 @@ func (h *SiswaHandler) GetNilai(c *fiber.Ctx) error {
 	return c.JSON(model.APIResponse{Success: true, Message: "Nilai berhasil dimuat", Data: resp})
 }
 
-// GET /api/v1/siswa/rapor
-// Daftar rapor yang SUDAH DISAHKAN Kurikulum. Rapor Draf/DitinjauWali tidak tampil.
 func (h *SiswaHandler) GetRaporList(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -126,8 +122,6 @@ type raporNilaiRow struct {
 	Total     float64 `gorm:"column:total"`
 }
 
-// GET /api/v1/siswa/rapor/:id
-// Hanya rapor milik siswa sendiri dan berstatus DisahkanKurikulum; selain itu 404.
 func (h *SiswaHandler) GetRaporDetail(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -168,7 +162,6 @@ func (h *SiswaHandler) GetRaporDetail(c *fiber.Ctx) error {
 		d.Predikat = predikatAngka(*lap.RataRataAkhir)
 	}
 
-	// Identitas sekolah dari database (tanpa nilai tertulis di kode).
 	var profil model.ProfilSekolah
 	if err := db.First(&profil).Error; err == nil {
 		d.NamaSekolah = profil.NamaSekolah
@@ -181,7 +174,6 @@ func (h *SiswaHandler) GetRaporDetail(c *fiber.Ctx) error {
 		d.NIPKepalaSekolah = kepsek.NIP
 	}
 
-	// Kelas dan wali kelas.
 	if siswa.Kelas != nil {
 		d.Kelas = siswa.Kelas.NamaKelas
 		d.Tingkat = siswa.Kelas.Tingkat
@@ -197,7 +189,6 @@ func (h *SiswaHandler) GetRaporDetail(c *fiber.Ctx) error {
 		}
 	}
 
-	// Nilai dan kehadiran dibatasi pada rentang semester rapor ini.
 	awal, akhir, ok := rentangSemester(lap.TahunAjaran, lap.Semester)
 	if !ok {
 		return c.JSON(model.APIResponse{Success: true, Message: "Rapor berhasil dimuat", Data: d})
@@ -257,7 +248,6 @@ func (h *SiswaHandler) GetRaporDetail(c *fiber.Ctx) error {
 		d.NilaiMapel[i].Predikat = predikatAngka(avg)
 	}
 
-	// Kehadiran nyata dari tabel absensi (bukan angka perkiraan).
 	var arows []dashboardAbsensiRow
 	if err := db.Raw(`
 		SELECT status, COUNT(*) AS jumlah

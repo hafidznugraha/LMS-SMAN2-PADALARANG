@@ -48,7 +48,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Quick Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
@@ -76,7 +75,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons matching screenshot */}
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={onOpenUploadMateri}
@@ -96,7 +94,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
         </div>
       </div>
 
-      {/* Explanatory notice banner for university practical assignment */}
       <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-4 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-xl bg-blue-600 text-white shrink-0 mt-0.5 shadow-xs">
@@ -119,9 +116,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
         </button>
       </div>
 
-      {/* 4 Metric Cards matching exact screenshot */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Kelas (Blue) */}
         <div 
           onClick={() => onNavigateTab('jadwal')}
           className="bg-[#1d4ed8] text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden cursor-pointer"
@@ -144,7 +139,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 2: Tugas Perlu Dinilai (White) */}
         <div 
           onClick={() => onNavigateTab('tugas')}
           className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden cursor-pointer"
@@ -167,7 +161,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Total Penugasan (Cyan) */}
         <div 
           onClick={() => onNavigateTab('tugas')}
           className="bg-[#0284c7] text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden cursor-pointer"
@@ -190,7 +183,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Kehadiran Siswa Hari Ini (Green) */}
         <div 
           className="bg-[#059669] text-white rounded-2xl p-5 shadow-sm relative overflow-hidden"
         >
@@ -213,9 +205,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
         </div>
       </div>
 
-      {/* Main Grid: Jadwal Mengajar vs Tugas Perlu Dinilai */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (7 cols): Jadwal Mengajar Hari Ini */}
         <div className="lg:col-span-7 space-y-4">
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -230,7 +220,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
               </span>
             </div>
 
-            {/* Class Cards */}
             <div className="mt-4 space-y-3.5">
               {jadwalHariIni.map((jadwal) => (
                 <div
@@ -287,7 +276,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </div>
         </div>
 
-        {/* Right Column (5 cols): Tugas Perlu Dinilai & Distribusi Bahan Ajar */}
         <div className="lg:col-span-5 space-y-4">
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -344,7 +332,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
             </div>
           </div>
 
-          {/* Banner Promo / Distribution matching screenshot */}
           <div className="bg-[#142d72] text-white rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-medium text-blue-200">

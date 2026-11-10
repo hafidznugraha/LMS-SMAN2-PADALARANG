@@ -15,14 +15,11 @@ func bulat1(x float64) float64 {
 	return math.Round(x*10) / 10
 }
 
-// predikatAngka mengonversi rata-rata angka ke predikat huruf secara dinamis mengacu konfigurasi Kurikulum.
 func predikatAngka(avg float64) string {
 	cfg := service.GetKonfigurasiPenilaian(repository.GetDB())
 	return service.TentukanPredikat(avg, cfg)
 }
 
-// rentangSemester mengubah ("2026/2027","Ganjil") menjadi [1 Jul 2026, 1 Jan 2027)
-// dan ("2026/2027","Genap") menjadi [1 Jan 2027, 1 Jul 2027), dalam WIB.
 func rentangSemester(tahunAjaran, semester string) (awal, akhir time.Time, ok bool) {
 	parts := strings.Split(strings.TrimSpace(tahunAjaran), "/")
 	if len(parts) != 2 {
@@ -42,12 +39,11 @@ func rentangSemester(tahunAjaran, semester string) (awal, akhir time.Time, ok bo
 	return
 }
 
-// validasiPasswordBaru mengembalikan pesan kesalahan, atau "" bila valid.
 func validasiPasswordBaru(lama, baru string) string {
 	if len(baru) < 8 {
 		return "Password baru minimal 8 karakter"
 	}
-	if len(baru) > 72 { // batas bcrypt
+	if len(baru) > 72 {
 		return "Password baru maksimal 72 karakter"
 	}
 	if strings.TrimSpace(baru) != baru {

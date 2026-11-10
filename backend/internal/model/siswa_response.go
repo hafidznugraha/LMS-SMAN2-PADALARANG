@@ -25,16 +25,16 @@ type SiswaDashboardResponse struct {
 	KehadiranPersen int               `json:"kehadiran_persen"`
 	HariTercatat    int               `json:"hari_tercatat"`
 	AbsenHariIni    SiswaAbsenHariIni `json:"absen_hari_ini"`
-	HariIni         string            `json:"hari_ini"`        // <- tambah
-	JadwalHariIni   []SiswaJadwalItem `json:"jadwal_hari_ini"` // <- tambah
+	HariIni         string            `json:"hari_ini"`
+	JadwalHariIni   []SiswaJadwalItem `json:"jadwal_hari_ini"`
 }
 
 type SiswaJadwalItem struct {
 	ID         string `json:"id"`
 	NamaMapel  string `json:"nama_mapel"`
 	NamaGuru   string `json:"nama_guru"`
-	JamMulai   string `json:"jam_mulai"`   // "07:00"
-	JamSelesai string `json:"jam_selesai"` // "09:00"
+	JamMulai   string `json:"jam_mulai"`
+	JamSelesai string `json:"jam_selesai"`
 	Ruang      string `json:"ruang"`
-	Status     string `json:"status"` // selesai | berlangsung | akan_datang
+	Status     string `json:"status"`
 }

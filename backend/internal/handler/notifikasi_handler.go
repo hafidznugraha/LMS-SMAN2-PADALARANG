@@ -24,7 +24,6 @@ type NotifikasiListResponse struct {
 	UnreadCount int64              `json:"unread_count"`
 }
 
-// GET /api/v1/notifikasi
 func (h *NotifikasiHandler) GetNotifikasi(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {
@@ -76,7 +75,6 @@ func (h *NotifikasiHandler) GetNotifikasi(c *fiber.Ctx) error {
 	})
 }
 
-// PUT /api/v1/notifikasi/:id/read
 func (h *NotifikasiHandler) MarkAsRead(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {
@@ -125,7 +123,6 @@ func (h *NotifikasiHandler) MarkAsRead(c *fiber.Ctx) error {
 	})
 }
 
-// PUT /api/v1/notifikasi/read-all
 func (h *NotifikasiHandler) MarkAllAsRead(c *fiber.Ctx) error {
 	db := repository.GetDB()
 	if db == nil {

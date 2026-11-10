@@ -56,7 +56,7 @@ function Kalender({
 }) {
   const [y, m] = bulan.split("-").map(Number);
   const jumlahHari = new Date(y, m, 0).getDate();
-  const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7; // minggu dimulai Senin
+  const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7; 
   const peta = new Map(riwayat.map((r) => [r.tanggal, r]));
 
   return (
@@ -177,7 +177,6 @@ export default function SiswaAbsensiPage() {
         <p className="text-xs md:text-sm text-slate-500 mt-1">{hariTanggal(data.tanggal)}</p>
       </div>
 
-      {/* Presensi hari ini */}
       <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-900 flex items-center justify-center shrink-0">
@@ -257,7 +256,6 @@ export default function SiswaAbsensiPage() {
         )}
       </div>
 
-      {/* Rekap bulan */}
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
         {(["hadir", "terlambat", "sakit", "izin", "alpa"] as const).map((s) => (
           <div key={s} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 text-center">
@@ -267,7 +265,6 @@ export default function SiswaAbsensiPage() {
         ))}
       </div>
 
-      {/* Kalender */}
       <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -321,7 +318,6 @@ export default function SiswaAbsensiPage() {
         </div>
       </div>
 
-      {/* Riwayat */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <h3 className="text-base font-semibold text-slate-900 p-4 md:p-5 pb-3">Riwayat</h3>
         {data.riwayat.length === 0 ? (

@@ -73,7 +73,7 @@ type StudentRaportDetailResponse struct {
 	WaliKelas         string             `json:"wali_kelas"`
 	WaliNIP           string             `json:"wali_nip"`
 	KepalaSekolah     string             `json:"kepala_sekolah,omitempty"`
-	NIPKepalaSekolah string             `json:"nip_kepala_sekolah,omitempty"`
+	NIPKepalaSekolah  string             `json:"nip_kepala_sekolah,omitempty"`
 	NamaSekolah       string             `json:"nama_sekolah,omitempty"`
 	AlamatSekolah     string             `json:"alamat_sekolah,omitempty"`
 	TeleponSekolah    string             `json:"telepon_sekolah,omitempty"`

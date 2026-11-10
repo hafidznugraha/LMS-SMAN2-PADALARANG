@@ -8,7 +8,7 @@ import (
 
 type SiswaNilaiItem struct {
 	ID        uuid.UUID `json:"id"`
-	Jenis     string    `json:"jenis"` // Tugas | UlanganHarian | UTS | UAS
+	Jenis     string    `json:"jenis"`
 	Skor      float64   `json:"skor"`
 	Huruf     string    `json:"huruf"`
 	Feedback  string    `json:"feedback"`
@@ -24,7 +24,7 @@ type SiswaNilaiMapel struct {
 }
 
 type SiswaNilaiResponse struct {
-	RataRata *float64          `json:"rata_rata"` // rata-rata dari rata-rata per mapel
+	RataRata *float64          `json:"rata_rata"`
 	Mapel    []SiswaNilaiMapel `json:"mapel"`
 }
 
@@ -38,7 +38,7 @@ type SiswaRaporRingkas struct {
 }
 
 type SiswaRaporKehadiran struct {
-	Hadir     int `json:"hadir"` // hadir + terlambat
+	Hadir     int `json:"hadir"`
 	Sakit     int `json:"sakit"`
 	Izin      int `json:"izin"`
 	Alpa      int `json:"alpa"`

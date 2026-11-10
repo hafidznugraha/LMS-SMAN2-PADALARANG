@@ -187,16 +187,13 @@ export default function SiswaTugasDetailPage() {
 
   const currentUser = useMemo(() => getStoredUser(), []);
 
-  // Data fetching
   const { data: tugas, isLoading, isError, refetch } = useSiswaTugasDetail(tugasId);
   const { data: comments = [], isLoading: isLoadingComments } = useKomentarTugas(tugasId);
 
-  // Mutations
   const submitMutation = useSubmitTugas();
   const addKomentarMutation = useAddKomentarTugas(tugasId);
   const deleteKomentarMutation = useDeleteKomentarTugas(tugasId);
 
-  // Submission form states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [catatan, setCatatan] = useState("");
   const [fileError, setFileError] = useState("");
@@ -204,7 +201,6 @@ export default function SiswaTugasDetailPage() {
   const [isEditingSubmission, setIsEditingSubmission] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Comment state
   const [commentText, setCommentText] = useState("");
 
   const allowedExts = useMemo(
@@ -304,7 +300,6 @@ export default function SiswaTugasDetailPage() {
     });
   };
 
-  // Loading Skeleton
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-6xl mx-auto px-4 py-8">
@@ -323,7 +318,6 @@ export default function SiswaTugasDetailPage() {
     );
   }
 
-  // Not Found State
   if (isError || !tugas) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-4">
@@ -356,7 +350,6 @@ export default function SiswaTugasDetailPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-20">
-      {/* Top Breadcrumb & Back */}
       <div className="flex items-center justify-between gap-4">
         <Link
           href="/siswa/tugas"
@@ -372,21 +365,14 @@ export default function SiswaTugasDetailPage() {
         </div>
       </div>
 
-      {/* Main Grid: 2 Columns matching Google Classroom */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* ======================================================== */}
-        {/* LEFT COLUMN: DETAIL PETUNJUK TUGAS & KOMENTAR KELAS      */}
-        {/* ======================================================== */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Header Card */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-5">
             <div className="flex items-start gap-4">
-              {/* Circular Classroom Assignment Icon */}
               <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                 <ClipboardList className="w-6 h-6" />
               </div>
 
-              {/* Title & Metadata */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-snug break-words">
@@ -431,7 +417,6 @@ export default function SiswaTugasDetailPage() {
               </div>
             </div>
 
-            {/* Petunjuk / Instructions Body */}
             <div className="pt-4 border-t border-slate-100 space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Petunjuk Pengerjaan
@@ -444,7 +429,6 @@ export default function SiswaTugasDetailPage() {
                 <p className="text-sm italic text-slate-400">Tidak ada petunjuk tertulis.</p>
               )}
 
-              {/* Format berkas info */}
               <div className="flex items-center gap-2 pt-2 text-xs text-slate-500">
                 <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                 <span>
@@ -454,7 +438,6 @@ export default function SiswaTugasDetailPage() {
               </div>
             </div>
 
-            {/* Lampiran Guru (jika ada) */}
             {teacherAttachments.length > 0 && (
               <div className="pt-4 border-t border-slate-100 space-y-3">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -515,9 +498,6 @@ export default function SiswaTugasDetailPage() {
             )}
           </div>
 
-          {/* ======================================================== */}
-          {/* KOMENTAR KELAS (GOOGLE CLASSROOM STYLE)                   */}
-          {/* ======================================================== */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -531,7 +511,6 @@ export default function SiswaTugasDetailPage() {
               </span>
             </div>
 
-            {/* List of comments */}
             {comments.length > 0 ? (
               <div className="space-y-4 divide-y divide-slate-100">
                 {comments.map((c) => {
@@ -544,7 +523,6 @@ export default function SiswaTugasDetailPage() {
                       key={c.id}
                       className="group flex items-start gap-3 pt-3 first:pt-0 transition-colors"
                     >
-                      {/* Avatar Inisial */}
                       <div
                         className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-xs text-white",
@@ -558,7 +536,6 @@ export default function SiswaTugasDetailPage() {
                         {getInitials(c.nama_user)}
                       </div>
 
-                      {/* Konten Komentar */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -587,7 +564,6 @@ export default function SiswaTugasDetailPage() {
                             </span>
                           </div>
 
-                          {/* Tombol Hapus (jika komentar milik sendiri) */}
                           {isAuthor && (
                             <button
                               type="button"
@@ -617,7 +593,6 @@ export default function SiswaTugasDetailPage() {
               </div>
             )}
 
-            {/* Form Input Komentar Kelas */}
             <form onSubmit={handleAddComment} className="flex items-center gap-3 pt-2">
               <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-xs">
                 {getInitials(currentUser?.nama_lengkap || currentUser?.username || "S")}
@@ -648,12 +623,8 @@ export default function SiswaTugasDetailPage() {
           </div>
         </div>
 
-        {/* ======================================================== */}
-        {/* RIGHT COLUMN: KARTU "TUGAS ANDA" (PENGUMPULAN JAWABAN)     */}
-        {/* ======================================================== */}
         <div className="lg:col-span-4 sticky top-6 space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
-            {/* Header: Judul & Status Pill */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Tugas Anda</h3>
               <span
@@ -682,7 +653,6 @@ export default function SiswaTugasDetailPage() {
               </span>
             </div>
 
-            {/* Bagian Nilai (jika sudah dinilai) */}
             {isGraded && tugas.pengumpulan?.nilai !== null && tugas.pengumpulan?.nilai !== undefined && (
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 space-y-2">
                 <div className="flex items-baseline justify-between">
@@ -700,10 +670,8 @@ export default function SiswaTugasDetailPage() {
               </div>
             )}
 
-            {/* Jika SUDAH DIKUMPULKAN dan TIDAK sedang dalam mode edit */}
             {isSubmitted && !isEditingSubmission ? (
               <div className="space-y-4">
-                {/* Kartu Berkas Jawaban yang Dikumpulkan */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -723,7 +691,6 @@ export default function SiswaTugasDetailPage() {
                     </div>
                   </div>
 
-                  {/* Tombol Lihat/Unduh Berkas */}
                   {tugas.pengumpulan?.file_url && (
                     <a
                       href={tugas.pengumpulan.file_url}
@@ -737,7 +704,6 @@ export default function SiswaTugasDetailPage() {
                   )}
                 </div>
 
-                {/* Catatan untuk Guru */}
                 <div className="text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200/90 space-y-1.5">
                   <div className="flex items-center gap-1.5 text-slate-700 font-bold">
                     <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
@@ -754,7 +720,6 @@ export default function SiswaTugasDetailPage() {
                   )}
                 </div>
 
-                {/* Tombol Ganti Jawaban */}
                 {!isGraded && (
                   <Button
                     type="button"
@@ -771,7 +736,6 @@ export default function SiswaTugasDetailPage() {
                 )}
               </div>
             ) : (
-              /* FORM PENGUMPULAN JAWABAN (Belum Mengumpulkan atau Mode Ganti Jawaban) */
               <div className="space-y-4">
                 {isEditingSubmission && (
                   <div className="flex items-center justify-between text-xs bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-xl">
@@ -790,7 +754,6 @@ export default function SiswaTugasDetailPage() {
                   </div>
                 )}
 
-                {/* File Dropzone / Picker */}
                 <div>
                   <label
                     htmlFor="submission-file-input"
@@ -848,13 +811,11 @@ export default function SiswaTugasDetailPage() {
                     onChange={(e) => handleSelectFile(e.target.files?.[0])}
                   />
 
-                  {/* Format info */}
                   <p className="text-[11px] text-slate-400 mt-2 text-center">
                     Format: <span className="font-medium text-slate-600">{formatSummary}</span> • Maks. 50 MB
                   </p>
                 </div>
 
-                {/* Error message */}
                 {fileError && (
                   <div
                     role="alert"
@@ -865,7 +826,6 @@ export default function SiswaTugasDetailPage() {
                   </div>
                 )}
 
-                {/* Catatan untuk guru */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label htmlFor="catatan-guru" className="block text-xs font-semibold text-slate-700">
@@ -889,7 +849,6 @@ export default function SiswaTugasDetailPage() {
                   </p>
                 </div>
 
-                {/* Tombol Serahkan / Kumpulkan */}
                 <Button
                   type="button"
                   onClick={handleSubmitTugas}
@@ -917,7 +876,6 @@ export default function SiswaTugasDetailPage() {
             )}
           </div>
 
-          {/* Privacy Box (matching Google Classroom) */}
           <div className="bg-slate-50 rounded-xl border border-slate-200/80 p-4 text-xs text-slate-500 flex items-start gap-3">
             <Lock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">

@@ -32,10 +32,10 @@ func (User) TableName() string {
 }
 
 type Kelas struct {
-	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	NamaKelas  string     `gorm:"size:20;unique;not null" json:"nama_kelas"`
-	Tingkat    int        `gorm:"not null" json:"tingkat"`
-	Jurusan    string     `gorm:"size:20;not null" json:"jurusan"`
+	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	NamaKelas   string     `gorm:"size:20;unique;not null" json:"nama_kelas"`
+	Tingkat     int        `gorm:"not null" json:"tingkat"`
+	Jurusan     string     `gorm:"size:20;not null" json:"jurusan"`
 	WaliGuruID  *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"wali_guru_id,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	TotalSiswa  int        `gorm:"->;column:total_siswa" json:"total_siswa"`
@@ -111,17 +111,17 @@ func (JadwalPelajaran) TableName() string {
 }
 
 type Materi struct {
-	ID            uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	GuruID        uuid.UUID     `gorm:"type:uuid;not null" json:"guru_id"`
-	MapelID       uuid.UUID     `gorm:"type:uuid;not null" json:"mapel_id"`
-	KelasID       uuid.UUID     `gorm:"type:uuid;not null" json:"kelas_id"`
-	Judul         string        `gorm:"size:200;not null" json:"judul"`
-	Deskripsi     string        `gorm:"type:text" json:"deskripsi"`
-	FileURL       string        `gorm:"type:text" json:"file_url"`
-	TipeFile      string        `gorm:"size:20" json:"tipe_file"`
-	UkuranMB      float64       `json:"ukuran_mb"`
-	JumlahMelihat int           `gorm:"default:0" json:"jumlah_melihat"`
-	CreatedAt     time.Time     `json:"created_at"`
+	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	GuruID        uuid.UUID `gorm:"type:uuid;not null" json:"guru_id"`
+	MapelID       uuid.UUID `gorm:"type:uuid;not null" json:"mapel_id"`
+	KelasID       uuid.UUID `gorm:"type:uuid;not null" json:"kelas_id"`
+	Judul         string    `gorm:"size:200;not null" json:"judul"`
+	Deskripsi     string    `gorm:"type:text" json:"deskripsi"`
+	FileURL       string    `gorm:"type:text" json:"file_url"`
+	TipeFile      string    `gorm:"size:20" json:"tipe_file"`
+	UkuranMB      float64   `json:"ukuran_mb"`
+	JumlahMelihat int       `gorm:"default:0" json:"jumlah_melihat"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 func (Materi) TableName() string {
@@ -158,21 +158,21 @@ func (Notifikasi) TableName() string {
 }
 
 type Tugas struct {
-	ID          uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	GuruID      uuid.UUID          `gorm:"type:uuid;not null" json:"guru_id"`
-	MapelID     uuid.UUID          `gorm:"type:uuid;not null" json:"mapel_id"`
-	KelasID     uuid.UUID          `gorm:"type:uuid;not null" json:"kelas_id"`
-	Judul       string             `gorm:"size:200;not null" json:"judul"`
-	Deskripsi   string             `gorm:"type:text" json:"deskripsi"`
+	ID           uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	GuruID       uuid.UUID          `gorm:"type:uuid;not null" json:"guru_id"`
+	MapelID      uuid.UUID          `gorm:"type:uuid;not null" json:"mapel_id"`
+	KelasID      uuid.UUID          `gorm:"type:uuid;not null" json:"kelas_id"`
+	Judul        string             `gorm:"size:200;not null" json:"judul"`
+	Deskripsi    string             `gorm:"type:text" json:"deskripsi"`
 	FormatFile   string             `gorm:"size:100;default:'pdf, docx'" json:"format_file"`
 	FileLampiran string             `gorm:"type:text;default:''" json:"file_lampiran"`
 	Topik        string             `gorm:"size:100;default:''" json:"topik"`
-	Deadline    time.Time          `gorm:"not null" json:"deadline"`
-	CreatedAt   time.Time          `json:"created_at"`
-	Guru        *Guru              `gorm:"foreignKey:GuruID" json:"guru,omitempty"`
-	Mapel       *MataPelajaran     `gorm:"foreignKey:MapelID" json:"mapel,omitempty"`
-	Kelas       *Kelas             `gorm:"foreignKey:KelasID" json:"kelas,omitempty"`
-	Submissions []PengumpulanTugas `gorm:"foreignKey:TugasID" json:"submissions,omitempty"`
+	Deadline     time.Time          `gorm:"not null" json:"deadline"`
+	CreatedAt    time.Time          `json:"created_at"`
+	Guru         *Guru              `gorm:"foreignKey:GuruID" json:"guru,omitempty"`
+	Mapel        *MataPelajaran     `gorm:"foreignKey:MapelID" json:"mapel,omitempty"`
+	Kelas        *Kelas             `gorm:"foreignKey:KelasID" json:"kelas,omitempty"`
+	Submissions  []PengumpulanTugas `gorm:"foreignKey:TugasID" json:"submissions,omitempty"`
 }
 
 func (Tugas) TableName() string {
@@ -546,20 +546,20 @@ func (LogSinkronDapodik) TableName() string {
 }
 
 type UpdatePengaturanRequest struct {
-	NamaSekolah        string `json:"nama_sekolah"`
-	NPSN               string `json:"npsn"`
-	Akreditasi         string `json:"akreditasi"`
-	Alamat             string `json:"alamat"`
-	Telepon            string `json:"telepon"`
-	Email              string `json:"email"`
-	Website            string `json:"website"`
-	KepalaSekolah      string `json:"kepala_sekolah"`
-	NIPKepalaSekolah   string `json:"nip_kepala_sekolah"`
-	WakaKurikulum      string `json:"waka_kurikulum"`
-	NIPWakaKurikulum   string `json:"nip_waka_kurikulum"`
-	TahunAjaranAktif   string `json:"tahun_ajaran_aktif"`
-	SemesterAktif      string `json:"semester_aktif"`
-	TenggatKunciRaport string `json:"tenggat_kunci_raport"`
+	NamaSekolah        string   `json:"nama_sekolah"`
+	NPSN               string   `json:"npsn"`
+	Akreditasi         string   `json:"akreditasi"`
+	Alamat             string   `json:"alamat"`
+	Telepon            string   `json:"telepon"`
+	Email              string   `json:"email"`
+	Website            string   `json:"website"`
+	KepalaSekolah      string   `json:"kepala_sekolah"`
+	NIPKepalaSekolah   string   `json:"nip_kepala_sekolah"`
+	WakaKurikulum      string   `json:"waka_kurikulum"`
+	NIPWakaKurikulum   string   `json:"nip_waka_kurikulum"`
+	TahunAjaranAktif   string   `json:"tahun_ajaran_aktif"`
+	SemesterAktif      string   `json:"semester_aktif"`
+	TenggatKunciRaport string   `json:"tenggat_kunci_raport"`
 	DurasiKBMMenit     int      `json:"durasi_kbm_menit"`
 	JamMasuk           string   `json:"jam_masuk"`
 	JamPulang          string   `json:"jam_pulang"`

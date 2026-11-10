@@ -34,7 +34,7 @@ export function useSiswaTugasDetail(tugasId: string) {
 
 interface SubmitInput {
   tugasId: string;
-  submissionId?: string; // diisi bila mengganti jawaban
+  submissionId?: string; 
   file: File | null;
   catatan: string;
 }

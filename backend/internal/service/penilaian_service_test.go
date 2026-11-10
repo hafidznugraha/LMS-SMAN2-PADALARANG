@@ -78,7 +78,7 @@ func TestHitungNilaiAkhirDanPredikat(t *testing.T) {
 			uh:           100,
 			uts:          80,
 			uas:          100,
-			wantNilai:    95.0, // 30 + 20 + 20 + 25 = 95.0
+			wantNilai:    95.0,
 			wantPredikat: "A",
 		},
 	}
@@ -97,7 +97,6 @@ func TestHitungNilaiAkhirDanPredikat(t *testing.T) {
 }
 
 func TestCustomKurikulumKonfigurasi(t *testing.T) {
-	// Kurikulum menerapkan KKM 80 dengan batas A >= 90, B >= 80, C >= 70
 	customCfg := model.KonfigurasiPenilaian{
 		KKMDefault:     80.0,
 		BobotTugas:     40.0,
@@ -113,7 +112,6 @@ func TestCustomKurikulumKonfigurasi(t *testing.T) {
 		t.Fatalf("Validasi konfigurasi gagal: %v", err)
 	}
 
-	// Nilai 85 sebelumnya adalah A, sekarang menjadi B karena Kurikulum menaikkan batas A ke 90!
 	predikat := TentukanPredikat(85.0, customCfg)
 	if predikat != "B" {
 		t.Errorf("Dengan batas A=90, nilai 85 harusnya B, got: %s", predikat)
@@ -121,12 +119,11 @@ func TestCustomKurikulumKonfigurasi(t *testing.T) {
 }
 
 func TestValidasiKonfigurasiPenilaian(t *testing.T) {
-	// Total bobot bukan 100%
 	invalidBobot := model.KonfigurasiPenilaian{
 		BobotTugas:     30,
 		BobotUH:        20,
 		BobotUTS:       20,
-		BobotUAS:       20, // Total 90%
+		BobotUAS:       20,
 		BatasPredikatA: 85,
 		BatasPredikatB: 75,
 		BatasPredikatC: 65,
@@ -135,14 +132,13 @@ func TestValidasiKonfigurasiPenilaian(t *testing.T) {
 		t.Error("Harus error bila total bobot != 100%")
 	}
 
-	// Batas A lebih kecil dari B
 	invalidBatas := model.KonfigurasiPenilaian{
 		BobotTugas:     30,
 		BobotUH:        20,
 		BobotUTS:       25,
 		BobotUAS:       25,
 		BatasPredikatA: 70,
-		BatasPredikatB: 75, // A < B
+		BatasPredikatB: 75,
 		BatasPredikatC: 65,
 	}
 	if err := ValidasiKonfigurasiPenilaian(invalidBatas); err == nil {

@@ -14,9 +14,6 @@ type ubahPasswordRequest struct {
 	PasswordBaru string `json:"password_baru"`
 }
 
-// PUT /api/v1/siswa/password
-// Catatan: password lama yang salah dijawab 400 (bukan 401) agar frontend
-// tidak menganggapnya sesi berakhir lalu memaksa logout.
 func (h *SiswaHandler) UbahPassword(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {

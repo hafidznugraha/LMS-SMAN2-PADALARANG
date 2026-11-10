@@ -11,10 +11,8 @@ const (
 	defaultJamPulangMenit = 15*60 + 30
 )
 
-// wib adalah zona waktu sekolah (tanpa bergantung pada tzdata di server).
 var wib = time.FixedZone("WIB", 7*3600)
 
-// parseJamMenit mengubah "HH:MM" atau "HH:MM:SS" menjadi menit sejak tengah malam.
 func parseJamMenit(s string, fallback int) int {
 	parts := strings.Split(strings.TrimSpace(s), ":")
 	if len(parts) < 2 {
@@ -32,7 +30,6 @@ func menitHari(t time.Time) int {
 	return t.Hour()*60 + t.Minute()
 }
 
-// statusHadir: "terlambat" bila absen melewati jam masuk, selain itu "hadir".
 func statusHadir(now time.Time, jamMasukMenit int) string {
 	if menitHari(now) > jamMasukMenit {
 		return "terlambat"
@@ -40,7 +37,6 @@ func statusHadir(now time.Time, jamMasukMenit int) string {
 	return "hadir"
 }
 
-// alasanTidakBisaAbsen mengembalikan "" bila siswa boleh absen sekarang.
 func alasanTidakBisaAbsen(now time.Time, jamPulangMenit int, adaKelas bool) string {
 	if !adaKelas {
 		return "Kamu belum ditempatkan di kelas"
@@ -54,7 +50,6 @@ func alasanTidakBisaAbsen(now time.Time, jamPulangMenit int, adaKelas bool) stri
 	return ""
 }
 
-// parseBulan memvalidasi "YYYY-MM" dan mengembalikan awal bulan & awal bulan berikutnya.
 func parseBulan(s string, now time.Time) (label, awal, akhir string, ok bool) {
 	var first time.Time
 	if strings.TrimSpace(s) == "" {

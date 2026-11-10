@@ -284,7 +284,6 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Notification Bell */}
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
@@ -301,7 +300,6 @@ export function Topbar({
             )}
           </button>
 
-          {/* Desktop Popover: Anchored directly below the Bell button */}
           {isDropdownOpen && (
             <div className="hidden sm:block absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 origin-top-right animate-dropdown-enter">
               {renderHeader()}
@@ -312,12 +310,10 @@ export function Topbar({
           )}
         </div>
 
-        {/* Mobile Bottom Drawer: Rendered via Portal directly into document.body */}
         {isDrawerMounted &&
           mounted &&
           createPortal(
             <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
-              {/* Dark Translucent Backdrop with smooth fade in/out */}
               <div
                 className="fixed inset-0 bg-black/50 backdrop-blur-xs"
                 style={{
@@ -338,7 +334,6 @@ export function Topbar({
                 aria-hidden="true"
               />
 
-              {/* Bottom Sheet Drawer with interactive swipe-down gesture and entrance slide */}
               <div
                 className="relative z-10 bg-white rounded-t-3xl shadow-2xl border-t border-slate-200 p-4 pb-8 max-h-[85dvh] flex flex-col overscroll-contain will-change-transform transform-gpu motion-reduce:transform-none"
                 style={{
@@ -359,7 +354,6 @@ export function Topbar({
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
               >
-                {/* Grab Handle Touch Zone (geser ke bawah untuk menutup) */}
                 <div className="w-full pt-1 pb-3 flex flex-col items-center cursor-grab active:cursor-grabbing select-none touch-none">
                   <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
                 </div>

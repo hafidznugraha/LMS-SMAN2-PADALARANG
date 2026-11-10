@@ -7,11 +7,10 @@ import (
 	"strings"
 )
 
-const maxSubmissionBytes = 50 * 1024 * 1024 // 50 MB
+const maxSubmissionBytes = 50 * 1024 * 1024
 
 var unsafeNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
-// sanitizeFilename membuat nama file aman untuk path penyimpanan.
 func sanitizeSubmissionFilename(name string) string {
 	name = filepath.Base(strings.ReplaceAll(name, `\`, "/"))
 	ext := strings.ToLower(filepath.Ext(name))
@@ -27,7 +26,6 @@ func sanitizeSubmissionFilename(name string) string {
 	return base + ext
 }
 
-// detectContentType memeriksa ekstensi dan mencocokkannya atau mendeteksi MIME type isi file.
 func detectContentType(ext string, head []byte) (string, bool) {
 	switch strings.ToLower(ext) {
 	case ".pdf":
@@ -72,7 +70,6 @@ func detectContentType(ext string, head []byte) (string, bool) {
 
 var timestampPrefix = regexp.MustCompile(`^\d{9,}_`)
 
-// displayFileName mengambil nama file dari file_url dan membuang awalan timestamp.
 func displayFileName(fileURL string) string {
 	i := strings.LastIndex(fileURL, "/")
 	name := fileURL[i+1:]

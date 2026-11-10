@@ -1,5 +1,3 @@
-// Package storage menyimpan berkas unggahan siswa, baik ke Supabase Storage
-// maupun ke disk lokal (untuk pengembangan tanpa Supabase).
 package storage
 
 import (
@@ -15,14 +13,10 @@ import (
 	"time"
 )
 
-// Store menyimpan dan menghapus berkas. Save mengembalikan referensi
-// (URL atau path) yang disimpan di kolom file_url.
 type Store interface {
 	Save(ctx context.Context, objectPath string, data []byte, contentType string) (string, error)
 	Remove(ctx context.Context, ref string) error
 }
-
-// ---------- Supabase Storage ----------
 
 type Supabase struct {
 	baseURL string
@@ -83,7 +77,7 @@ func (s *Supabase) Save(ctx context.Context, objectPath string, data []byte, con
 func (s *Supabase) Remove(ctx context.Context, ref string) error {
 	prefix := fmt.Sprintf("%s/storage/v1/object/%s/", s.baseURL, s.bucket)
 	if !strings.HasPrefix(ref, prefix) {
-		return nil // bukan milik bucket ini
+		return nil
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, ref, nil)
 	if err != nil {
@@ -99,10 +93,8 @@ func (s *Supabase) Remove(ctx context.Context, ref string) error {
 	return nil
 }
 
-// ---------- Disk lokal ----------
-
 type Local struct {
-	dir string // mis. "uploads/pengumpulan-tugas"
+	dir string
 }
 
 func NewLocal(dir string) *Local { return &Local{dir: dir} }

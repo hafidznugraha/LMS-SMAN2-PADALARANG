@@ -116,7 +116,7 @@ func TestPengaturanAndAbsensiEndpointsAuth(t *testing.T) {
 		bTugas := 40.0
 		bUH := 20.0
 		bUTS := 20.0
-		bUAS := 10.0 // total 90.0
+		bUAS := 10.0
 		payload, _ := json.Marshal(model.UpdatePengaturanRequest{
 			BobotTugas: &bTugas,
 			BobotUH:    &bUH,
@@ -131,7 +131,6 @@ func TestPengaturanAndAbsensiEndpointsAuth(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Gagal request: %v", err)
 		}
-		// status can be 400 if DB is connected or 503 if DB is nil in unit test env without DB
 		if resp.StatusCode != http.StatusBadRequest && resp.StatusCode != http.StatusServiceUnavailable {
 			t.Errorf("Harusnya status 400 Bad Request atau 503 (tanpa DB), didapat: %d", resp.StatusCode)
 		}
@@ -139,7 +138,7 @@ func TestPengaturanAndAbsensiEndpointsAuth(t *testing.T) {
 
 	t.Run("Update konfigurasi penilaian dengan ambang batas predikat tidak menurun harus ditolak 400", func(t *testing.T) {
 		bA := 70.0
-		bB := 80.0 // A < B (invalid!)
+		bB := 80.0
 		bC := 60.0
 		payload, _ := json.Marshal(model.UpdatePengaturanRequest{
 			BatasPredikatA: &bA,

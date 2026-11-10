@@ -33,7 +33,6 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 
 	app := SetupRouter(cfg)
 
-	// 1. Setup Kelas
 	kelas := model.Kelas{
 		ID:        uuid.New(),
 		NamaKelas: "Kelas Lampiran Test",
@@ -43,7 +42,6 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 	db.Create(&kelas)
 	defer db.Delete(&kelas)
 
-	// 2. Setup Guru
 	userGuru := model.User{
 		ID:           uuid.New(),
 		Username:     "guru_lampiran_" + uuid.New().String()[:8],
@@ -74,12 +72,12 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 	defer db.Delete(&guru)
 
 	jadwal := model.JadwalPelajaran{
-		ID:        uuid.New(),
-		GuruID:    guru.ID,
-		MapelID:   mapel.ID,
-		KelasID:   kelas.ID,
-		Hari:      "Senin",
-		JamMulai:  "07:00",
+		ID:         uuid.New(),
+		GuruID:     guru.ID,
+		MapelID:    mapel.ID,
+		KelasID:    kelas.ID,
+		Hari:       "Senin",
+		JamMulai:   "07:00",
 		JamSelesai: "08:30",
 	}
 	db.Create(&jadwal)
@@ -98,7 +96,6 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 		t.Fatalf("Gagal buat token JWT guru: %v", err)
 	}
 
-	// 3. Test POST /api/v1/guru/tugas/upload
 	bodyBuf := &bytes.Buffer{}
 	mpWriter := multipart.NewWriter(bodyBuf)
 	part, err := mpWriter.CreateFormFile("file", "modul_referensi.pdf")
@@ -132,7 +129,6 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 		t.Fatalf("Respon upload lampiran tidak valid: %+v", resUpload)
 	}
 
-	// 4. Test Create Tugas dengan file_lampiran JSON (Drive, YouTube, File, Link)
 	lampiranList := []map[string]string{
 		{
 			"type": "drive",
@@ -192,7 +188,6 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 	}
 	defer db.Delete(&model.Tugas{}, "id = ?", resCreate.Data.ID)
 
-	// 5. Verifikasi tersimpan di Database
 	var dbTugas model.Tugas
 	if err := db.Where("id = ?", resCreate.Data.ID).First(&dbTugas).Error; err != nil {
 		t.Fatalf("Tugas tidak ditemukan di database: %v", err)
@@ -202,7 +197,6 @@ func TestTugasFileLampiranDanUpload(t *testing.T) {
 		t.Errorf("FileLampiran di database tidak cocok. Diharapkan: %s, Didapat: %s", string(lampiranJSON), dbTugas.FileLampiran)
 	}
 
-	// 6. Verifikasi GET /api/v1/guru/tugas mengembalikan file_lampiran
 	reqGet := httptest.NewRequest(http.MethodGet, "/api/v1/guru/tugas?kelas_id="+kelas.ID.String(), nil)
 	reqGet.Header.Set("Authorization", "Bearer "+guruJWT)
 

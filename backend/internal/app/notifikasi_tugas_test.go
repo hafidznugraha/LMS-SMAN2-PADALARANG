@@ -33,7 +33,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 
 	app := SetupRouter(cfg)
 
-	// 1. Setup Kelas A & Kelas B
 	kelasA := model.Kelas{
 		ID:        uuid.New(),
 		NamaKelas: "Kelas Test Tugas A",
@@ -52,7 +51,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 	db.Create(&kelasB)
 	defer db.Delete(&kelasB)
 
-	// 2. Setup Guru dengan gelar akademis
 	userGuru := model.User{
 		ID:           uuid.New(),
 		Username:     "guru_tugas_test_" + uuid.New().String()[:8],
@@ -82,7 +80,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 	db.Create(&guru)
 	defer db.Delete(&guru)
 
-	// Jadwal pelajaran untuk kelas A agar guru terverifikasi mengajar di kelas tersebut
 	jadwalA := model.JadwalPelajaran{
 		ID:         uuid.New(),
 		KelasID:    kelasA.ID,
@@ -95,7 +92,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 	db.Create(&jadwalA)
 	defer db.Delete(&jadwalA)
 
-	// 3. Setup Siswa A (di Kelas A) & Siswa B (di Kelas B)
 	userSiswaA := model.User{
 		ID:           uuid.New(),
 		Username:     "siswa_tugas_a_" + uuid.New().String()[:8],
@@ -140,7 +136,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 	db.Create(&siswaB)
 	defer db.Delete(&siswaB)
 
-	// Buat token autentikasi guru, siswa A, dan siswa B
 	createToken := func(userID uuid.UUID, role model.UserRole, username string) string {
 		claims := jwt.MapClaims{
 			"user_id":  userID.String(),
@@ -157,15 +152,14 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 	tokenSiswaA := createToken(userSiswaA.ID, model.RoleSiswa, userSiswaA.Username)
 	tokenSiswaB := createToken(userSiswaB.ID, model.RoleSiswa, userSiswaB.Username)
 
-	// 4. Guru menerbitkan tugas baru untuk Kelas A
 	deadlineFuture := time.Now().Add(7 * 24 * time.Hour)
 	reqBody := model.CreateTugasRequest{
-		MapelID:      mapel.ID.String(),
-		KelasID:      kelasA.ID.String(),
-		Judul:        "Tugas Perancangan ERD Database",
-		Deskripsi:    "Buat rancangan ERD untuk sistem rental mobil",
-		Deadline:     deadlineFuture.Format("2006-01-02 15:04:05"),
-		FormatFile:   "pdf, docx",
+		MapelID:    mapel.ID.String(),
+		KelasID:    kelasA.ID.String(),
+		Judul:      "Tugas Perancangan ERD Database",
+		Deskripsi:  "Buat rancangan ERD untuk sistem rental mobil",
+		Deadline:   deadlineFuture.Format("2006-01-02 15:04:05"),
+		FormatFile: "pdf, docx",
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
 
@@ -182,12 +176,10 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 	}
 
 	defer func() {
-		// Bersihkan tugas dan notifikasi yang terbuat
 		db.Where("judul = ?", "Tugas Perancangan ERD Database").Delete(&model.Tugas{})
 		db.Where("user_id = ? OR user_id = ?", userSiswaA.ID, userSiswaB.ID).Delete(&model.Notifikasi{})
 	}()
 
-	// 5. Verifikasi: Siswa A (Kelas A) HARUS menerima notifikasi tugas
 	reqNotifA := httptest.NewRequest(http.MethodGet, "/api/v1/notifikasi", nil)
 	reqNotifA.Header.Set("Authorization", "Bearer "+tokenSiswaA)
 	respNotifA, err := app.Test(reqNotifA, 5000)
@@ -234,7 +226,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 		t.Errorf("Pesan notifikasi harus memuat info tenggat waktu. Pesan: %s", notifItem.Pesan)
 	}
 
-	// 6. Verifikasi KETAT: Siswa B (Kelas B) TIDAK BOLEH menerima notifikasi tersebut
 	reqNotifB := httptest.NewRequest(http.MethodGet, "/api/v1/notifikasi", nil)
 	reqNotifB.Header.Set("Authorization", "Bearer "+tokenSiswaB)
 	respNotifB, err := app.Test(reqNotifB, 5000)
@@ -258,7 +249,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 		t.Fatalf("ISOLASI KELAS BOCOR! Siswa B menerima %d notifikasi yang bukan untuk kelasnya!", len(jsonNotifB.Data.Items))
 	}
 
-	// 7. Verifikasi Tandai Dibaca (Mark as Read)
 	notifID := jsonNotifA.Data.Items[0].ID
 	reqRead := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/notifikasi/%s/read", notifID.String()), nil)
 	reqRead.Header.Set("Authorization", "Bearer "+tokenSiswaA)
@@ -267,7 +257,6 @@ func TestNotifikasiTugasKelasTarget(t *testing.T) {
 		t.Fatalf("Status code mark as read diharapkan 200, didapat: %d", respRead.StatusCode)
 	}
 
-	// Ambil kembali notifikasi Siswa A, pastikan unread count jadi 0
 	reqNotifA2 := httptest.NewRequest(http.MethodGet, "/api/v1/notifikasi", nil)
 	reqNotifA2.Header.Set("Authorization", "Bearer "+tokenSiswaA)
 	respNotifA2, _ := app.Test(reqNotifA2, 5000)

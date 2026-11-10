@@ -84,9 +84,8 @@ export const AbsensiModule: React.FC<AbsensiModuleProps> = ({
   const total = classAttendance.length;
   const kehadiranPersen = total > 0 ? Math.round((hadirCount / total) * 100) : 0;
 
-  // Weekend calculation
   const parsedDate = new Date(`${activeDate}T00:00:00`);
-  const dayOfWeek = parsedDate.getDay(); // 0 is Sunday, 6 is Saturday
+  const dayOfWeek = parsedDate.getDay(); 
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const namaHari = dayNames[dayOfWeek] || 'Hari';

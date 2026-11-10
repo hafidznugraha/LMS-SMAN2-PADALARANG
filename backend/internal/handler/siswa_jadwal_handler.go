@@ -32,7 +32,6 @@ type SiswaJadwalResponse struct {
 	Items     []SiswaJadwalItem `json:"items"`
 }
 
-// GET /api/v1/siswa/jadwal?hari=
 func (h *SiswaHandler) GetJadwal(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {

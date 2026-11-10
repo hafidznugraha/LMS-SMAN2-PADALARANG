@@ -25,9 +25,6 @@ func NewSiswaHandler(cfg *config.Config) *SiswaHandler {
 	return &SiswaHandler{store: newSubmissionStore(cfg)}
 }
 
-// currentSiswa mengambil data siswa milik user yang sedang login (dari klaim JWT).
-// Jika gagal, response error sudah dikirim dan return value kedua adalah error
-// yang harus langsung di-return oleh pemanggil.
 func currentSiswa(c *fiber.Ctx) (*model.Siswa, *gorm.DB, error) {
 	db := repository.GetDB()
 	if db == nil {
@@ -72,7 +69,6 @@ func currentSiswa(c *fiber.Ctx) (*model.Siswa, *gorm.DB, error) {
 	return &siswa, db, nil
 }
 
-// GET /api/v1/siswa/me
 func (h *SiswaHandler) GetMe(c *fiber.Ctx) error {
 	siswa, _, err := currentSiswa(c)
 	if siswa == nil {
@@ -100,7 +96,6 @@ type dashboardAbsensiRow struct {
 	Jumlah int    `gorm:"column:jumlah"`
 }
 
-// GET /api/v1/siswa/dashboard
 func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 	siswa, db, err := currentSiswa(c)
 	if siswa == nil {
@@ -129,7 +124,6 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 	if siswa.KelasID != nil {
 		kelasID := *siswa.KelasID
 
-		// Materi untuk kelas siswa
 		if err := db.Raw(
 			"SELECT COUNT(*) AS materi, COUNT(DISTINCT mapel_id) AS mapel FROM materi WHERE kelas_id = ?",
 			kelasID,
@@ -141,7 +135,6 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 			})
 		}
 
-		// Tugas kelas + status pengumpulan milik siswa ini
 		var tr dashboardTugasRow
 		if err := db.Raw(`
 			SELECT
@@ -171,7 +164,6 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 		}
 	}
 
-	// Kehadiran bulan berjalan
 	var rows []dashboardAbsensiRow
 	if err := db.Raw(`
 		SELECT status, COUNT(*) AS jumlah
@@ -195,7 +187,6 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 		resp.KehadiranPersen = int(math.Round(float64(hadir) / float64(resp.HariTercatat) * 100))
 	}
 
-	// Sudah absen hari ini?
 	var absen model.Absensi
 	if err := db.Where("siswa_id = ? AND tanggal = ?", siswa.ID, hariIni).First(&absen).Error; err == nil {
 		resp.AbsenHariIni = model.SiswaAbsenHariIni{
@@ -205,7 +196,6 @@ func (h *SiswaHandler) GetDashboard(c *fiber.Ctx) error {
 		}
 	}
 
-	// Jadwal pelajaran hari ini (hanya untuk dilihat)
 	resp.HariIni = namaHari[int(now.Weekday())]
 	resp.JadwalHariIni = []model.SiswaJadwalItem{}
 	if siswa.KelasID != nil {

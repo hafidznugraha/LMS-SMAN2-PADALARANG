@@ -37,7 +37,6 @@ export const BranchCollabInfoModal: React.FC<BranchCollabInfoModalProps> = ({
           </button>
         </div>
 
-        {/* Overview of Separation */}
         <div className="space-y-4 text-xs text-slate-700 leading-relaxed">
           <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
             <h4 className="font-bold text-blue-950 flex items-center gap-1.5 text-sm">
@@ -60,9 +59,7 @@ export const BranchCollabInfoModal: React.FC<BranchCollabInfoModalProps> = ({
             </ul>
           </div>
 
-          {/* Branch Comparison Table */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            {/* Branch Guru (User) */}
             <div className="p-4 rounded-xl border-2 border-blue-300 bg-blue-50/40 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-[11px] bg-blue-600 text-white px-2 py-0.5 rounded">
@@ -95,7 +92,6 @@ export const BranchCollabInfoModal: React.FC<BranchCollabInfoModalProps> = ({
               </ul>
             </div>
 
-            {/* Branch Wali Kelas (Friend) */}
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-[11px] bg-slate-700 text-white px-2 py-0.5 rounded">
@@ -129,7 +125,6 @@ export const BranchCollabInfoModal: React.FC<BranchCollabInfoModalProps> = ({
             </div>
           </div>
 
-          {/* Step-by-Step Git Workflow */}
           <div className="bg-slate-900 text-white rounded-xl p-4 space-y-2">
             <p className="font-bold text-amber-400 flex items-center gap-1.5">
               <Code className="w-4 h-4" />

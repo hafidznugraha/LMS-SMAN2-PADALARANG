@@ -19,7 +19,7 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		AppName:        "LMS SMAN 2 Padalarang API v1.0.0",
 		ServerHeader:   "Fiber",
 		ReadBufferSize: 32768,
-		BodyLimit:      100 * 1024 * 1024, // 100 MB untuk unggahan materi PDF/DOCX/PPTX/MP4
+		BodyLimit:      100 * 1024 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			var e *fiber.Error
@@ -54,7 +54,6 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 		ExposeHeaders:    "Set-Cookie",
 	}))
 
-	// Handler Inisialisasi
 	masterHandler := handler.NewMasterHandler()
 	jadwalHandler := handler.NewJadwalHandler()
 	guruHandler := handler.NewGuruHandler(cfg)
@@ -76,7 +75,6 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	api.Post("/tugas/:id/komentar", guruHandler.CreateKomentarTugas)
 	api.Delete("/tugas/:id/komentar/:komentarId", guruHandler.DeleteKomentarTugas)
 
-	// Auth Rute
 	auth := api.Group("/auth")
 	auth.Get("/altcha-challenge", handler.AltchaChallengeHandler(cfg))
 	auth.Post("/login", handler.LoginHandler(cfg))
@@ -108,26 +106,22 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
 	guru.Post("/submissions/:id/grade", guruHandler.GradeSubmission)
 
-	// 3. Rekap & Koreksi Presensi/Absensi Siswa
 	guru.Get("/absensi", guruHandler.GetAbsensiKelas)
 	guru.Post("/absensi", guruHandler.SaveOrUpdateAbsensi)
 	guru.Put("/absensi/:id", guruHandler.SaveOrUpdateAbsensi)
 	guru.Post("/absensi/verify", guruHandler.VerifyAbsensiKelas)
 
-	// 4. Modul Penilaian Siswa
 	guru.Get("/nilai", guruHandler.GetNilaiList)
 	guru.Put("/nilai", guruHandler.UpdateNilai)
 	guru.Post("/nilai", guruHandler.UpdateNilai)
 
 	protected := api.Group("", middleware.JWTProtected(cfg))
 
-	// Notifikasi
 	notif := protected.Group("/notifikasi")
 	notif.Get("/", notifikasiHandler.GetNotifikasi)
 	notif.Put("/read-all", notifikasiHandler.MarkAllAsRead)
 	notif.Put("/:id/read", notifikasiHandler.MarkAsRead)
 
-	// Master Data
 	master := protected.Group("/master")
 	master.Get("/kelas", masterHandler.GetKelasList)
 	master.Post("/kelas", middleware.RequireRole(model.RoleKurikulum), masterHandler.CreateKelas)
@@ -140,7 +134,6 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	master.Get("/guru", masterHandler.GetGuruList)
 	master.Get("/siswa", masterHandler.GetSiswaList)
 
-	// User Management
 	users := protected.Group("/users", middleware.RequireRole(model.RoleKurikulum))
 	users.Get("/generate-credentials", masterHandler.GenerateCredentials)
 	users.Get("/check-availability", masterHandler.CheckAvailability)
@@ -149,7 +142,6 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	users.Put("/:id", masterHandler.UpdateUser)
 	users.Delete("/:id", masterHandler.DeleteUser)
 
-	// Jadwal Pelajaran
 	jadwal := protected.Group("/jadwal")
 	jadwal.Get("/", jadwalHandler.GetJadwalList)
 	jadwal.Post("/", middleware.RequireRole(model.RoleKurikulum), jadwalHandler.CreateJadwal)

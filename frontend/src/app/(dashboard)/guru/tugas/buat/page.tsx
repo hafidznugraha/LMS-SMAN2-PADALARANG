@@ -212,7 +212,6 @@ function BuatTugasGoogleClassroomForm() {
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [currentBidangStudi, setCurrentBidangStudi] = useState('Mata Pelajaran');
 
-  // Form states
   const [judul, setJudul] = useState('');
   const [instruksi, setInstruksi] = useState('');
   const [selectedKelasId, setSelectedKelasId] = useState(targetKelasId);
@@ -235,7 +234,6 @@ function BuatTugasGoogleClassroomForm() {
     '1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)'
   );
 
-  // Attachments (Lampirkan)
   const [attachments, setAttachments] = useState<
     { type: 'link' | 'file' | 'drive' | 'youtube' | 'doc'; name: string; url: string }[]
   >([]);
@@ -359,7 +357,6 @@ function BuatTugasGoogleClassroomForm() {
     loadData();
   }, [targetKelasId, editId]);
 
-  // Load topics dynamically from database for selected class
   useEffect(() => {
     async function fetchTopik() {
       if (!selectedKelasId) return;
@@ -375,7 +372,6 @@ function BuatTugasGoogleClassroomForm() {
     fetchTopik();
   }, [selectedKelasId]);
 
-  // Click outside to close topic dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -391,14 +387,12 @@ function BuatTugasGoogleClassroomForm() {
     };
   }, []);
 
-  // Autofocus when creating new topic
   useEffect(() => {
     if (isCreatingTopik && newTopikInputRef.current) {
       newTopikInputRef.current.focus();
     }
   }, [isCreatingTopik]);
 
-  // Sync editor innerHTML on initial mount or reset
   useEffect(() => {
     if (editorRef.current && instruksi && editorRef.current.innerHTML !== instruksi) {
       editorRef.current.innerHTML = instruksi;
@@ -413,7 +407,6 @@ function BuatTugasGoogleClassroomForm() {
       setIsUnderline(document.queryCommandState('underline'));
       setIsBullet(document.queryCommandState('insertUnorderedList'));
     } catch {
-      // ignore
     }
   };
 
@@ -463,7 +456,6 @@ function BuatTugasGoogleClassroomForm() {
     if (!files || files.length === 0) return;
     const file = files[0];
 
-    // Batas 50MB
     if (file.size > 50 * 1024 * 1024) {
       toast.error('Ukuran berkas melebihi batas maksimal 50 MB');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -716,7 +708,6 @@ function BuatTugasGoogleClassroomForm() {
 
   return (
     <div className="w-full -mt-2 md:-mt-4 lg:-mt-5 space-y-4 antialiased">
-      {/* Hidden file input for file attachment */}
       <input
         type="file"
         ref={fileInputRef}
@@ -724,9 +715,6 @@ function BuatTugasGoogleClassroomForm() {
         className="hidden"
       />
 
-      {/* ===================================================================
-          COMPACT HEADER BAR (GOOGLE CLASSROOM STYLE)
-          =================================================================== */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <button
@@ -766,7 +754,6 @@ function BuatTugasGoogleClassroomForm() {
           </div>
         </div>
 
-        {/* Right: Primary Button "Tugaskan" with Split Dropdown */}
         <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           <div className="inline-flex rounded-xl shadow-xs overflow-hidden">
             <button
@@ -797,17 +784,9 @@ function BuatTugasGoogleClassroomForm() {
         </div>
       </div>
 
-      {/* ===================================================================
-          BODY CONTENT (TWO COLUMNS: MAIN ASSIGNMENT & SIDEBAR)
-          =================================================================== */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* =================================================================
-            LEFT COLUMN: ASSIGNMENT TITLE, INSTRUCTIONS & ATTACHMENTS
-            ================================================================= */}
         <div className="flex-1 space-y-5">
-          {/* Box 1: Judul & Petunjuk */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
-            {/* Input Judul */}
             <div>
               <div
                 className={`bg-[#f1f3f4] rounded-t-md border-b-2 transition-colors px-4 pt-2.5 pb-2 ${
@@ -835,20 +814,17 @@ function BuatTugasGoogleClassroomForm() {
               )}
             </div>
 
-            {/* Textarea Petunjuk dengan WYSIWYG Rich Formatting Toolbar */}
             <div className="bg-[#f1f3f4] rounded-t-md border-b-2 border-transparent focus-within:border-[#1a73e8] transition-colors px-4 pt-2.5 pb-2 flex flex-col justify-between relative">
               <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1 select-none">
                 Petunjuk (opsional)
               </label>
 
-              {/* Placeholder overlay */}
               {(!instruksi || instruksi.trim() === '' || instruksi === '<br>') && (
                 <span className="absolute left-4 top-8 text-sm font-normal text-gray-400 pointer-events-none select-none">
                   Petunjuk (opsional)
                 </span>
               )}
 
-              {/* Real WYSIWYG ContentEditable Surface */}
               <div
                 ref={editorRef}
                 contentEditable
@@ -859,7 +835,6 @@ function BuatTugasGoogleClassroomForm() {
                 className="w-full min-h-[160px] text-sm font-normal text-gray-800 bg-transparent focus:outline-none leading-relaxed outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline"
               />
 
-              {/* Formatting Toolbar */}
               <div className="flex items-center gap-1 pt-3 border-t border-gray-300/70 mt-2 select-none">
                 <button
                   type="button"
@@ -936,13 +911,10 @@ function BuatTugasGoogleClassroomForm() {
             </div>
           </div>
 
-          {/* Box 2: Lampirkan (Drive, YouTube, Buat, Upload, Link) */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
             <h3 className="text-sm font-medium text-gray-700">Lampirkan</h3>
 
-            {/* Circular Attachment Buttons */}
             <div className="flex items-center justify-start gap-6 md:gap-8 overflow-x-auto py-2">
-              {/* Drive */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -961,7 +933,6 @@ function BuatTugasGoogleClassroomForm() {
                 </span>
               </div>
 
-              {/* YouTube */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -980,7 +951,6 @@ function BuatTugasGoogleClassroomForm() {
                 </span>
               </div>
 
-              {/* Buat (+) */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -1000,7 +970,6 @@ function BuatTugasGoogleClassroomForm() {
                 </span>
               </div>
 
-              {/* Upload */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -1020,7 +989,6 @@ function BuatTugasGoogleClassroomForm() {
                 </span>
               </div>
 
-              {/* Link */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -1040,7 +1008,6 @@ function BuatTugasGoogleClassroomForm() {
               </div>
             </div>
 
-            {/* Hidden native file input for Upload */}
             <input
               type="file"
               ref={fileInputRef}
@@ -1048,7 +1015,6 @@ function BuatTugasGoogleClassroomForm() {
               className="hidden"
             />
 
-            {/* List of Attached Links/Files */}
             {attachments.length > 0 && (
               <div className="pt-3 border-t border-gray-100 space-y-2">
                 <p className="text-xs font-semibold text-gray-600">
@@ -1120,7 +1086,6 @@ function BuatTugasGoogleClassroomForm() {
               </div>
             )}
 
-            {/* Format Berkas Pengumpulan Siswa */}
             <div className="pt-4 border-t border-gray-200/80">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-700">
@@ -1164,11 +1129,7 @@ function BuatTugasGoogleClassroomForm() {
           </div>
         </div>
 
-        {/* =================================================================
-            RIGHT COLUMN: SETTINGS PANEL (GOOGLE CLASSROOM SIDEBAR)
-            ================================================================= */}
         <div className="w-full lg:w-80 lg:shrink-0 space-y-6">
-          {/* Untuk (Kelas) - Otomatis & Terkunci */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Untuk
@@ -1187,7 +1148,6 @@ function BuatTugasGoogleClassroomForm() {
             </p>
           </div>
 
-          {/* Tugaskan ke */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Tugaskan ke
@@ -1200,7 +1160,6 @@ function BuatTugasGoogleClassroomForm() {
             </div>
           </div>
 
-          {/* Poin */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Poin
@@ -1220,7 +1179,6 @@ function BuatTugasGoogleClassroomForm() {
             </div>
           </div>
 
-          {/* Tenggat */}
           <div className="relative">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Tenggat
@@ -1238,7 +1196,6 @@ function BuatTugasGoogleClassroomForm() {
               <ChevronDown className="w-4 h-4 text-gray-500 shrink-0 ml-2" />
             </button>
 
-            {/* Dropdown panel for deadline */}
             {showDeadlineDropdown && (
               <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-30 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1305,7 +1262,6 @@ function BuatTugasGoogleClassroomForm() {
             )}
           </div>
 
-          {/* Topik - Google Classroom Dynamic Style */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Topik
@@ -1427,7 +1383,6 @@ function BuatTugasGoogleClassroomForm() {
             )}
           </div>
 
-          {/* Rubrik */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-medium text-gray-500">Rubrik</span>
@@ -1450,9 +1405,6 @@ function BuatTugasGoogleClassroomForm() {
         </div>
       </div>
 
-      {/* ===================================================================
-          MODAL: RUBRIK PENILAIAN
-          =================================================================== */}
       {showRubrikModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
@@ -1493,9 +1445,6 @@ function BuatTugasGoogleClassroomForm() {
         </div>
       )}
 
-      {/* ===================================================================
-          MODAL: DRIVE ATTACHMENT
-          =================================================================== */}
       {showDriveModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -1561,9 +1510,6 @@ function BuatTugasGoogleClassroomForm() {
         </div>
       )}
 
-      {/* ===================================================================
-          MODAL: BUAT DOKUMEN / CATATAN
-          =================================================================== */}
       {showBuatModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
@@ -1731,9 +1677,6 @@ function BuatTugasGoogleClassroomForm() {
         </div>
       )}
 
-      {/* ===================================================================
-          MODAL: LINK ATTACHMENT
-          =================================================================== */}
       {showLinkModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -1796,9 +1739,6 @@ function BuatTugasGoogleClassroomForm() {
         </div>
       )}
 
-      {/* ===================================================================
-          MODAL: YOUTUBE ATTACHMENT
-          =================================================================== */}
       {showYoutubeModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">

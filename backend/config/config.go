@@ -22,7 +22,6 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	// Coba muat file .env dan hilangkan karakter BOM (Byte Order Mark) jika ada
 	envFiles := []string{".env", "backend/.env", "../.env"}
 	loaded := false
 	for _, file := range envFiles {

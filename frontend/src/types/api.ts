@@ -55,8 +55,8 @@ export interface SiswaDashboard {
     status?: string;
     waktu_masuk?: string;
   };
-  hari_ini: string;                 // <- tambah
-  jadwal_hari_ini: SiswaJadwalItem[]; // <- tambah
+  hari_ini: string;                 
+  jadwal_hari_ini: SiswaJadwalItem[]; 
 }
 
 export interface SiswaMateri {
@@ -120,7 +120,7 @@ export interface SiswaTugas {
 
 export interface SiswaAbsensiRiwayat {
   id: string;
-  tanggal: string; // YYYY-MM-DD
+  tanggal: string; 
   status: string;
   waktu_masuk: string;
   catatan: string;

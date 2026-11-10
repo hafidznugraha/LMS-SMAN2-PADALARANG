@@ -88,7 +88,7 @@ export default function LoginPage() {
           <div className="absolute -top-16 -left-16 w-52 h-52 rounded-full bg-[#3B82F6]/30 pointer-events-none" />
           <div className="absolute -bottom-10 -right-10 w-44 h-44 rounded-full bg-[#0284C7]/30 pointer-events-none" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-[#1D4ED8]/35 blur-2xl pointer-events-none" />
-          
+
           <div className="relative z-10 flex flex-col items-center">
             <div className="w-12 h-12 mb-3 relative">
               <Image

@@ -1,7 +1,3 @@
-/**
- * Types according to PRD SMAN 2 Padalarang LMS
- * Kamus Data Bagian 5 (users, guru, kelas, mata_pelajaran, materi, tugas_kuis, pengumpulan_tugas, absensi, nilai, jadwal_pelajaran)
- */
 
 export type UserRole = 'Kurikulum' | 'Guru' | 'Siswa' | 'WaliKelas';
 
@@ -83,8 +79,8 @@ export interface TugasKuis {
   instruksi: string;
   topik?: string;
   jenis: JenisPenugasan;
-  tenggat_waktu: string; // ISO datetime string
-  format_file: string; // e.g., "pdf,docx,zip"
+  tenggat_waktu: string; 
+  format_file: string; 
   file_lampiran?: string;
   rubrik_penilaian: string;
   total_siswa: number;
@@ -144,8 +140,8 @@ export interface Absensi {
   id_guru: string;
   id_mapel: string;
   id_kelas: string;
-  tanggal: string; // YYYY-MM-DD
-  waktu: string;   // HH:mm:ss
+  tanggal: string; 
+  waktu: string;   
   status_kehadiran: StatusKehadiran;
   keterangan?: string;
   bukti_surat_url?: string;
@@ -181,8 +177,8 @@ export interface JadwalPelajaran {
   nama_kelas: string;
   jumlah_siswa: number;
   hari: 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu';
-  jam_mulai: string; // "07:00"
-  jam_selesai: string; // "09:00"
+  jam_mulai: string; 
+  jam_selesai: string; 
   ruangan: string;
 }
 

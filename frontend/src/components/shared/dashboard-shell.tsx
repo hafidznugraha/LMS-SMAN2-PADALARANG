@@ -42,7 +42,6 @@ export function DashboardShell({ role, children }: DashboardShellProps) {
       setUserName(formatted);
     }
 
-    // Selalu sinkronkan profil terbaru dari backend /auth/me untuk mendapatkan gelar terbaru
     if (role === "guru" || role === "wali_kelas" || user?.role === "guru" || user?.role === "wali_kelas") {
       fetchAPI<{ success: boolean; data?: AuthUser }>("/auth/me")
         .then((res) => {
@@ -57,7 +56,6 @@ export function DashboardShell({ role, children }: DashboardShellProps) {
           }
         })
         .catch(() => {
-          // Abaikan kegagalan jaringan, state lokal sudah terisi
         });
     }
   }, [role]);

@@ -31,7 +31,7 @@ type SiswaTugasItem struct {
 	NamaGuru      string            `json:"nama_guru"`
 	GelarGuru     string            `json:"gelar_guru,omitempty"`
 	Deadline      time.Time         `json:"deadline"`
-	Status        string            `json:"status"` // belum | dikumpulkan | dinilai
+	Status        string            `json:"status"`
 	LewatDeadline bool              `json:"lewat_deadline"`
 	Mendesak      bool              `json:"mendesak"`
 	Pengumpulan   *SiswaPengumpulan `json:"pengumpulan,omitempty"`

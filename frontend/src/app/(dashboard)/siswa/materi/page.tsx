@@ -39,7 +39,6 @@ export default function SiswaMateriPage() {
 
   async function bukaMateri(id: string) {
     setOpeningId(id);
-    // Buka tab sekarang (masih dalam gestur klik) supaya tidak diblokir popup blocker.
     const tab = window.open("about:blank", "_blank");
     try {
       const res = await fetchAPI<APIResponse<SiswaMateriDownload>>(
@@ -48,7 +47,6 @@ export default function SiswaMateriPage() {
       let url = res.data?.file_url;
       if (!url) throw new Error("Tautan materi tidak tersedia");
 
-      // Jika URL adalah dummy domain storage.sman2padalarang.sch.id atau path lokal, arahkan ke proxy unduh backend
       if (url.includes("storage.sman2padalarang.sch.id") || url.includes("storage.supabase.co/lms/") || !url.startsWith("http")) {
         url = url.startsWith("/") ? url : `/api/v1/materi/${id}/download`;
       }

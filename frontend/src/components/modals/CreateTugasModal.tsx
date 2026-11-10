@@ -476,7 +476,6 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
               onChange={(e) => setTenggatWaktu(e.target.value)}
               className="w-full sm:max-w-xs px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
             />
-            {/* Quick Presets */}
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] text-slate-400">Pintas:</span>
               <button
@@ -504,7 +503,6 @@ export const CreateTugasModal: React.FC<CreateTugasModalProps> = ({
           </div>
         </div>
 
-        {/* Format Berkas yang Diizinkan (Checkbox Card Grid) */}
         <div className="pt-1">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
             <div>
