@@ -572,3 +572,18 @@ type UpdatePengaturanRequest struct {
 	BatasPredikatB     *float64 `json:"batas_predikat_b"`
 	BatasPredikatC     *float64 `json:"batas_predikat_c"`
 }
+
+type KomentarTugas struct {
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TugasID   uuid.UUID `gorm:"type:uuid;not null;index" json:"tugas_id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
+	Pesan     string    `gorm:"type:text;not null" json:"pesan"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+
+	User  *User  `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Tugas *Tugas `gorm:"foreignKey:TugasID" json:"tugas,omitempty"`
+}
+
+func (KomentarTugas) TableName() string {
+	return "komentar_tugas"
+}

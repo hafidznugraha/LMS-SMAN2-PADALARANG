@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { 
   ClipboardList, 
   Plus, 
@@ -1156,9 +1157,18 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                                       )}
                                     </div>
 
-                                    {/* Baris Tindakan Bawah */}
+                                    {/* Baris Tindakan Bawah Google Classroom */}
                                     <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                                      <div className="flex items-center gap-2">
+                                      <div>
+                                        <Link
+                                          href={`/guru/tugas/${tId}?tab=petunjuk`}
+                                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline py-1 px-1 transition-colors cursor-pointer"
+                                        >
+                                          <span>Lihat petunjuk</span>
+                                        </Link>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 self-end sm:self-auto">
                                         {onEditTugas && (
                                           <button
                                             type="button"
@@ -1179,16 +1189,15 @@ export const TugasModule: React.FC<TugasModuleProps> = ({
                                             <span>Hapus</span>
                                           </button>
                                         )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenGrading(tugas)}
+                                          className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs hover:shadow transition-all cursor-pointer"
+                                        >
+                                          <Award className="w-4 h-4" />
+                                          <span>Lembar Penilaian Siswa</span>
+                                        </button>
                                       </div>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => handleOpenGrading(tugas)}
-                                        className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs hover:shadow transition-all cursor-pointer"
-                                      >
-                                        <Award className="w-4 h-4" />
-                                        <span>Lembar Penilaian Siswa</span>
-                                      </button>
                                     </div>
                                   </div>
                                 </div>

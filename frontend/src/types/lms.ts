@@ -73,6 +73,8 @@ export type JenisPenugasan = 'Tugas' | 'Proyek';
 export interface TugasKuis {
   id_tugas_kuis: string;
   id_guru: string;
+  nama_guru?: string;
+  gelar_guru?: string;
   id_mapel: string;
   nama_mapel: string;
   id_kelas: string;
@@ -88,6 +90,7 @@ export interface TugasKuis {
   total_siswa: number;
   jumlah_mengumpulkan: number;
   jumlah_dinilai: number;
+  created_at?: string;
   deleted_at?: string | null;
 }
 
@@ -98,6 +101,18 @@ export interface TopikTugas {
   guru_id?: string;
   nama_topik: string;
   created_at?: string;
+}
+
+export interface KomentarTugas {
+  id: string;
+  tugas_id: string;
+  user_id: string;
+  nama_user: string;
+  gelar_user?: string;
+  peran_user: string;
+  pesan: string;
+  created_at: string;
+  waktu_format?: string;
 }
 
 export type StatusKumpul = 'Tepat Waktu' | 'Terlambat' | 'Belum Mengumpulkan';

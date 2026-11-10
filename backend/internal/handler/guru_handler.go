@@ -488,6 +488,8 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 			t.id as id_tugas_kuis,
 			t.guru_id,
 			t.guru_id as id_guru,
+			COALESCE(u.nama_lengkap, '') as nama_guru,
+			COALESCE(g.gelar, '') as gelar_guru,
 			t.mapel_id,
 			t.mapel_id as id_mapel,
 			COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel,
@@ -513,6 +515,8 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id AND pt.status = 'dinilai') as jumlah_dinilai,
 			t.created_at
 		`).
+		Joins("LEFT JOIN guru g ON g.id = t.guru_id").
+		Joins("LEFT JOIN users u ON u.id = g.user_id").
 		Joins("LEFT JOIN mata_pelajaran m ON m.id = t.mapel_id").
 		Joins("LEFT JOIN kelas k ON k.id = t.kelas_id")
 
@@ -537,6 +541,73 @@ func (h *GuruHandler) GetTugasList(c *fiber.Ctx) error {
 		Success: true,
 		Message: "Daftar tugas berhasil dimuat",
 		Data:    list,
+	})
+}
+
+// GetTugasDetail mengambil data detail penugasan tunggal untuk guru
+func (h *GuruHandler) GetTugasDetail(c *fiber.Ctx) error {
+	idStr := strings.TrimSpace(c.Params("id"))
+	tugasUUID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID tugas tidak valid",
+		})
+	}
+
+	db := repository.GetDB()
+	var detail model.TugasDetailResponse
+	query := `
+		SELECT 
+			t.id,
+			t.id as id_tugas_kuis,
+			t.guru_id,
+			t.guru_id as id_guru,
+			COALESCE(u.nama_lengkap, '') as nama_guru,
+			COALESCE(g.gelar, '') as gelar_guru,
+			t.mapel_id,
+			t.mapel_id as id_mapel,
+			COALESCE(m.nama_mapel, 'Mata Pelajaran') as nama_mapel,
+			COALESCE(m.kode_mapel, '') as kode_mapel,
+			t.kelas_id,
+			t.kelas_id as id_kelas,
+			COALESCE(k.nama_kelas, 'Kelas') as nama_kelas,
+			t.judul,
+			t.deskripsi,
+			t.deskripsi as instruksi,
+			CASE 
+				WHEN LOWER(t.judul) LIKE '%proyek%' THEN 'Proyek'
+				ELSE 'Tugas'
+			END as jenis,
+			to_char(t.deadline, 'YYYY-MM-DD HH24:MI:SS') as tenggat_waktu,
+			t.deadline,
+			COALESCE(t.format_file, 'pdf, docx') as format_file,
+			COALESCE(t.file_lampiran, '') as file_lampiran,
+			COALESCE(t.topik, '') as topik,
+			'1. Ketepatan konsep keilmuan (40%)\n2. Sistematika dan kerapian langkah (30%)\n3. Kesimpulan jawaban akhir (30%)' as rubrik_penilaian,
+			(SELECT COUNT(*) FROM siswa s WHERE s.kelas_id = t.kelas_id) as total_siswa,
+			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id) as jumlah_mengumpulkan,
+			(SELECT COUNT(*) FROM pengumpulan_tugas pt WHERE pt.tugas_id = t.id AND pt.status = 'dinilai') as jumlah_dinilai,
+			t.created_at
+		FROM tugas t
+		LEFT JOIN guru g ON g.id = t.guru_id
+		LEFT JOIN users u ON u.id = g.user_id
+		LEFT JOIN mata_pelajaran m ON m.id = t.mapel_id
+		LEFT JOIN kelas k ON k.id = t.kelas_id
+		WHERE t.id = ?
+	`
+
+	if err := db.Raw(query, tugasUUID).Scan(&detail).Error; err != nil || detail.ID == uuid.Nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Detail tugas berhasil dimuat",
+		Data:    detail,
 	})
 }
 
@@ -2293,4 +2364,330 @@ func (h *GuruHandler) GetAnggotaKelas(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// GetKomentarTugas handles retrieving all comments for an assignment
+func (h *GuruHandler) GetKomentarTugas(c *fiber.Ctx) error {
+	tugasIDStr := strings.TrimSpace(c.Params("id"))
+	if tugasIDStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID tugas diperlukan",
+		})
+	}
+	tugasUUID, err := uuid.Parse(tugasIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format ID tugas tidak valid",
+		})
+	}
+
+	db := repository.GetDB()
+
+	// Verify tugas exists
+	var tugas model.Tugas
+	if err := db.Select("id").First(&tugas, "id = ?", tugasUUID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	type KomentarRow struct {
+		ID          uuid.UUID `gorm:"column:id"`
+		TugasID     uuid.UUID `gorm:"column:tugas_id"`
+		UserID      uuid.UUID `gorm:"column:user_id"`
+		Pesan       string    `gorm:"column:pesan"`
+		CreatedAt   time.Time `gorm:"column:created_at"`
+		NamaLengkap string    `gorm:"column:nama_lengkap"`
+		Username    string    `gorm:"column:username"`
+		Role        string    `gorm:"column:role"`
+		Gelar       string    `gorm:"column:gelar"`
+	}
+
+	var rows []KomentarRow
+	query := `
+		SELECT 
+			kt.id,
+			kt.tugas_id,
+			kt.user_id,
+			kt.pesan,
+			kt.created_at,
+			COALESCE(u.nama_lengkap, '') as nama_lengkap,
+			COALESCE(u.username, '') as username,
+			COALESCE(u.role, '') as role,
+			COALESCE(g.gelar, '') as gelar
+		FROM komentar_tugas kt
+		JOIN users u ON u.id = kt.user_id
+		LEFT JOIN guru g ON g.user_id = u.id
+		WHERE kt.tugas_id = ?
+		ORDER BY kt.created_at ASC
+	`
+	if err := db.Raw(query, tugasUUID).Scan(&rows).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal mengambil daftar komentar tugas",
+		})
+	}
+
+	bulanIndo := []string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
+	result := make([]model.KomentarTugasResponse, 0, len(rows))
+	for _, r := range rows {
+		nama := r.NamaLengkap
+		if nama == "" {
+			nama = r.Username
+		}
+		if nama == "" {
+			nama = "Pengguna"
+		}
+
+		peran := "Pengguna"
+		switch strings.ToLower(r.Role) {
+		case "guru":
+			peran = "Guru"
+		case "siswa":
+			peran = "Siswa"
+		case "kurikulum":
+			peran = "Kurikulum"
+		case "wali_kelas":
+			peran = "Wali Kelas"
+		}
+
+		waktuFormat := fmt.Sprintf("%d %s %d, %02d:%02d",
+			r.CreatedAt.Day(),
+			bulanIndo[r.CreatedAt.Month()],
+			r.CreatedAt.Year(),
+			r.CreatedAt.Hour(),
+			r.CreatedAt.Minute(),
+		)
+
+		result = append(result, model.KomentarTugasResponse{
+			ID:          r.ID,
+			TugasID:     r.TugasID,
+			UserID:      r.UserID,
+			NamaUser:    nama,
+			GelarUser:   r.Gelar,
+			PeranUser:   peran,
+			Pesan:       r.Pesan,
+			CreatedAt:   r.CreatedAt,
+			WaktuFormat: waktuFormat,
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Komentar tugas berhasil dimuat",
+		Data:    result,
+	})
+}
+
+// CreateKomentarTugas handles posting a new comment to an assignment
+func (h *GuruHandler) CreateKomentarTugas(c *fiber.Ctx) error {
+	tugasIDStr := strings.TrimSpace(c.Params("id"))
+	if tugasIDStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "ID tugas diperlukan",
+		})
+	}
+	tugasUUID, err := uuid.Parse(tugasIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format ID tugas tidak valid",
+		})
+	}
+
+	var req model.CreateKomentarRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format data request tidak valid",
+		})
+	}
+
+	pesan := strings.TrimSpace(req.Pesan)
+	if pesan == "" {
+		pesan = strings.TrimSpace(req.Komentar)
+	}
+	if pesan == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Pesan komentar tidak boleh kosong",
+		})
+	}
+
+	db := repository.GetDB()
+
+	// Verify tugas exists
+	var tugas model.Tugas
+	if err := db.Preload("Guru").First(&tugas, "id = ?", tugasUUID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Tugas tidak ditemukan",
+		})
+	}
+
+	// Resolve caller user ID
+	var callerUserID uuid.UUID
+	authHeader := c.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		cfg := h.cfg
+		if cfg == nil {
+			cfg = config.LoadConfig()
+		}
+		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fiber.ErrUnauthorized
+			}
+			return []byte(cfg.JWTSecret), nil
+		})
+		if err == nil && token != nil && token.Valid {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if uidStr, ok := claims["user_id"].(string); ok {
+					if parsedUID, err := uuid.Parse(uidStr); err == nil {
+						callerUserID = parsedUID
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to c.Locals if set by middleware
+	if callerUserID == uuid.Nil {
+		if localUID, ok := c.Locals("user_id").(string); ok && localUID != "" {
+			if parsedUID, err := uuid.Parse(localUID); err == nil {
+				callerUserID = parsedUID
+			}
+		}
+	}
+
+	// Fallback to guru of the assignment or first user in DB if unauthenticated (e.g. testing)
+	if callerUserID == uuid.Nil {
+		if tugas.Guru != nil && tugas.Guru.UserID != uuid.Nil {
+			callerUserID = tugas.Guru.UserID
+		} else {
+			var firstGuru model.Guru
+			if err := db.First(&firstGuru).Error; err == nil {
+				callerUserID = firstGuru.UserID
+			} else {
+				var firstUser model.User
+				if err := db.First(&firstUser).Error; err == nil {
+					callerUserID = firstUser.ID
+				}
+			}
+		}
+	}
+
+	if callerUserID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(model.APIResponse{
+			Success: false,
+			Message: "Pengguna tidak teridentifikasi",
+		})
+	}
+
+	newKomentar := model.KomentarTugas{
+		ID:        uuid.New(),
+		TugasID:   tugasUUID,
+		UserID:    callerUserID,
+		Pesan:     pesan,
+		CreatedAt: time.Now(),
+	}
+
+	if err := db.Create(&newKomentar).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menyimpan komentar tugas: " + err.Error(),
+		})
+	}
+
+	// Fetch user details for response
+	var u model.User
+	db.First(&u, "id = ?", callerUserID)
+	var g model.Guru
+	db.First(&g, "user_id = ?", callerUserID)
+
+	nama := u.NamaLengkap
+	if nama == "" {
+		nama = u.Username
+	}
+	if nama == "" {
+		nama = "Pengguna"
+	}
+
+	peran := "Pengguna"
+	switch strings.ToLower(string(u.Role)) {
+	case "guru":
+		peran = "Guru"
+	case "siswa":
+		peran = "Siswa"
+	case "kurikulum":
+		peran = "Kurikulum"
+	case "wali_kelas":
+		peran = "Wali Kelas"
+	}
+
+	bulanIndo := []string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
+	waktuFormat := fmt.Sprintf("%d %s %d, %02d:%02d",
+		newKomentar.CreatedAt.Day(),
+		bulanIndo[newKomentar.CreatedAt.Month()],
+		newKomentar.CreatedAt.Year(),
+		newKomentar.CreatedAt.Hour(),
+		newKomentar.CreatedAt.Minute(),
+	)
+
+	return c.Status(fiber.StatusCreated).JSON(model.APIResponse{
+		Success: true,
+		Message: "Komentar berhasil ditambahkan",
+		Data: model.KomentarTugasResponse{
+			ID:          newKomentar.ID,
+			TugasID:     newKomentar.TugasID,
+			UserID:      newKomentar.UserID,
+			NamaUser:    nama,
+			GelarUser:   g.Gelar,
+			PeranUser:   peran,
+			Pesan:       newKomentar.Pesan,
+			CreatedAt:   newKomentar.CreatedAt,
+			WaktuFormat: waktuFormat,
+		},
+	})
+}
+
+// DeleteKomentarTugas handles deleting a comment
+func (h *GuruHandler) DeleteKomentarTugas(c *fiber.Ctx) error {
+	komentarIDStr := strings.TrimSpace(c.Params("komentarId"))
+	if komentarIDStr == "" {
+		komentarIDStr = strings.TrimSpace(c.Params("id"))
+	}
+	komentarUUID, err := uuid.Parse(komentarIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(model.APIResponse{
+			Success: false,
+			Message: "Format ID komentar tidak valid",
+		})
+	}
+
+	db := repository.GetDB()
+	var komentar model.KomentarTugas
+	if err := db.First(&komentar, "id = ?", komentarUUID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(model.APIResponse{
+			Success: false,
+			Message: "Komentar tidak ditemukan",
+		})
+	}
+
+	if err := db.Delete(&komentar).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(model.APIResponse{
+			Success: false,
+			Message: "Gagal menghapus komentar",
+		})
+	}
+
+	return c.JSON(model.APIResponse{
+		Success: true,
+		Message: "Komentar berhasil dihapus",
+	})
+}
+
 

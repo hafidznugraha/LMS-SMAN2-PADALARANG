@@ -72,6 +72,9 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 
 	api.Get("/materi", guruHandler.GetMateriList)
 	api.Get("/materi/:id/download", guruHandler.DownloadMateri)
+	api.Get("/tugas/:id/komentar", guruHandler.GetKomentarTugas)
+	api.Post("/tugas/:id/komentar", guruHandler.CreateKomentarTugas)
+	api.Delete("/tugas/:id/komentar/:komentarId", guruHandler.DeleteKomentarTugas)
 
 	// Auth Rute
 	auth := api.Group("/auth")
@@ -93,10 +96,14 @@ func SetupRouter(cfg *config.Config) *fiber.App {
 	guru.Get("/tugas", guruHandler.GetTugasList)
 	guru.Post("/tugas", guruHandler.CreateTugas)
 	guru.Post("/tugas/upload", guruHandler.UploadLampiranTugas)
+	guru.Get("/tugas/:id", guruHandler.GetTugasDetail)
 	guru.Put("/tugas/:id", guruHandler.UpdateTugas)
 	guru.Delete("/tugas/:id", guruHandler.DeleteTugas)
 	guru.Get("/topik", guruHandler.GetTopikList)
 	guru.Post("/topik", guruHandler.CreateTopik)
+	guru.Get("/tugas/:id/komentar", guruHandler.GetKomentarTugas)
+	guru.Post("/tugas/:id/komentar", guruHandler.CreateKomentarTugas)
+	guru.Delete("/tugas/:id/komentar/:komentarId", guruHandler.DeleteKomentarTugas)
 	guru.Get("/tugas/:id/submissions", guruHandler.GetTugasSubmissions)
 	guru.Put("/submissions/:id/grade", guruHandler.GradeSubmission)
 	guru.Post("/submissions/:id/grade", guruHandler.GradeSubmission)

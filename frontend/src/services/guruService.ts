@@ -8,7 +8,8 @@ import {
   NilaiSiswa, 
   PengumpulanTugas, 
   TugasKuis,
-  TopikTugas
+  TopikTugas,
+  KomentarTugas
 } from '@/types/lms';
 
 export const DEFAULT_GURU_ID = '298257fb-b4aa-4710-afaa-bbfd63abd5c5';
@@ -90,6 +91,10 @@ export async function getTugasGuru(params?: { kelas_id?: string; guru_id?: strin
     console.error(err);
     return [];
   }
+}
+
+export async function getTugasDetailGuru(tugasId: string): Promise<ApiResponse<TugasKuis>> {
+  return await fetchAPI<ApiResponse<TugasKuis>>(`/guru/tugas/${tugasId}`);
 }
 
 export async function createTugasGuru(payload: {
@@ -548,3 +553,71 @@ export async function getAnggotaKelas(
     return null;
   }
 }
+
+export async function getKomentarTugas(tugasId: string): Promise<KomentarTugas[]> {
+  try {
+    const res = await fetchAPI<ApiResponse<KomentarTugas[]>>(
+      `/guru/tugas/${encodeURIComponent(tugasId)}/komentar`
+    );
+    if (res?.success && Array.isArray(res.data)) {
+      return res.data;
+    }
+    return [];
+  } catch (err) {
+    console.error('Gagal mengambil komentar tugas:', err);
+    return [];
+  }
+}
+
+export async function createKomentarTugas(
+  tugasId: string,
+  pesan: string
+): Promise<{ success: boolean; data?: KomentarTugas; message?: string }> {
+  try {
+    const res = await fetchAPI<ApiResponse<KomentarTugas>>(
+      `/guru/tugas/${encodeURIComponent(tugasId)}/komentar`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pesan }),
+      }
+    );
+    if (res?.success && res.data) {
+      return { success: true, data: res.data, message: res.message };
+    }
+    return { success: false, message: res?.message || 'Gagal menambahkan komentar' };
+  } catch (err: unknown) {
+    console.error('Gagal menambahkan komentar tugas:', err);
+    return {
+      success: false,
+      message: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat menambahkan komentar',
+    };
+  }
+}
+
+export async function deleteKomentarTugas(
+  tugasId: string,
+  komentarId: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await fetchAPI<ApiResponse<null>>(
+      `/guru/tugas/${encodeURIComponent(tugasId)}/komentar/${encodeURIComponent(komentarId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (res?.success) {
+      return { success: true, message: res.message };
+    }
+    return { success: false, message: res?.message || 'Gagal menghapus komentar' };
+  } catch (err: unknown) {
+    console.error('Gagal menghapus komentar tugas:', err);
+    return {
+      success: false,
+      message: err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat menghapus komentar',
+    };
+  }
+}
+

@@ -74,6 +74,8 @@ type TugasDetailResponse struct {
 	IDTugasKuis        uuid.UUID `json:"id_tugas_kuis"`
 	GuruID             uuid.UUID `json:"guru_id"`
 	IDGuru             uuid.UUID `json:"id_guru"`
+	NamaGuru           string    `json:"nama_guru"`
+	GelarGuru          string    `json:"gelar_guru"`
 	MapelID            uuid.UUID `json:"mapel_id"`
 	IDMapel            uuid.UUID `json:"id_mapel"`
 	NamaMapel          string    `json:"nama_mapel"`
@@ -144,3 +146,21 @@ type CreateTopikRequest struct {
 	MapelID   string `json:"mapel_id"`
 	NamaTopik string `json:"nama_topik"`
 }
+
+type KomentarTugasResponse struct {
+	ID          uuid.UUID `json:"id"`
+	TugasID     uuid.UUID `json:"tugas_id"`
+	UserID      uuid.UUID `json:"user_id"`
+	NamaUser    string    `json:"nama_user"`
+	GelarUser   string    `json:"gelar_user,omitempty"`
+	PeranUser   string    `json:"peran_user"`
+	Pesan       string    `json:"pesan"`
+	CreatedAt   time.Time `json:"created_at"`
+	WaktuFormat string    `json:"waktu_format"`
+}
+
+type CreateKomentarRequest struct {
+	Pesan    string `json:"pesan"`
+	Komentar string `json:"komentar,omitempty"`
+}
+
