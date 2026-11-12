@@ -7,9 +7,9 @@
 | **Proyek** | Learning Management System (LMS) Berbasis Web |
 | **Institusi** | SMA Negeri 2 Padalarang & Program Studi Sistem Informasi UNJANI |
 | **Tim Pengembang** | 1. Velma Dwinda Syabila (2450231038)<br>2. Mochammad Hafidz Nugraha (2450231039) – Developer<br>3. Kirana Novitasari (2450231050)<br>4. Muhamad Ariq Mubaroq (2450231052) |
-| **Versi Dokumen** | v1.0.0 |
-| **Status** | Final / Siap Implementasi |
-| **Tech Stack** | Go Fiber (Backend REST API), Next.js (Frontend Web), PostgreSQL Supabase, Supabase Storage |
+| **Versi Dokumen** | v1.1.0 (Skema Produksi Terverifikasi) |
+| **Status** | Terverifikasi Sesuai Sistem / Produksi |
+| **Tech Stack** | Go Fiber (Backend REST API), Next.js 14/15 App Router (Frontend Web), PostgreSQL Supabase (22 Tabel Relasional), Supabase Storage |
 
 ---
 
@@ -102,12 +102,17 @@ Terdapat 28 skenario *use case* yang dikelompokkan ke dalam 7 modul fungsional u
 - **FR-MAT-01 (Unggah Materi Ajar)**: Guru dapat menambahkan materi pembelajaran dengan melampirkan berkas (PDF, DOCX, PPT, MP4/Video) atau tautan media luar, dilengkapi judul, deskripsi, dan mata pelajaran.
 - **FR-MAT-02 (Akses & Streaming Materi)**: Siswa dapat membaca materi secara daring (*view/stream*) atau mengunduh (*download*) berkas materi untuk dipelajari secara luring (*offline*).
 - **FR-MAT-03 (Pembaruan & Penghapusan Materi)**: Guru pengampu dapat memperbarui deskripsi/berkas materi atau menghapusnya secara permanen dari basis data.
+- **FR-MAT-04 (Pelacakan Unduhan Siswa Unik)**: Sistem mencatat rekam riwayat setiap siswa yang mengunduh berkas materi melalui tabel `materi_unduhan_siswa`. Metrik `jumlah_melihat` dihitung secara tepat berdasarkan jumlah siswa unik yang telah mengakses berkas tersebut guna mencegah manipulasi angka klik ganda.
 
 ### Modul 4: Pengelolaan Tugas & Kuis
-- **FR-TG-01 (Penerbitan Tugas & Kuis)**: Guru dapat menyusun tugas dengan instruksi pengerjaan, format pengumpulan yang diizinkan (teks, berkas PDF, dokumen, gambar), tenggat waktu pengumpulan (*deadline*), dan rubrik penilaian.
-- **FR-TG-02 (Pengumpulan Jawaban Siswa)**: Siswa dapat mengirimkan respon jawaban tugas sebelum batas waktu berakhir. Sistem mencatat stempel waktu (*timestamp*) pengumpulan.
+- **FR-TG-01 (Penerbitan Tugas Terstruktur, Topik Unit, & Lampiran Multi-Sumber)**: Guru dapat menyusun tugas dengan instruksi pengerjaan, format pengumpulan yang diizinkan (teks, berkas PDF, dokumen, gambar), tenggat waktu pengumpulan (*deadline*), penugasan kategori unit topik pembelajaran (`topik_tugas`), serta melampirkan berkas referensi guru (Google Drive, YouTube, File Lokal, Link Tautan) yang disimpan dalam format JSON terstruktur (`file_lampiran`).
+- **FR-TG-02 (Pengumpulan Jawaban Siswa & Tampilan Accordion Interaktif)**: Siswa dapat mengirimkan respon jawaban tugas sebelum batas waktu berakhir. Pada antarmuka siswa, daftar tugas disajikan dalam format *accordion* interaktif yang terkelompokkan rapi per topik pembelajaran dengan indikator visual ketepatan waktu (*Tepat Waktu*, *Mendesak*, *Terlambat*).
 - **FR-TG-03 (Pembaruan & Penghapusan Pengumpulan)**: Siswa dapat memperbarui berkas jawaban atau membatalkan kiriman selama tenggat waktu belum terlampaui. Sistem secara ketat menolak pengubahan jika waktu pengerjaan telah habis (*late submission lock*).
-- **FR-TG-04 (Penilaian Tugas & Umpan Balik)**: Guru memeriksa berkas jawaban, menginput nilai numerik (0–100), dan memberikan umpan balik (*feedback*) evaluasi.
+- **FR-TG-04 (Penilaian Tugas & Umpan Balik Evaluasi)**: Guru memeriksa berkas jawaban, menginput nilai numerik (0–100), dan memberikan umpan balik (*feedback*) evaluasi.
+- **FR-TG-05 (Forum Komentar Kelas / Interaksi Tugas)**: Guru dan siswa dapat berkomunikasi melalui kolom diskusi komentar tugas (`komentar_tugas`) untuk tanya jawab instruksional seputar tugas yang sedang aktif secara terbuka bagi seluruh anggota kelas.
+- **FR-TG-06 (Tab Orang / Direktori Rombel Kelas Siswa)**: Pada halaman kelas tugas siswa, disediakan navigasi tab terpadu mencakup:
+  - **Tugas Kelas**: Menampilkan daftar tugas terstruktur, materi penugasan, dan pengumpulan jawaban.
+  - **Orang (Direktori Rombel)**: Menampilkan profil Pengajar lengkap beserta gelar akademik (contoh: *"Euis, S.Pd"*) serta daftar nama seluruh Teman Sekelas yang terdaftar aktif dalam rombongan belajar yang sama.
 
 ### Modul 5: Presensi & Absensi Siswa
 - **FR-ABS-01 (Presensi Mandiri Siswa)**: Siswa melakukan pencatatan kehadiran mandiri pada saat sesi mata pelajaran dibuka.
@@ -356,164 +361,224 @@ flowchart TD
 
 ## 5. Skema Basis Data Relasional & Kamus Data
 
-Skema basis data diturunkan secara presisi dari:
-1. **SRS Bab V Hal. 68–70** (*Detail Atribut Data Input & Data Requirements*).
-2. **SDD Bab 3.2 Hal. 50** (*Class Diagram*) serta berkas kode Java pada folder `model/`.
+Skema basis data ditranslasikan dari spesifikasi SRS/SDD dan telah diimplementasikan secara penuh pada **PostgreSQL (Supabase)** dengan total **22 tabel relasional aktif** yang dikelola melalui GORM pada backend Go Fiber:
 
 ### 5.1 Entity-Relationship Diagram (ERD Mermaid)
 
 ```mermaid
 erDiagram
-    USERS ||--o| KURIKULUM : "extends / is-a"
-    USERS ||--o| GURU : "extends / is-a"
-    USERS ||--o| SISWA : "extends / is-a"
-    GURU ||--o| KELAS : "membina / wali_guru_id"
+    USERS ||--o| GURU : "user_id"
+    USERS ||--o| SISWA : "user_id"
+    USERS ||--o{ NOTIFIKASI : "user_id"
+    USERS ||--o{ KOMENTAR_TUGAS : "user_id"
     
-    KELAS ||--o{ SISWA : "memiliki"
+    GURU ||--o| KELAS : "wali_guru_id"
+    GURU ||--o{ MATERI : "guru_id"
+    GURU ||--o{ TUGAS : "guru_id"
+    GURU ||--o{ TOPIK_TUGAS : "guru_id"
+    GURU ||--o{ NILAI : "guru_id"
+    GURU ||--o{ JADWAL_PELAJARAN : "guru_id"
+    GURU ||--o| PEJABAT_SEKOLAH : "guru_id"
     
-    GURU ||--o{ MATERI : "mengunggah"
-    MATA_PELAJARAN ||--o{ MATERI : "kategori"
+    MATA_PELAJARAN ||--o{ GURU : "mapel_id"
+    MATA_PELAJARAN ||--o{ MATERI : "mapel_id"
+    MATA_PELAJARAN ||--o{ TUGAS : "mapel_id"
+    MATA_PELAJARAN ||--o{ TOPIK_TUGAS : "mapel_id"
+    MATA_PELAJARAN ||--o{ JADWAL_PELAJARAN : "mapel_id"
+    MATA_PELAJARAN ||--o{ NILAI : "mapel_id"
     
-    GURU ||--o{ TUGAS_KUIS : "menerbitkan"
-    MATA_PELAJARAN ||--o{ TUGAS_KUIS : "kategori"
+    KELAS ||--o{ SISWA : "kelas_id"
+    KELAS ||--o{ MATERI : "kelas_id"
+    KELAS ||--o{ TUGAS : "kelas_id"
+    KELAS ||--o{ TOPIK_TUGAS : "kelas_id"
+    KELAS ||--o{ JADWAL_PELAJARAN : "kelas_id"
+    KELAS ||--o{ ABSENSI : "kelas_id"
     
-    TUGAS_KUIS ||--o{ PENGUMPULAN_TUGAS : "memiliki_jawaban"
-    SISWA ||--o{ PENGUMPULAN_TUGAS : "mengumpulkan"
+    SISWA ||--o{ ABSENSI : "siswa_id"
+    SISWA ||--o{ PENGUMPULAN_TUGAS : "siswa_id"
+    SISWA ||--o{ MATERI_UNDUHAN_SISWA : "siswa_id"
+    SISWA ||--o{ NILAI : "siswa_id"
+    SISWA ||--o{ LAPORAN_AKADEMIK : "id_siswa"
     
-    SISWA ||--o{ ABSENSI : "tercatat_pada"
-    GURU ||--o{ ABSENSI : "diverifikasi_oleh"
-    MATA_PELAJARAN ||--o{ ABSENSI : "mata_pelajaran"
+    MATERI ||--o{ MATERI_UNDUHAN_SISWA : "materi_id"
     
-    SISWA ||--o{ NILAI : "menerima"
-    GURU ||--o{ NILAI : "memberikan"
-    MATA_PELAJARAN ||--o{ NILAI : "mata_pelajaran"
+    TUGAS ||--o{ PENGUMPULAN_TUGAS : "tugas_id"
+    TUGAS ||--o{ KOMENTAR_TUGAS : "tugas_id"
     
-    GURU ||--o{ JADWAL_PELAJARAN : "mengajar_pada"
-    MATA_PELAJARAN ||--o{ JADWAL_PELAJARAN : "mata_pelajaran"
-    KELAS ||--o{ JADWAL_PELAJARAN : "dijadwalkan_ke"
-    
-    SISWA ||--o{ LAPORAN_AKADEMIK : "memiliki_rapor"
-    USERS ||--o{ NOTIFIKASI : "menerima_notifikasi"
-
-    TAHUN_AJARAN ||--o{ JADWAL_PELAJARAN : "periode_jadwal"
-    TAHUN_AJARAN ||--o{ LAPORAN_AKADEMIK : "periode_laporan"
-    GURU ||--o| PEJABAT_SEKOLAH : "dijabat_oleh"
     PROFIL_SEKOLAH ||--o{ LOG_SINKRON_DAPODIK : "riwayat_sinkron"
 
     USERS {
-        string id_user PK
-        string email UK
-        string password
+        uuid id PK
+        string username UK
+        string password_hash
         string nama_lengkap
+        string email UK
         string role
-        boolean aktif
-        datetime created_at
-        datetime updated_at
-    }
-
-    KURIKULUM {
-        string id_kurikulum PK
-        string id_user FK
-        string nip UK
-        string bagian_kurikulum
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     GURU {
-        string id_guru PK
-        string id_user FK
+        uuid id PK
+        uuid user_id FK, UK
         string nip UK
-        string bidang_studi
-    }
-
-    SISWA {
-        string id_siswa PK
-        string id_user FK
-        string nis UK
-        string id_kelas FK
-        string jurusan
+        string gelar
+        string no_telepon
+        uuid mapel_id FK
+        timestamptz created_at
     }
 
     KELAS {
-        string id PK
+        uuid id PK
         string nama_kelas UK
         int tingkat
         string jurusan
-        string wali_guru_id FK
+        uuid wali_guru_id FK, UK
+        timestamptz created_at
+    }
+
+    SISWA {
+        uuid id PK
+        uuid user_id FK, UK
+        string nis UK
+        string nisn UK
+        uuid kelas_id FK
+        string jenis_kelamin
+        string no_telepon
+        text alamat
+        timestamptz created_at
     }
 
     MATA_PELAJARAN {
-        string id_mapel PK
+        uuid id PK
         string kode_mapel UK
         string nama_mapel
+        string kategori
+        timestamptz created_at
+    }
+
+    JADWAL_PELAJARAN {
+        uuid id PK
+        uuid kelas_id FK
+        uuid guru_id FK
+        uuid mapel_id FK
+        string hari
+        time jam_mulai
+        time jam_selesai
+        string ruang
+        timestamptz created_at
     }
 
     MATERI {
-        string id_materi PK
-        string id_guru FK
-        string id_mapel FK
-        string judul_materi
+        uuid id PK
+        uuid guru_id FK
+        uuid mapel_id FK
+        uuid kelas_id FK
+        string judul
         text deskripsi
-        string format_file
-        string file_url
-        datetime tanggal_unggah
+        text file_url
+        string tipe_file
+        numeric ukuran_mb
+        int jumlah_melihat
+        timestamptz created_at
     }
 
-    TUGAS_KUIS {
-        string id_tugas_kuis PK
-        string id_guru FK
-        string id_mapel FK
+    MATERI_UNDUHAN_SISWA {
+        uuid id PK
+        uuid materi_id FK
+        uuid siswa_id FK
+        timestamptz downloaded_at
+    }
+
+    TUGAS {
+        uuid id PK
+        uuid guru_id FK
+        uuid mapel_id FK
+        uuid kelas_id FK
         string judul
-        text instruksi
-        string jenis
-        datetime tenggat_waktu
+        text deskripsi
+        timestamptz deadline
         string format_file
-        text rubrik_penilaian
+        text file_lampiran
+        string topik
+        timestamptz created_at
+    }
+
+    TOPIK_TUGAS {
+        uuid id PK
+        uuid kelas_id FK
+        uuid mapel_id FK
+        uuid guru_id FK
+        string nama_topik
+        timestamptz created_at
+    }
+
+    KOMENTAR_TUGAS {
+        uuid id PK
+        uuid tugas_id FK
+        uuid user_id FK
+        text pesan
+        timestamptz created_at
     }
 
     PENGUMPULAN_TUGAS {
-        string id_pengumpulan PK
-        string id_tugas_kuis FK
-        string id_siswa FK
-        string file_tugas
-        datetime tanggal_kumpul
-        string status_kumpul
-        decimal nilai
-        text feedback
+        uuid id PK
+        uuid tugas_id FK
+        uuid siswa_id FK
+        text file_url
+        text catatan
+        numeric nilai
+        text feedback_guru
+        string status
+        timestamptz submitted_at
+        timestamptz graded_at
     }
 
     ABSENSI {
-        string id_absensi PK
-        string id_siswa FK
-        string id_guru FK
-        string id_mapel FK
+        uuid id PK
+        uuid siswa_id FK
+        uuid kelas_id FK
         date tanggal
-        time waktu
-        string status_kehadiran
-        string keterangan
+        time waktu_masuk
+        string status
+        string catatan
+        boolean is_verified
+        timestamptz created_at
     }
 
     NILAI {
-        string id_nilai PK
-        string id_siswa FK
-        string id_guru FK
-        string id_mapel FK
+        uuid id PK
+        uuid siswa_id FK
+        uuid guru_id FK
+        uuid mapel_id FK
         string jenis_penilaian
-        decimal skor_angka
+        numeric skor_angka
         string skor_huruf
         text feedback
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
     }
 
     LAPORAN_AKADEMIK {
-        string id_laporan PK
-        string id_siswa FK
+        uuid id_laporan PK
+        uuid id_siswa FK
         string semester
         string tahun_ajaran
-        decimal nilai_pengetahuan
-        decimal nilai_keterampilan
-        decimal rata_rata_akhir
+        numeric nilai_pengetahuan
+        numeric nilai_keterampilan
+        numeric rata_rata_akhir
+        string predikat_akhir
         text deskripsi_nilai
         text catatan_wali
+        text catatan_revisi
         string status_laporan
+        timestamptz disahkan_pada
+        string disahkan_oleh
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
     }
 
     NOTIFIKASI {
@@ -527,60 +592,58 @@ erDiagram
         timestamptz created_at
     }
 
-    JADWAL_PELAJARAN {
-        string id_jadwal PK
-        string id_guru FK
-        string id_mapel FK
-        string id_kelas FK
-        string hari
-        time jam_mulai
-        time jam_selesai
-        string ruangan
-    }
-
     PROFIL_SEKOLAH {
-        string id PK
+        uuid id PK
         string nama_sekolah
         string npsn UK
         string akreditasi
-        string alamat
+        text alamat
         string telepon
         string email
         string website
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     TAHUN_AJARAN {
-        string id PK
+        uuid id PK
         string tahun
         string semester
         boolean is_aktif
         date tenggat_kunci_raport
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     PEJABAT_SEKOLAH {
-        string id PK
+        uuid id PK
         string jabatan
         string nama_pejabat
         string nip
-        string guru_id FK
+        uuid guru_id FK
         date periode_mulai
         date periode_selesai
         boolean is_aktif
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     KONFIGURASI_KBM {
-        string id PK
+        uuid id PK
         int durasi_kbm_menit
         time jam_masuk
         time jam_pulang
         boolean is_aktif
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     LOG_SINKRON_DAPODIK {
-        string id PK
+        uuid id PK
         string status
         text keterangan
-        datetime terakhir_sinkron
+        timestamptz terakhir_sinkron
+        timestamptz created_at
     }
 
     KONFIGURASI_PENILAIAN {
@@ -603,229 +666,277 @@ erDiagram
 
 ### 5.2 Kamus Data Detail (Data Dictionary - Supabase PostgreSQL)
 
-Struktur tabel di bawah ini dioptimalkan untuk dialek **PostgreSQL (Supabase)** menggunakan tipe data native (`UUID`, `TIMESTAMPTZ`, `NUMERIC`, `TEXT`, serta `CHECK constraint` untuk konsistensi nilai):
+Struktur tabel di bawah ini merefleksikan 100% skema produksi **Supabase PostgreSQL** menggunakan tipe data native (`UUID`, `TIMESTAMPTZ`, `NUMERIC`, `TEXT`, `DATE`, `TIME`, `BOOLEAN`, serta *check & unique constraints* aktif):
 
 #### 1. Tabel `users`
-Menyimpan identitas akun seluruh pengguna sistem (Autentikasi terpusat).
-- `id_user` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `email` : `VARCHAR(100)` - **Unique**, **Not Null**. Alamat surat elektronik resmi sekolah.
-- `password` : `VARCHAR(255)` - **Not Null**. Hash kata sandi terenkripsi (Bcrypt/Argon2).
-- `nama_lengkap` : `VARCHAR(150)` - **Not Null**. Nama lengkap pengguna sesuai data resmi.
-- `role` : `VARCHAR(20)` - **Not Null**, `CHECK (role IN ('Kurikulum', 'Guru', 'Siswa', 'WaliKelas'))`.
-- `aktif` : `BOOLEAN` - **Default: true**. Status keaktifan akun.
+Menyimpan identitas akun seluruh pengguna sistem (Autentikasi terpusat multi-role).
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `username` : `VARCHAR(50)` - **Unique**, **Not Null**. Username unik pengguna.
+- `password_hash` : `VARCHAR(255)` - **Not Null**. Hash kata sandi aman (Bcrypt cost factor 10).
+- `nama_lengkap` : `VARCHAR(100)` - **Not Null**. Nama lengkap pengguna.
+- `email` : `VARCHAR(100)` - **Unique**, **Not Null**. Alamat email resmi sekolah.
+- `role` : `VARCHAR(20)` - **Not Null**, `CHECK (role IN ('kurikulum', 'guru', 'wali_kelas', 'siswa'))`.
+- `is_active` : `BOOLEAN` - **Default: true**. Status keaktifan akun.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 2. Tabel `kurikulum`
-Entitas spesifik staf kurikulum sekolah.
-- `id_kurikulum` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_user` : `UUID` - **Foreign Key** ke `users(id_user)` ON DELETE CASCADE.
-- `nip` : `VARCHAR(30)` - **Unique**, **Not Null**. Nomor Induk Pegawai.
-- `bagian_kurikulum` : `VARCHAR(100)` - Divisi/spesialisasi tugas kurikulum.
-
-#### 3. Tabel `guru`
-Entitas tenaga pendidik mata pelajaran.
-- `id_guru` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_user` : `UUID` - **Foreign Key** ke `users(id_user)` ON DELETE CASCADE.
-- `nip` : `VARCHAR(30)` - **Unique**, **Not Null**. Nomor Induk Pegawai.
-- `bidang_studi` : `VARCHAR(100)` - **Not Null**. Bidang studi utama yang diampu (misal: Matematika, Fisika).
-
-#### 4. Tabel `kelas`
-Master data ruang kelas/rombongan belajar.
+#### 2. Tabel `guru`
+Profil tenaga pendidik dan pemetaan mata pelajaran yang diampu.
 - `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
-- `nama_kelas` : `VARCHAR(20)` - **Unique**, **Not Null**. Contoh: "XII IPA 1", "X RPL 1".
-- `tingkat` : `INT` - **Not Null**, `CHECK (tingkat IN (10, 11, 12))`.
-- `jurusan` : `VARCHAR(20)` - **Not Null**. Contoh: "MIPA", "IPS", "Umum".
-- `wali_guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL, **Unique** (`uq_kelas_wali_guru`). Guru yang ditugaskan membina rombel kelas ini.
+- `user_id` : `UUID` - **Foreign Key** ke `users(id)` ON DELETE CASCADE, **Unique**, **Not Null**.
+- `nip` : `VARCHAR(30)` - **Unique**, **Not Null**, `CHECK (nip ~ '^[0-9]+$')`. Nomor Induk Pegawai berupa digit numerik.
+- `gelar` : `VARCHAR(50)` - Gelar akademik (contoh: "S.Pd", "M.Kom.", "Drs. M.Pd").
+- `no_telepon` : `VARCHAR(20)` - Nomor kontak aktif guru.
+- `mapel_id` : `UUID` - **Foreign Key** ke `mata_pelajaran(id)` ON DELETE SET NULL. Mata pelajaran utama yang diampu.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 5. Tabel `siswa`
-Entitas peserta didik aktif.
-- `id_siswa` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_user` : `UUID` - **Foreign Key** ke `users(id_user)` ON DELETE CASCADE.
-- `nis` : `VARCHAR(30)` - **Unique**, **Not Null**. Nomor Induk Siswa.
-- `id_kelas` : `UUID` - **Foreign Key** ke `kelas(id_kelas)` ON DELETE RESTRICT.
-- `jurusan` : `VARCHAR(50)` - **Not Null**. Peminatan: MIPA, IPS, atau Bahasa.
+#### 3. Tabel `kelas`
+Master data rombongan belajar (rombel) dan penugasan wali kelas.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `nama_kelas` : `VARCHAR(20)` - **Unique**, **Not Null**. Contoh: "X RPL 1", "XII IPA 1".
+- `tingkat` : `INT` - **Not Null**, `CHECK (tingkat IN (10, 11, 12))`.
+- `jurusan` : `VARCHAR(20)` - **Not Null**. Jurusan rombel (misal: "RPL", "MIPA", "IPS").
+- `wali_guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL, **Unique** (`uq_kelas_wali_guru`). Menjamin 1 guru hanya membina 1 rombel.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 6. Tabel `mata_pelajaran`
-Master data mata pelajaran sekolah.
-- `id_mapel` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `kode_mapel` : `VARCHAR(20)` - **Unique**, **Not Null**. Contoh: "BIO-XII", "MAT-W-X".
-- `nama_mapel` : `VARCHAR(100)` - **Not Null**.
+#### 4. Tabel `siswa`
+Profil peserta didik terdaftar pada rombel aktif.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `user_id` : `UUID` - **Foreign Key** ke `users(id)` ON DELETE CASCADE, **Unique**, **Not Null**.
+- `nis` : `VARCHAR(20)` - **Unique**, **Not Null**, `CHECK (nis ~ '^[0-9]+$')`. Nomor Induk Siswa.
+- `nisn` : `VARCHAR(20)` - **Unique**, **Not Null**, `CHECK (nisn ~ '^[0-9]+$')`. Nomor Induk Siswa Nasional.
+- `kelas_id` : `UUID` - **Foreign Key** ke `kelas(id)` ON DELETE SET NULL.
+- `jenis_kelamin` : `VARCHAR(10)` - **Not Null**, `CHECK (jenis_kelamin IN ('Laki-laki', 'Perempuan'))`.
+- `no_telepon` : `VARCHAR(20)` - Nomor kontak siswa / wali.
+- `alamat` : `TEXT` - Alamat domisili siswa.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+#### 5. Tabel `mata_pelajaran`
+Master katalog mata pelajaran sekolah.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `kode_mapel` : `VARCHAR(20)` - **Unique**, **Not Null**. Contoh: "MTK-X", "BIO-XII".
+- `nama_mapel` : `VARCHAR(100)` - **Not Null**. Nama lengkap mata pelajaran.
+- `kategori` : `VARCHAR(30)` - Kategori kelompok kurikulum (misal: "Muatan Umum", "Peminatan MIPA").
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+#### 6. Tabel `jadwal_pelajaran`
+Plotting alokasi jadwal kegiatan belajar mengajar harian kelas dan guru.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `kelas_id` : `UUID` - **Foreign Key** ke `kelas(id)` ON DELETE CASCADE, **Not Null**.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE CASCADE, **Not Null**.
+- `mapel_id` : `UUID` - **Foreign Key** ke `mata_pelajaran(id)` ON DELETE RESTRICT, **Not Null**.
+- `hari` : `VARCHAR(10)` - **Not Null**, `CHECK (hari IN ('Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'))`.
+- `jam_mulai` : `TIME` - **Not Null**. Waktu mulai KBM (contoh: '07:00:00').
+- `jam_selesai` : `TIME` - **Not Null**. Waktu selesai KBM (contoh: '08:30:00').
+- `ruang` : `VARCHAR(30)` - **Default: 'Kelas Reguler'**. Ruang kelas / laboratorium.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `CONSTRAINT chk_jam_jadwal` : `CHECK (jam_mulai < jam_selesai)`.
 
 #### 7. Tabel `materi`
-Rekaman berkas materi pembelajaran yang diunggah guru.
-- `id_materi` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
-- `id_mapel` : `UUID` - **Foreign Key** ke `mata_pelajaran(id_mapel)` ON DELETE RESTRICT.
-- `judul_materi` : `VARCHAR(200)` - **Not Null**.
-- `deskripsi` : `TEXT` - Ringkasan atau catatan instruksional materi.
-- `format_file` : `VARCHAR(20)` - Ekstensi berkas: PDF, DOCX, PPTX, MP4, atau LINK.
-- `file_url` : `TEXT` - **Not Null**. URL publik/terproteksi pada **Supabase Storage** (bucket: `materi-pelajaran`).
-- `tanggal_unggah` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+Distribusi bahan ajar digital guru (dokumen/video/tautan).
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE CASCADE, **Not Null**.
+- `mapel_id` : `UUID` - **Foreign Key** ke `mata_pelajaran(id)` ON DELETE RESTRICT, **Not Null**.
+- `kelas_id` : `UUID` - **Foreign Key** ke `kelas(id)` ON DELETE CASCADE, **Not Null**.
+- `judul` : `VARCHAR(200)` - **Not Null**. Judul bab / modul ajar.
+- `deskripsi` : `TEXT` - Ringkasan materi atau catatan instruksional.
+- `file_url` : `TEXT` - **Not Null**. URL berkas pada bucket Supabase Storage (`materi-pelajaran`) atau URL luar.
+- `tipe_file` : `VARCHAR(20)` - **Default: 'PDF'**. Format materi (PDF, DOCX, MP4, LINK, dsb).
+- `ukuran_mb` : `NUMERIC(5,2)` - **Default: 0.00**. Ukuran berkas dalam Megabyte.
+- `jumlah_melihat` : `INT` - **Default: 0**. Akumulasi jumlah siswa unik yang telah membuka/mengunduh materi.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 8. Tabel `tugas_kuis`
-Data penugasan dan kuis dari guru.
-- `id_tugas_kuis` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
-- `id_mapel` : `UUID` - **Foreign Key** ke `mata_pelajaran(id_mapel)` ON DELETE RESTRICT.
-- `judul` : `VARCHAR(200)` - **Not Null**.
-- `instruksi` : `TEXT` - **Not Null**. Arahan pengerjaan tugas.
-- `jenis` : `VARCHAR(20)` - **Default: 'Tugas'**, `CHECK (jenis IN ('Tugas', 'Kuis', 'Proyek'))`.
-- `tenggat_waktu` : `TIMESTAMPTZ` - **Not Null**. Batas akhir pengumpulan jawaban.
-- `format_file` : `VARCHAR(100)` - Ekstensi yang diperbolehkan (misal: "pdf,docx,zip").
-- `rubrik_penilaian` : `TEXT` - Kriteria pemberian skor tugas.
+#### 8. Tabel `materi_unduhan_siswa`
+Pencatatan riwayat siswa unik yang mengakses/mengunduh materi ajar untuk metrik akurat tanpa duplikasi.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `materi_id` : `UUID` - **Foreign Key** ke `materi(id)` ON DELETE CASCADE, **Not Null**.
+- `siswa_id` : `UUID` - **Foreign Key** ke `siswa(id)` ON DELETE CASCADE, **Not Null**.
+- `downloaded_at` : `TIMESTAMPTZ` - **Default: now()**, **Not Null**. Stempel waktu akses unduhan.
+- `CONSTRAINT uq_materi_siswa_unduhan` : `UNIQUE (materi_id, siswa_id)`.
 
-#### 9. Tabel `pengumpulan_tugas`
-Rekaman jawaban siswa terhadap tugas tertentu.
-- `id_pengumpulan` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_tugas_kuis` : `UUID` - **Foreign Key** ke `tugas_kuis(id_tugas_kuis)` ON DELETE CASCADE.
-- `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
-- `file_tugas` : `TEXT` - URL berkas jawaban pada **Supabase Storage** (bucket: `pengumpulan-tugas`).
-- `tanggal_kumpul` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
-- `status_kumpul` : `VARCHAR(20)` - **Not Null**, `CHECK (status_kumpul IN ('Tepat Waktu', 'Terlambat'))`.
-- `nilai` : `NUMERIC(5,2)` - **Nullable**. Skor akhir (0.00 – 100.00).
-- `feedback` : `TEXT` - Umpan balik koreksi dari guru.
+#### 9. Tabel `tugas`
+Penerbitan tugas terstruktur dan penugasan kelas ala Google Classroom.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE CASCADE, **Not Null**.
+- `mapel_id` : `UUID` - **Foreign Key** ke `mata_pelajaran(id)` ON DELETE RESTRICT, **Not Null**.
+- `kelas_id` : `UUID` - **Foreign Key** ke `kelas(id)` ON DELETE CASCADE, **Not Null**.
+- `judul` : `VARCHAR(200)` - **Not Null**. Judul tugas / praktikum.
+- `deskripsi` : `TEXT` - Petunjuk teknis pengerjaan tugas.
+- `deadline` : `TIMESTAMPTZ` - **Not Null**. Batas akhir pengumpulan jawaban.
+- `format_file` : `VARCHAR(100)` - **Default: 'pdf, docx'**. Batasan ekstensi berkas yang diizinkan.
+- `file_lampiran` : `TEXT` - **Default: ''**. Representasi string JSON berstruktur memuat lampiran referensi guru (Google Drive, YouTube, File Lokal, Link Tautan).
+- `topik` : `VARCHAR(100)` - **Default: ''**. Kategori topik pengelompokan materi tugas (misal: "Tugas Terstruktur", "Praktikum").
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 10. Tabel `absensi`
-Pencatatan rekam kehadiran siswa pada mata pelajaran.
-- `id_absensi` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
-- `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
-- `id_mapel` : `UUID` - **Foreign Key** ke `mata_pelajaran(id_mapel)` ON DELETE RESTRICT.
-- `tanggal` : `DATE` - **Not Null**.
-- `waktu` : `TIME` - **Not Null**.
-- `status_kehadiran` : `VARCHAR(20)` - **Not Null**, `CHECK (status_kehadiran IN ('Hadir', 'Sakit', 'Izin', 'Alfa'))`.
-- `keterangan` : `VARCHAR(255)` - Catatan tambahan / bukti surat.
+#### 10. Tabel `topik_tugas`
+Kategori unit pembelajaran / topik tugas dinamis per kelas dan mata pelajaran.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `kelas_id` : `UUID` - **Foreign Key** ke `kelas(id)` ON DELETE CASCADE, **Not Null**.
+- `mapel_id` : `UUID` - **Foreign Key** ke `mata_pelajaran(id)` ON DELETE CASCADE, **Not Null**.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL. Guru pembuat topik.
+- `nama_topik` : `VARCHAR(100)` - **Not Null**. Nama topik (misal: "Algoritma Pemrograman", "Basis Data Relasional").
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `CONSTRAINT uq_topik_kelas_mapel_nama` : `UNIQUE (kelas_id, mapel_id, LOWER(nama_topik))`.
 
-#### 11. Tabel `nilai`
-Rekapitulasi skor evaluasi hasil belajar siswa.
-- `id_nilai` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
-- `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
-- `id_mapel` : `UUID` - **Foreign Key** ke `mata_pelajaran(id_mapel)` ON DELETE RESTRICT.
+#### 11. Tabel `komentar_tugas`
+Forum diskusi kelas dan tanya-jawab interaktif pada setiap penugasan.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `tugas_id` : `UUID` - **Foreign Key** ke `tugas(id)` ON DELETE CASCADE, **Not Null**.
+- `user_id` : `UUID` - **Foreign Key** ke `users(id)` ON DELETE CASCADE, **Not Null**. Penulis komentar (guru atau siswa).
+- `pesan` : `TEXT` - **Not Null**. Isi pesan komentar.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+
+#### 12. Tabel `pengumpulan_tugas`
+Penyimpanan hasil pengerjaan, berkas jawaban siswa, dan catatan evaluasi guru.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `tugas_id` : `UUID` - **Foreign Key** ke `tugas(id)` ON DELETE CASCADE, **Not Null**.
+- `siswa_id` : `UUID` - **Foreign Key** ke `siswa(id)` ON DELETE CASCADE, **Not Null**.
+- `file_url` : `TEXT` - **Not Null**. URL berkas jawaban pada Supabase Storage bucket `pengumpulan-tugas`.
+- `catatan` : `TEXT` - Catatan pengantar atau komentar siswa saat mengumpulkan tugas.
+- `nilai` : `NUMERIC(5,2)` - Skor angka hasil penilaian guru (0.00 – 100.00).
+- `feedback_guru` : `TEXT` - Ulasan evaluasi dan catatan pembinaan dari guru.
+- `status` : `VARCHAR(20)` - **Default: 'dikumpulkan'**, `CHECK (status IN ('dikumpulkan', 'dinilai', 'terlambat'))`.
+- `submitted_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**. Waktu penyerahan tugas.
+- `graded_at` : `TIMESTAMPTZ` - Waktu guru menyelesaikan penilaian.
+- `CONSTRAINT uq_siswa_tugas` : `UNIQUE (tugas_id, siswa_id)`.
+
+#### 13. Tabel `absensi`
+Pencatatan rekam presensi harian siswa per sesi kelas.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `siswa_id` : `UUID` - **Foreign Key** ke `siswa(id)` ON DELETE CASCADE, **Not Null**.
+- `kelas_id` : `UUID` - **Foreign Key** ke `kelas(id)` ON DELETE CASCADE, **Not Null**.
+- `tanggal` : `DATE` - **Not Null**. Tanggal pencatatan presensi.
+- `waktu_masuk` : `TIME` - Jam pencatatan kehadiran mandiri (contoh: '07:15:00').
+- `status` : `VARCHAR(20)` - **Not Null**, `CHECK (status IN ('hadir', 'sakit', 'izin', 'alpa', 'terlambat'))`.
+- `catatan` : `VARCHAR(255)` - Keterangan surat izin/dokter atau alasan keterlambatan.
+- `is_verified` : `BOOLEAN` - **Default: false**. Status validasi verifikasi oleh guru pengampu.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `CONSTRAINT uq_absensi_siswa_hari` : `UNIQUE (siswa_id, tanggal)`.
+
+#### 14. Tabel `nilai`
+Rekapitulasi skor evaluasi formatif dan sumatif siswa per mata pelajaran.
+- `id` : `UUID` - **Primary Key**, default: `uuid_generate_v4()`.
+- `siswa_id` : `UUID` - **Foreign Key** ke `siswa(id)` ON DELETE CASCADE, **Not Null**.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE CASCADE, **Not Null**.
+- `mapel_id` : `UUID` - **Foreign Key** ke `mata_pelajaran(id)` ON DELETE RESTRICT, **Not Null**.
 - `jenis_penilaian` : `VARCHAR(20)` - **Not Null**, `CHECK (jenis_penilaian IN ('Tugas', 'UlanganHarian', 'UTS', 'UAS'))`.
-- `skor_angka` : `NUMERIC(5,2)` - **Not Null** (0.00 – 100.00).
-- `skor_huruf` : `CHAR(2)` - Nilai konversi (A, B, C, D).
-- `feedback` : `TEXT` - Catatan guru atas performa siswa.
+- `skor_angka` : `NUMERIC(5,2)` - **Not Null**, `CHECK (skor_angka >= 0 AND skor_angka <= 100)`.
+- `skor_huruf` : `CHAR(2)` - Konversi huruf predikat (A, B, C, D).
+- `feedback` : `TEXT` - Catatan umpan balik konstruktif guru.
+- `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
+- `deleted_at` : `TIMESTAMPTZ` - **Nullable** (*GORM soft delete timestamp*).
 
-#### 12. Tabel `laporan_akademik`
-Draf dan pengesahan buku leger/rapor akhir semester.
+#### 15. Tabel `laporan_akademik`
+Kompilasi leger nilai akhir semester dan pencetakan buku rapor resmi.
 - `id_laporan` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id_siswa)` ON DELETE RESTRICT.
+- `id_siswa` : `UUID` - **Foreign Key** ke `siswa(id)` ON DELETE CASCADE, **Not Null**.
 - `semester` : `VARCHAR(10)` - **Not Null**, `CHECK (semester IN ('Ganjil', 'Genap'))`.
-- `tahun_ajaran` : `VARCHAR(20)` - **Not Null**.
-- `nilai_pengetahuan` : `NUMERIC(5,2)` - Nilai rata-rata kognitif.
-- `nilai_keterampilan` : `NUMERIC(5,2)` - Nilai rata-rata psikomotorik.
-- `rata_rata_akhir` : `NUMERIC(5,2)` - Rata-rata komprehensif.
-- `deskripsi_nilai` : `TEXT` - Deskripsi capaian kompetensi otomatis dari rubrik.
-- `catatan_wali` : `TEXT` - Ulasan pembinaan karakter dari wali kelas.
+- `tahun_ajaran` : `VARCHAR(20)` - **Not Null**. Siklus tahun ajaran aktif (misal: '2026/2027').
+- `nilai_pengetahuan` : `NUMERIC(5,2)` - Rata-rata kompetensi pengetahuan (kognitif).
+- `nilai_keterampilan` : `NUMERIC(5,2)` - Rata-rata kompetensi keterampilan (psikomotorik).
+- `rata_rata_akhir` : `NUMERIC(5,2)` - Rata-rata gabungan terbobot nilai akhir semester.
+- `predikat_akhir` : `VARCHAR(5)` - Predikat akhir rapor (A, B, C, D).
+- `deskripsi_nilai` : `TEXT` - Uraian capaian kompetensi akademik siswa.
+- `catatan_wali` : `TEXT` - Catatan bimbingan kepribadian dan akhlak dari wali kelas.
+- `catatan_revisi` : `TEXT` - Catatan instruksi perbaikan dari Waka Kurikulum saat peninjauan leger.
 - `status_laporan` : `VARCHAR(25)` - **Default: 'Draf'**, `CHECK (status_laporan IN ('Draf', 'DitinjauWali', 'DisahkanKurikulum'))`.
-
-#### 13. Tabel `notifikasi`
-Daftar antrean dan riwayat pemberitahuan in-app bagi pengguna sistem (khususnya siswa dan guru).
-- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `user_id` : `UUID` - **Foreign Key** ke `users(id)` ON DELETE CASCADE.
-- `judul` : `VARCHAR(200)` - **Not Null**, judul ringkas notifikasi (contoh: *"Materi Baru: Algoritma Pemrograman"* atau *"Tugas Baru: Latihan Basis Data"*).
-- `pesan` : `TEXT` - **Not Null**, pesan deskriptif lengkap yang memuat nama guru pengampu bergelar, nama mata pelajaran, dan informasi tenggat waktu (untuk penugasan).
-- `tipe` : `VARCHAR(50)` - **Not Null**, **Default: 'materi'**, jenis notifikasi (`'materi'`, `'tugas'`, `'pengumuman'`, `'nilai'`).
-- `tautan` : `VARCHAR(255)` - **Default: '/siswa/materi'**, URL navigasi langsung (*deeplink*) ketika notifikasi diklik (misal: `/siswa/materi?search=...` atau `/siswa/tugas`).
-- `is_read` : `BOOLEAN` - **Not Null**, **Default: false**, status keterbacaan pesan oleh penerima.
-- `created_at` : `TIMESTAMPTZ` - **Not Null**, **Default: CURRENT_TIMESTAMP**, stempel waktu penerbitan notifikasi.
-- **Indeks Basis Data Relasional**:
-  - `idx_notifikasi_user_id` : Indeks tunggal pada `(user_id)` untuk pencarian cepat notifikasi per user.
-  - `idx_notifikasi_user_read_created` : Indeks komposit pada `(user_id, is_read, created_at DESC)` guna mengoptimalkan query aggregasi penghitungan *unread count* dan pengurutan kronologis riwayat notifikasi.
-
-#### 14. Tabel `jadwal_pelajaran`
-Pemetaan jadwal kegiatan belajar mengajar per kelas, guru, dan mata pelajaran (pengunci sesi absensi otomatis).
-- `id_jadwal` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `id_guru` : `UUID` - **Foreign Key** ke `guru(id_guru)` ON DELETE RESTRICT.
-- `id_mapel` : `UUID` - **Foreign Key** ke `mata_pelajaran(id_mapel)` ON DELETE RESTRICT.
-- `id_kelas` : `UUID` - **Foreign Key** ke `kelas(id_kelas)` ON DELETE RESTRICT.
-- `hari` : `VARCHAR(10)` - **Not Null**, `CHECK (hari IN ('Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'))`.
-- `jam_mulai` : `TIME` - **Not Null**. Jam dimulainya sesi (misal: 07:00:00).
-- `jam_selesai` : `TIME` - **Not Null**. Jam berakhirnya sesi (misal: 08:30:00).
-- `ruangan` : `VARCHAR(30)` - Nama ruang kelas / laboratorium.
+- `disahkan_pada` : `TIMESTAMPTZ` - Stempel waktu pengesahan resmi oleh Kurikulum.
+- `disahkan_oleh` : `VARCHAR(100)` - Nama pejabat kurikulum yang mengesahkan buku rapor.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
-- `deleted_at` : `TIMESTAMPTZ` - **Nullable** (*GORM Soft Delete index*).
+- `deleted_at` : `TIMESTAMPTZ` - **Nullable** (*GORM soft delete timestamp*).
 
-#### 15. Tabel `profil_sekolah`
-Menyimpan data pokok identitas resmi lembaga sekolah (SMAN 2 Padalarang).
+#### 16. Tabel `notifikasi`
+Antrean notifikasi in-app untuk distribusi pemberitahuan materi baru, tugas baru, dan pengumuman.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `nama_sekolah` : `VARCHAR(150)` - **Not Null**. Nama resmi instansi sekolah.
-- `npsn` : `VARCHAR(20)` - **Unique**, **Not Null**. Nomor Pokok Sekolah Nasional.
-- `akreditasi` : `VARCHAR(5)` - **Not Null**, default: `'A'`.
-- `alamat` : `TEXT` - **Not Null**. Alamat geografis resmi sekolah.
-- `telepon` : `VARCHAR(30)` - Nomor kontak operasional sekolah.
-- `email` : `VARCHAR(100)` - Alamat surat elektronik resmi sekolah.
-- `website` : `VARCHAR(100)` - Alamat portal website resmi sekolah.
+- `user_id` : `UUID` - **Foreign Key** ke `users(id)` ON DELETE CASCADE, **Not Null**.
+- `judul` : `VARCHAR(200)` - **Not Null**. Judul ringkas notifikasi.
+- `pesan` : `TEXT` - **Not Null**. Rincian pesan lengkap mencantumkan nama guru bergelar dan deadline.
+- `tipe` : `VARCHAR(50)` - **Default: 'materi'**, **Not Null**. Kategori notifikasi ('materi', 'tugas', 'pengumuman', 'nilai').
+- `tautan` : `VARCHAR(255)` - **Default: '/siswa/materi'**. URL tujuan navigasi cepat (*deeplink*).
+- `is_read` : `BOOLEAN` - **Default: false**, **Not Null**. Penanda keterbacaan pesan oleh user.
+- `created_at` : `TIMESTAMPTZ` - **Default: now()**, **Not Null**.
+
+#### 17. Tabel `profil_sekolah`
+Identitas pokok resmi kelembagaan satuan pendidikan SMAN 2 Padalarang.
+- `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
+- `nama_sekolah` : `VARCHAR(150)` - **Default: 'SMA Negeri 2 Padalarang'**, **Not Null**.
+- `npsn` : `VARCHAR(20)` - **Default: '20227927'**, **Unique**, **Not Null**. Nomor Pokok Sekolah Nasional.
+- `akreditasi` : `VARCHAR(5)` - **Default: 'A'**, **Not Null**.
+- `alamat` : `TEXT` - **Default: 'Jalan Raya Padalarang No. 45, Kertajaya, Padalarang, Kabupaten Bandung Barat, Jawa Barat 40553'**, **Not Null**.
+- `telepon` : `VARCHAR(30)` - **Default: '(022) 6806123'**.
+- `email` : `VARCHAR(100)` - **Default: 'info@sman2padalarang.sch.id'**.
+- `website` : `VARCHAR(100)` - **Default: 'https://sman2padalarang.sch.id'**.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 16. Tabel `tahun_ajaran`
-Mengatur kalender siklus akademik aktif, riwayat semester lampau, serta tenggat penguncian nilai raport.
+#### 18. Tabel `tahun_ajaran`
+Kalender akademik aktif, histori semester, dan batas penguncian nilai rapor.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `tahun` : `VARCHAR(20)` - **Not Null**. Format tahun ajaran kurikulum (misal: '2026/2027').
+- `tahun` : `VARCHAR(20)` - **Not Null**. Format tahun ajaran (misal: '2026/2027').
 - `semester` : `VARCHAR(10)` - **Not Null**, `CHECK (semester IN ('Ganjil', 'Genap'))`.
-- `is_aktif` : `BOOLEAN` - **Default: false**. Penanda periode akademik aktif yang sedang berjalan.
-- `tenggat_kunci_raport` : `DATE` - Batas akhir finalisasi nilai oleh Waka Kurikulum.
+- `is_aktif` : `BOOLEAN` - **Default: false**, **Not Null**. Penanda siklus akademik yang sedang berjalan.
+- `tenggat_kunci_raport` : `DATE` - Batas waktu penguncian penginputan nilai rapor oleh guru.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
-- `CONSTRAINT uq_tahun_semester` : `UNIQUE(tahun, semester)`.
+- `CONSTRAINT uq_tahun_semester` : `UNIQUE (tahun, semester)`.
 
-#### 17. Tabel `pejabat_sekolah`
-Mencatat pimpinan lembaga, struktur jabatan struktural (Kepala Sekolah, Waka Kurikulum), dan masa periode jabatan untuk legalitas penandatanganan raport dan ijazah.
+#### 19. Tabel `pejabat_sekolah`
+Mencatat pimpinan lembaga struktural (Kepala Sekolah & Waka Kurikulum) untuk penandatanganan sah dokumen rapor.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `jabatan` : `VARCHAR(50)` - **Not Null** (misal: 'Kepala Sekolah', 'Waka Kurikulum').
-- `nama_pejabat` : `VARCHAR(150)` - **Not Null**. Nama lengkap pejabat beserta gelar akademik.
+- `jabatan` : `VARCHAR(50)` - **Not Null**. Nama posisi jabatan (misal: 'Kepala Sekolah', 'Waka Kurikulum').
+- `nama_pejabat` : `VARCHAR(150)` - **Not Null**. Nama pejabat lengkap beserta gelar kehormatan dan akademik.
 - `nip` : `VARCHAR(30)` - Nomor Induk Pegawai resmi.
-- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL (*opsional*).
-- `periode_mulai` : `DATE` - **Not Null**. Tanggal awal masa bakti jabatan.
-- `periode_selesai` : `DATE` - **Nullable**. Tanggal akhir jabatan (*null jika masih aktif menjabat*).
-- `is_aktif` : `BOOLEAN` - **Default: true**. Status pejabat yang sedang menjabat aktif saat ini.
+- `guru_id` : `UUID` - **Foreign Key** ke `guru(id)` ON DELETE SET NULL.
+- `periode_mulai` : `DATE` - **Default: CURRENT_DATE**, **Not Null**. Tanggal mulai masa bakti.
+- `periode_selesai` : `DATE` - Tanggal selesai masa jabatan (*null jika masih menjabat aktif*).
+- `is_aktif` : `BOOLEAN` - **Default: true**, **Not Null**. Status aktif jabatan saat ini.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 18. Tabel `konfigurasi_kbm`
+#### 20. Tabel `konfigurasi_kbm`
 Parameter operasional kegiatan belajar mengajar harian, jam masuk, jam pulang, dan durasi jam pelajaran (JP).
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `durasi_kbm_menit` : `INT` - **Not Null**, default: `45`. Durasi menit per 1 Jam Pelajaran (JP).
-- `jam_masuk` : `TIME` - **Not Null**, default: `'07:00:00'`. Jam masuk operasional gerbang & absensi pagi.
-- `jam_pulang` : `TIME` - **Not Null**, default: `'15:30:00'`. Jam kepulangan KBM sekolah.
-- `is_aktif` : `BOOLEAN` - **Default: true**.
+- `durasi_kbm_menit` : `INT` - **Default: 45**, **Not Null**. Durasi standar 1 Jam Pelajaran (JP).
+- `jam_masuk` : `TIME` - **Default: '07:00:00'**, **Not Null**. Jam masuk KBM sekolah.
+- `jam_pulang` : `TIME` - **Default: '15:30:00'**, **Not Null**. Jam kepulangan KBM sekolah.
+- `is_aktif` : `BOOLEAN` - **Default: true**, **Not Null**.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 19. Tabel `log_sinkron_dapodik`
+#### 21. Tabel `log_sinkron_dapodik`
 Catatan rekam jejak (*audit trail*) pertukaran data dan verifikasi sinkronisasi dengan server Dapodik Kemdikbudristek.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `status` : `VARCHAR(50)` - **Not Null**. Status sinkronisasi (misal: 'Terhubung', 'Sinkron Berhasil', 'Gagal').
-- `keterangan` : `TEXT` - Catatan ringkasan atau rincian transaksi integrasi Dapodik.
-- `terakhir_sinkron` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**. Stempel waktu audit sinkronisasi.
+- `status` : `VARCHAR(50)` - **Default: 'Terhubung'**, **Not Null**. Status transaksi sinkronisasi.
+- `keterangan` : `TEXT` - Catatan ringkasan respons atau log transaksi Dapodik.
+- `terakhir_sinkron` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**. Stempel waktu audit.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 
-#### 20. Tabel `konfigurasi_penilaian`
-Menyimpan parameter standar penilaian akademik satuan pendidikan yang dikelola oleh Kurikulum untuk mengeliminasi nilai statis (*zero hardcode*).
+#### 22. Tabel `konfigurasi_penilaian`
+Konfigurasi terpusat KKM satuan pendidikan, persentase bobot asesmen, dan ambang batas konversi predikat (A, B, C, D) yang dikelola fleksibel oleh Kurikulum tanpa *hardcode*.
 - `id` : `UUID` - **Primary Key**, default: `gen_random_uuid()`.
-- `kkm_default` : `NUMERIC(5,2)` - **Not Null**, default: `75.00`, `CHECK (kkm_default >= 0 AND kkm_default <= 100)`. Batas KKM minimal kelulusan kompetensi.
-- `bobot_tugas` : `NUMERIC(5,2)` - **Not Null**, default: `30.00`. Bobot persentase tugas/portofolio.
-- `bobot_uh` : `NUMERIC(5,2)` - **Not Null**, default: `20.00`. Bobot persentase ulangan harian.
-- `bobot_uts` : `NUMERIC(5,2)` - **Not Null**, default: `25.00`. Bobot persentase ujian tengah semester.
-- `bobot_uas` : `NUMERIC(5,2)` - **Not Null**, default: `25.00`. Bobot persentase ujian akhir semester.
-- `batas_predikat_a` : `NUMERIC(5,2)` - **Not Null**, default: `85.00`. Skor minimal untuk predikat A (Sangat Baik).
-- `batas_predikat_b` : `NUMERIC(5,2)` - **Not Null**, default: `75.00`. Skor minimal untuk predikat B (Baik).
-- `batas_predikat_c` : `NUMERIC(5,2)` - **Not Null**, default: `65.00`. Skor minimal untuk predikat C (Cukup). Nilai di bawah ini otomatis predikat D.
-- `is_aktif` : `BOOLEAN` - **Default: true**. Status konfigurasi yang sedang digunakan sistem.
+- `kkm_default` : `NUMERIC(5,2)` - **Default: 75.00**, **Not Null**, `CHECK (kkm_default >= 0 AND kkm_default <= 100)`. Batas KKM minimal kelulusan kompetensi.
+- `bobot_tugas` : `NUMERIC(5,2)` - **Default: 30.00**, **Not Null**. Bobot persentase tugas/portofolio.
+- `bobot_uh` : `NUMERIC(5,2)` - **Default: 20.00**, **Not Null**. Bobot persentase ulangan harian.
+- `bobot_uts` : `NUMERIC(5,2)` - **Default: 25.00**, **Not Null**. Bobot persentase ujian tengah semester.
+- `bobot_uas` : `NUMERIC(5,2)` - **Default: 25.00**, **Not Null**. Bobot persentase ujian akhir semester.
+- `batas_predikat_a` : `NUMERIC(5,2)` - **Default: 85.00**, **Not Null**. Skor minimal predikat A (Sangat Baik).
+- `batas_predikat_b` : `NUMERIC(5,2)` - **Default: 75.00**, **Not Null**. Skor minimal predikat B (Baik).
+- `batas_predikat_c` : `NUMERIC(5,2)` - **Default: 65.00**, **Not Null**. Skor minimal predikat C (Cukup). Nilai di bawah ini otomatis predikat D.
+- `is_aktif` : `BOOLEAN` - **Default: true**, **Not Null**. Status konfigurasi yang sedang aktif.
 - `created_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
 - `updated_at` : `TIMESTAMPTZ` - **Default: CURRENT_TIMESTAMP**.
-- `CONSTRAINT chk_total_bobot_100` : `CHECK ((bobot_tugas + bobot_uh + bobot_uts + bobot_uas) = 100.00)`.
-- `CONSTRAINT chk_urutan_predikat` : `CHECK (batas_predikat_a > batas_predikat_b AND batas_predikat_b > batas_predikat_c)`.
+- `CONSTRAINT chk_bobot_total` : `CHECK (ROUND(bobot_tugas + bobot_uh + bobot_uts + bobot_uas, 2) = 100.00)`.
+- `CONSTRAINT chk_batas_predikat` : `CHECK (batas_predikat_a > batas_predikat_b AND batas_predikat_b > batas_predikat_c)`.
 
-> **Catatan Arsitektur:** Relasi penugasan wali kelas dimodelkan secara langsung pada tabel `kelas` (`wali_guru_id`) dengan *unique constraint* `uq_kelas_wali_guru`, menjamin 1 guru hanya membina 1 rombel tanpa memerlukan tabel perantara redundan `wali_kelas`. Tabel monolitik `pengaturan_sekolah` juga telah sepenuhnya dinormalisasi ke 6 tabel terdedikasi (Tabel 15 s.d. 20).
+> [!NOTE]
+> **Tabel Opsional `kuis`**: Basis data juga memuat tabel `kuis` (`id UUID PK`, `guru_id`, `mapel_id`, `kelas_id`, `judul`, `durasi_menit`, `jumlah_soal`, `deadline`, `koreksi_otomatis`, `acak_soal`, `created_at`) yang disediakan untuk pengembangan modul mesin kuis daring mandiri (*future enhancement*).
 
-### 5.3 Kebijakan Audit Trail & Soft Deletion (`deleted_at`)
-Seluruh tabel transaksional dan master (`users`, `siswa`, `guru`, `materi`, `tugas_kuis`, `absensi`, `nilai`, `laporan_akademik`, `jadwal_pelajaran`) dilengkapi dengan kolom `deleted_at TIMESTAMPTZ NULL`. GORM secara otomatis menyaring data aktif melalui klausa `WHERE deleted_at IS NULL`, menjamin kepatuhan audit sehingga histori nilai dan presensi tetap terjaga secara konsisten.
+### 5.3 Kebijakan Audit Trail & Manajemen Data Aktif
+1. **Soft Deletion (`deleted_at`)**: Tabel evaluasi dan pelaporan bernilai historis kritis (`nilai` dan `laporan_akademik`) dilengkapi dengan kolom `deleted_at TIMESTAMPTZ NULL`. GORM secara otomatis menyaring data aktif melalui klausa `WHERE deleted_at IS NULL` sehingga rekam jejak akademik tetap dapat diaudit.
+2. **Status Keaktifan Boolean (`is_active` / `is_aktif`)**: Tabel master dan konfigurasi (`users`, `tahun_ajaran`, `pejabat_sekolah`, `konfigurasi_kbm`, `konfigurasi_penilaian`) menggunakan flag boolean aktif guna menjaga konsistensi referensial tanpa menghapus rekaman fisik dari basis data.
+3. **Integritas Foreign Key**: Penghapusan entitas master dilindungi melalui relasi `ON DELETE RESTRICT` pada tabel mata pelajaran dan `ON DELETE CASCADE` pada detail terkait (misalnya profil siswa/guru saat akun user terkait dihapus).
 
 ---
 
@@ -892,7 +1003,7 @@ Sesuai arahan dan kesepakatan perancangan, sistem LMS SMAN 2 Padalarang mengadop
 1. **Backend Service (REST API)**:
    - **Bahasa Pemrograman**: **Go (Golang)** versi 1.22+.
    - **Web Framework**: **Go Fiber** (v2) – Framework web berkinerja tinggi berbasis engine `fasthttp` dengan alokasi memori minimal (*zero memory allocation*), ideal untuk menangani ribuan *request* presensi simultan.
-   - **Object-Relational Mapping (ORM)**: **GORM** – Memetakan 19 model tabel relasional secara *type-safe* dengan fitur *AutoMigrate* dan dukungan transaksi basis data terintegrasi.
+   - **Object-Relational Mapping (ORM)**: **GORM** – Memetakan 22 model tabel relasional secara *type-safe* dengan fitur *AutoMigrate* dan dukungan transaksi basis data terintegrasi.
    - **Autentikasi & Keamanan Dual-Token**:
      - **Access Token**: JWT berumur pendek (15 menit), ditransmisikan via header `Authorization: Bearer <token>`, memuat payload `user_id`, `email`, dan `role`.
      - **Refresh Token**: JWT berumur panjang (7 hari), disimpan secara aman di dalam *HTTP-only Secure SameSite=Lax Cookie* untuk rotasi perpanjangan sesi otomatis via endpoint `/api/v1/auth/refresh`.
@@ -926,27 +1037,33 @@ Repositori ditata dalam bentuk monorepo modular yang memisahkan aplikasi backend
 LMS-SMAN2-PADALARANG/
 ├── backend/                             # RESTful API Service (Go Fiber)
 │   ├── cmd/
-│   │   └── api/
-│   │       └── main.go                  # Entry point inisialisasi server & router
+│   │   ├── api/
+│   │   │   └── main.go                  # Entry point inisialisasi server & router
+│   │   └── migrate/
+│   │       └── main.go                  # Runner migrasi skema database
+│   ├── config/                          # Konfigurasi aplikasi & database
 │   ├── internal/
-│   │   ├── config/                      # Konfigurasi environment & koneksi database
-│   │   ├── handler/                     # HTTP Handler / Controller per modul
-│   │   │   ├── auth_handler.go
-│   │   │   ├── user_handler.go
+│   │   ├── app/                         # Integration test suites
+│   │   ├── handler/                     # HTTP Handlers per modul fungsional
+│   │   │   ├── auth.go
+│   │   │   ├── master.go
 │   │   │   ├── materi_handler.go
-│   │   │   ├── tugas_handler.go
-│   │   │   ├── absensi_handler.go
-│   │   │   ├── nilai_handler.go
-│   │   │   ├── laporan_handler.go
+│   │   │   ├── guru_handler.go          # Modul Guru: Materi, Tugas, Rubrik, Nilai
+│   │   │   ├── siswa_tugas_handler.go   # Modul Siswa: Submissions, Komentar, Accordion, Tab Orang
+│   │   │   ├── absensi.go
+│   │   │   ├── laporan.go
+│   │   │   ├── pengaturan.go            # Konfigurasi Sekolah, Penilaian, KBM
 │   │   │   └── notifikasi_handler.go    # Endpoint notifikasi (list, read, read-all)
 │   │   ├── middleware/                  # Middleware JWT, Role Guard (RBAC), CORS, Logger
-│   │   ├── model/                       # Go Structs memetakan 14 tabel database
-│   │   ├── repository/                  # Lapisan akses database (GORM queries)
+│   │   ├── model/                       # Go Structs memetakan 22 tabel database
+│   │   │   ├── entity.go
+│   │   │   └── response.go
 │   │   └── service/                     # Domain service terpusat (notifikasi_service.go, dsb.)
-│   ├── migrations/                      # Skrip migrasi SQL (000013_create_notifikasi.up.sql, dsb.)
+│   ├── migrations/                      # 17 Skrip migrasi SQL (000001 s.d. 000017)
 │   ├── pkg/
 │   │   ├── response/                    # Helper format JSON response terstandar
 │   │   └── utils/                       # Hashing Bcrypt, token JWT, validasi waktu
+│   ├── seeds/                           # Skrip data awal demonstrasi (laporan, nilai, dsb.)
 │   ├── go.mod
 │   └── go.sum
 │
@@ -955,10 +1072,10 @@ LMS-SMAN2-PADALARANG/
 │   │   ├── app/                         # App Router (Next.js)
 │   │   │   ├── (auth)/login/            # Halaman Login Multi-Role (UI-02)
 │   │   │   ├── (dashboard)/
-│   │   │   │   ├── kurikulum/           # Dashboard & Kelola Data Master (UI-03)
+│   │   │   │   ├── admin/               # Dashboard Kurikulum: Jadwal, Master, Pengaturan (UI-03)
 │   │   │   │   ├── guru/                # Dashboard Guru: Materi, Tugas, Absen (UI-04)
-│   │   │   │   ├── siswa/               # Dashboard Siswa: Tugas, Absen, Nilai (UI-05)
-│   │   │   │   └── walikelas/           # Dashboard Wali Kelas: Leger & Rekap (UI-06)
+│   │   │   │   ├── siswa/               # Dashboard Siswa: Tugas (Accordion & Tab Orang), Absen, Nilai (UI-05)
+│   │   │   │   └── wali-kelas/          # Dashboard Wali Kelas: Leger & Rekap (UI-06)
 │   │   ├── components/                  # Reusable UI (Sidebar, Topbar/Drawer, Modal, Data Table)
 │   │   ├── hooks/                       # Custom hooks (useAuth, useNotifikasi, useMateri)
 │   │   ├── services/                    # Client services (notifikasiService.ts, dsb.)
@@ -985,6 +1102,7 @@ LMS-SMAN2-PADALARANG/
 |                        FRONTEND CLIENT (Next.js on :3000)                         |
 |  - App Router: (auth), /admin, /guru, /siswa, /wali-kelas                         |
 |  - UI Layer: Tailwind CSS + Lucide Icons + Responsive Data Tables                 |
+|  - Fitur Baru: Google Classroom Style (Topik, Lampiran, Komentar, Tab Orang)       |
 |  - API Client: Axios/Fetch + JWT Bearer Token Header                              |
 +-----------------------------------------------------------------------------------+
                                           |
@@ -1009,13 +1127,14 @@ LMS-SMAN2-PADALARANG/
 |                        SUPABASE CLOUD INFRASTRUCTURE                              |
 |  +-----------------------------------------------------------------------------+  |
 |  | MANAGED POSTGRESQL (Supavisor Connection Pooler :6543 / Direct :5432)       |  |
-|  | 19 Tabel Relasional: users, siswa, guru, materi, tugas, absensi, nilai, dll.|  |
+|  | 22 Tabel Relasional Aktif: users, siswa, guru, materi, tugas, absensi, dll. |  |
 |  +-----------------------------------------------------------------------------+  |
 |  | SUPABASE STORAGE (S3-Compatible Cloud Storage)                              |  |
 |  | - Bucket 'materi-pelajaran' (Streaming Video, PDF, Dokumen Ajar)            |  |
 |  | - Bucket 'pengumpulan-tugas' (Berkas Respon Jawaban Siswa)                   |  |
 |  +-----------------------------------------------------------------------------+  |
 +-----------------------------------------------------------------------------------+
+```
 ```
 
 ---
@@ -1109,18 +1228,27 @@ Query parameter standar: `?page=1&limit=20&search=...&sort_by=created_at&sort_or
 | `DELETE`| `/api/v1/materi/:id`| Guru Pengampu | Menghapus materi ajar dari penyimpanan dan database. |
 | `GET` | `/api/v1/materi/:id/download` | Siswa, Guru | Mengunduh berkas materi secara aman untuk pembelajaran luring. |
 
-#### 4. Modul Tugas & Kuis (`/api/v1/tugas`, `/api/v1/submissions`)
+#### 4. Modul Tugas, Topik, & Diskusi Komentar (`/api/v1/guru/tugas`, `/api/v1/siswa/tugas`, `/api/v1/tugas`)
 | Method | Endpoint | Akses Role | Deskripsi Fungsional |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/tugas` | Semua Role | Daftar tugas aktif dan riwayat penugasan. |
-| `GET` | `/api/v1/tugas/:id` | Semua Role | Rincian instruksi tugas, format lampiran, dan batas deadline. |
-| `POST` | `/api/v1/tugas` | Guru | Menerbitkan tugas atau kuis baru lengkap dengan tenggat dan rubrik. |
-| `PUT` | `/api/v1/tugas/:id` | Guru Pembuat | Memperbarui data tugas (Sequence 25). |
-| `DELETE`| `/api/v1/tugas/:id`| Guru Pembuat | Menghapus tugas dari sistem jika belum ada respon (Sequence 27). |
-| `POST` | `/api/v1/tugas/:id/submit` | Siswa | Mengirimkan berkas/teks jawaban tugas sebelum batas waktu berakhir. |
-| `PUT` | `/api/v1/submissions/:id` | Siswa | Mengganti berkas jawaban tugas (hanya jika waktu belum habis). |
-| `GET` | `/api/v1/tugas/:id/submissions` | Guru | Melihat daftar pengumpulan jawaban seluruh siswa satu kelas. |
-| `POST` | `/api/v1/submissions/:id/grade` | Guru | Menginput nilai angka (0-100) dan umpan balik (*feedback*) evaluasi. |
+| `GET` | `/api/v1/guru/tugas` | Guru | Daftar tugas yang dibuat guru dengan filter kelas dan mapel. |
+| `POST` | `/api/v1/guru/tugas` | Guru | Menerbitkan tugas baru (judul, deskripsi, topik, format_file, file_lampiran JSON, deadline). |
+| `POST` | `/api/v1/guru/tugas/upload` | Guru | Mengunggah berkas lampiran materi penugasan guru ke direktori lokal / Supabase Storage. |
+| `GET` | `/api/v1/guru/tugas/:id` | Guru | Rincian lengkap penugasan guru beserta berkas lampiran dan statistik pengumpulan. |
+| `PUT` | `/api/v1/guru/tugas/:id` | Guru Pembuat | Memperbarui instruksi, tenggat waktu, atau topik tugas. |
+| `DELETE`| `/api/v1/guru/tugas/:id`| Guru Pembuat | Menghapus tugas dari sistem. |
+| `GET` | `/api/v1/guru/topik` | Guru | Mengambil daftar topik penugasan per kelas dan mapel. |
+| `POST` | `/api/v1/guru/topik` | Guru | Membuat topik unit pembelajaran baru ala Google Classroom. |
+| `GET` | `/api/v1/guru/tugas/:id/submissions` | Guru | Melihat daftar pengumpulan jawaban seluruh siswa satu rombel kelas. |
+| `POST` | `/api/v1/guru/tugas/:id/grade` | Guru | Menginput nilai angka (0-100) dan umpan balik (*feedback*) evaluasi siswa. |
+| `GET` | `/api/v1/siswa/tugas` | Siswa | Menampilkan daftar tugas terstruktur terkelompok per topik dalam format accordion. |
+| `GET` | `/api/v1/siswa/tugas/:id` | Siswa | Rincian tugas, materi lampiran, dan status pengerjaan siswa. |
+| `POST` | `/api/v1/siswa/tugas/:id/submit` | Siswa | Mengirimkan berkas jawaban tugas sebelum batas waktu berakhir. |
+| `PUT` | `/api/v1/siswa/submissions/:id` | Siswa | Mengganti atau membatalkan pengiriman berkas jawaban tugas (selama belum lewat deadline). |
+| `GET` | `/api/v1/siswa/anggota-kelas` | Siswa | Menampilkan daftar pengajar (beserta gelar akademik) dan seluruh teman sekelas pada rombel aktif (Tab Orang). |
+| `GET` | `/api/v1/tugas/:id/komentar` | Siswa, Guru | Memuat seluruh komentar kelas dan diskusi publik pada tugas tertentu. |
+| `POST` | `/api/v1/tugas/:id/komentar` | Siswa, Guru | Mengirimkan pesan komentar baru pada forum tugas. |
+| `DELETE`| `/api/v1/tugas/:id/komentar/:komentarId` | Pemilik, Guru | Menghapus komentar pesan tugas. |
 
 #### 5. Modul Presensi & Absensi (`/api/v1/absensi`)
 | Method | Endpoint | Akses Role | Deskripsi Fungsional |
@@ -1198,6 +1326,12 @@ Query parameter standar: `?page=1&limit=20&search=...&sort_by=created_at&sort_or
 }
 ```
 
+#### 10. Modul Pengaturan Lembaga & Standar Penilaian (`/api/v1/admin/pengaturan`)
+| Method | Endpoint | Akses Role | Deskripsi Fungsional |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/admin/pengaturan` | Kurikulum | Mengambil seluruh konfigurasi terpadu: profil sekolah, pejabat penandatangan, tahun ajaran aktif, durasi KBM, status Dapodik, serta bobot penilaian dinamis. |
+| `PUT` | `/api/v1/admin/pengaturan` | Kurikulum | Memperbarui parameter profil sekolah, masa bakti pejabat, KKM standar, bobot nilai (harus tepat 100%), serta ambang predikat huruf (A, B, C, D). |
+
 ---
 
 ## 10. Rencana Tahapan Eksekusi & Roadmap Implementasi
@@ -1221,9 +1355,9 @@ flowchart LR
    - Inisialisasi struktur direktori `backend/` dengan Go Module.
    - Setup driver GORM PostgreSQL (`gorm.io/driver/postgres`) dengan string koneksi Supabase (`sslmode=require`).
    - Pembuatan bucket di Supabase Storage (`materi-pelajaran` dan `pengumpulan-tugas`).
-   - Implementasi 15 struct entitas database sesuai Kamus Data Bagian 5 (termasuk tabel `jadwal_pelajaran`) dan eksekusi GORM *AutoMigrate* langsung ke instance Supabase.
+   - Implementasi 22 struct entitas database sesuai Kamus Data Bagian 5 dan eksekusi skrip migrasi SQL terstruktur langsung ke instance Supabase.
    - Konfigurasi middleware dasar: CORS, Logger, dan Recover.
-   - *Definition of Done (DoD)*: Server Go Fiber berjalan di port `:8080`, terkoneksi sukses ke Supabase PostgreSQL, dan 15 tabel terbentuk sempurna dengan seluruh relasi foreign key di Supabase Table Editor.
+   - *Definition of Done (DoD)*: Server Go Fiber berjalan di port `:8080`, terkoneksi sukses ke Supabase PostgreSQL, dan 22 tabel terbentuk sempurna dengan seluruh relasi foreign key di Supabase Table Editor.
 
 2. **Fase 2: Autentikasi Pengguna & Frontend Scaffolding**
    - Pembuatan endpoint login, verifikasi hash Bcrypt, dan pembuatan token JWT di Go Fiber.
